@@ -1,7 +1,5 @@
 use async_trait::async_trait;
 use bytes::Bytes;
-use clap::clap_derive::Parser;
-use pingora::{protocols::ssl, tls::ssl_sys::NID_host, upstreams};
 use serde::{Deserialize, Serialize};
 use std::net::ToSocketAddrs;
 
@@ -11,8 +9,7 @@ use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::Result;
 use pingora_http::ResponseHeader;
 use pingora_proxy::{ProxyHttp, Session};
-use url::Url;
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 
 const HOST: &str = "localhost";
 
@@ -25,42 +22,79 @@ pub struct Json2Yaml {
 	addr: std::net::SocketAddr,
 }
 
-#[derive(Debug)]
-pub enum Redact {
-	Redact(String),
-	Keep(String),
-	Original(String),
-}
-
 pub struct MyCtx {
 	buffer: Vec<u8>,
 }
 
 // keep
-const keepex: &str =  r#"/(nav|test)[0-9]{6}/g"#;
+const KEEP_REGEX: &str = r#"/(nav|test)[0-9]{6}"#;
 
 // redact
-const hexex: &str = r#"/[a-f0-9\-]{6,}/gi"#;
-const idex: &str = r#"/\d[oiA-Z0-9]{8,}/g"#;
+const HEX_REGEX: &str = r#"/[a-f0-9\-]{6,}"#;
+const ID_REGEX: &str = r#"/\d[oiA-Z0-9]{8,}"#;
 
-
-pub fn redact(s: &str) -> Redact {
-    let keepexe = Regex::new(keepex).unwrap();
-    let hexexe = Regex::new(hexex).unwrap();
-    let idexe = Regex::new(idex).unwrap();
-
-    let reskeepexe = keepexe.captures(s).unwrap().get(0);
-    if let foo = reskeepexe.map(|x| Redact::Keep(x.as_str().to_string()));
-
+#[derive(Debug, PartialEq, Eq)]
+enum RedactType {
+	RedactValue,
+	Keep(String),
+	Original(String),
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn testNavex() {}
+impl RedactType {
+	fn pretty_print(&self) -> String {
+		let redacted = "[redacted]";
+		match self {
+			RedactType::RedactValue => redacted.to_string(),
+			RedactType::Keep(s) => s.to_string(),
+			RedactType::Original(s) => s.to_string(),
+		}
+	}
 }
 
+fn redact(s: &str) -> RedactType {
+	let original_string = s.into();
+	// We "keep"
+	let keepexe = Regex::new(KEEP_REGEX).expect("Unable to compile keepex regex");
+	if let Some(foo) = keepexe
+		.captures(original_string)
+		.and_then(|m| m.get(0).map(|_| RedactType::Keep(s.to_string())))
+	{
+		return foo;
+	};
+
+	// We redact
+	let hexexe = RegexBuilder::new(HEX_REGEX)
+		.case_insensitive(true)
+		.build()
+		.expect("Unable to compile keepex regex");
+	if let Some(foo) = hexexe
+		.captures(original_string)
+		.and_then(|m| m.get(0).map(|_| RedactType::RedactValue))
+	{
+		return foo;
+	};
+	let idexe = Regex::new(ID_REGEX).expect("Unable to compile keepex regex");
+	if let Some(foo) = idexe
+		.captures(original_string)
+		.and_then(|m| m.get(0).map(|_| RedactType::RedactValue))
+	{
+		return foo;
+	};
+
+	RedactType::Original(original_string.to_string())
+}
+
+fn print_query((key, value): &(RedactType, RedactType)) -> String {
+	format!("{}={}", key.pretty_print(), value.pretty_print())
+}
+
+fn redact_paths(ps: &[&str]) -> Vec<RedactType> {
+	ps.iter().map(|p: &&str| redact(*p)).collect()
+}
+
+fn redact_queries(ss: &[(&str, &str)]) -> Vec<(RedactType, RedactType)> {
+	ss.iter().map(|q| (redact(q.0), redact(q.1))).collect()
+}
 
 #[async_trait]
 impl ProxyHttp for Json2Yaml {
@@ -86,32 +120,35 @@ impl ProxyHttp for Json2Yaml {
 		upstream_request: &mut pingora_http::RequestHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()> {
-		let redacted = "REDACTED";
-
-		upstream_request
-			.insert_header("Host", HOST.to_owned())
-			.unwrap();
-		let path = upstream_request.uri.path();
-		// V skip(1) here is to avoid a ["", "PATH1", "PATH2" ... ]
-		let path_parts: Vec<_> = path.split("/").skip(1).collect();
-		let query = &upstream_request.uri.query();
-		let query_parts: Vec<_> = query
-			.unwrap_or("")
-			.split("&")
-			.map(|x| x.split_once("="))
-		    .collect();
-
-            let queryBits = path_parts.
-
-		dbg!(path_parts);
-		dbg!(query_parts);
-		upstream_request
-			.insert_header(
-				"foo",
-				format!("{:?} - {}", path.to_owned(), query.unwrap_or("no queries")),
+		let redacted_paths = itertools::join(
+			redact_paths(&upstream_request.uri.path().split("/").collect::<Vec<_>>())
+				.iter()
+				.map(RedactType::pretty_print),
+			"/",
+		);
+		let redacted_queries = itertools::join(
+			redact_queries(
+				&upstream_request
+					.uri
+					.query()
+					.unwrap_or("")
+					.split("&")
+					.map(|q| q.split_once("="))
+					.flatten()
+					.collect::<Vec<_>>(),
 			)
-			.unwrap();
-		Ok(())
+			.iter()
+			.map(print_query),
+			"&",
+		);
+		dbg!(redacted_paths);
+		dbg!(redacted_queries);
+		unimplemented!()
+		// upstream_request
+		// 	.uri // TODO: set the path
+		// 	.uri // TODO: set the query_params
+		// 	.unwrap();
+		// Ok(())
 	}
 
 	async fn response_filter(
@@ -187,4 +224,33 @@ fn main() {
 
 	my_server.add_service(my_proxy);
 	my_server.run_forever();
+}
+#[cfg(test)]
+mod test {
+	use super::*;
+	#[test]
+	fn test_nav() {
+		let t = r#"/nav123456"#;
+		assert_eq!(RedactType::Keep(t.to_string()), redact(t));
+	}
+	#[test]
+	fn test_test() {
+		let t = r#"/test123456"#;
+		assert_eq!(RedactType::Keep(t.to_string()), redact(t));
+	}
+	#[test]
+	fn test_hex() {
+		let t = r#"/f6338366-64a5-44a7-8459-6cbf17a57343"#;
+		assert_eq!(RedactType::RedactValue, redact(t));
+	}
+	#[test]
+	fn test_id() {
+		let t = r#"/12o798324i"#;
+		assert_eq!(RedactType::RedactValue, redact(t));
+	}
+	#[test]
+	fn test_norm() {
+		let t = "quick brown fox jumped over the lazy dog";
+		assert_eq!(RedactType::Original(t.to_string()), redact(t));
+	}
 }
