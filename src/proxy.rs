@@ -38,8 +38,8 @@ impl ProxyHttp for Addr {
 	// This guy should be the amplitude host, all requests through the proxy gets sent th upstream_peer
 	async fn upstream_peer(
 		&self,
-		session: &mut Session,
-		ctx: &mut Self::CTX,
+		_session: &mut Session,
+		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
 		let peer = Box::new(HttpPeer::new(self.addr, false, HOST.to_owned()));
 		Ok(peer)
@@ -84,5 +84,24 @@ impl ProxyHttp for Addr {
 				.unwrap(),
 		);
 		Ok(())
+	}
+	async fn request_filter(&self, session: &mut Session, _ctx: &mut Self::CTX) -> Result<bool>
+	where
+		Self::CTX: Send + Sync,
+	{
+		let user_agent = session.downstream_session.get_header("USER-AGENT");
+		dbg!(user_agent);
+		match user_agent {
+			Some(ua) => match ua.to_str() {
+				Ok(ua) => {
+					let bot = isbot::Bots::default().is_bot(ua);
+					//  ^  This should be instanciated top-level
+					session.respond_error(200).await?;
+					return Ok(bot);
+				},
+				Err(e) => return Ok(false),
+			},
+			None => Ok(false),
+		}
 	}
 }
