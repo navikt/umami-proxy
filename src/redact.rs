@@ -1,12 +1,5 @@
 use regex::{Regex, RegexBuilder};
 
-// keep
-const KEEP_REGEX: &str = r#"/(nav|test)[0-9]{6}"#;
-
-// redact
-const HEX_REGEX: &str = r#"/[a-f0-9\-]{6,}"#;
-const ID_REGEX: &str = r#"/\d[oiA-Z0-9]{8,}"#;
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum RedactType {
 	RedactValue,
@@ -24,34 +17,21 @@ impl RedactType {
 		}
 	}
 	pub fn new(s: &str) -> RedactType {
-		let original_string = s.to_string();
+		determine_redact_type(s)
+	}
+}
 
-		// We "keep"
-		let keepexe = Regex::new(KEEP_REGEX).expect("Unable to compile keepex regex");
-		if keepexe.is_match(&original_string) {
-			dbg!("kept");
-			return RedactType::Keep(original_string.to_string());
-		}
+pub fn determine_redact_type(s: &str) -> RedactType {
+	let keep_regex = Regex::new(r"(nav|test)[0-9]{6}").unwrap();
+	let hex_regex = Regex::new(r"[a-f0-9\-]{6,}").unwrap();
+	let id_regex = Regex::new(r"\d[oiA-Z0-9]{8,}").unwrap();
 
-		// We redact based on hex pattern
-		let hexexe = RegexBuilder::new(HEX_REGEX)
-			.case_insensitive(true)
-			.build()
-			.expect("Unable to compile hex regex");
-		if hexexe.is_match(&original_string) {
-			dbg!("redact! hex");
-			return RedactType::RedactValue;
-		}
-
-		// We redact based on ID pattern
-		let idexe = Regex::new(ID_REGEX).expect("Unable to compile id regex");
-		if idexe.is_match(&original_string) {
-			dbg!("redact index!");
-			return RedactType::RedactValue;
-		}
-
-		// If none of the patterns match, return the original string
-		RedactType::Original(original_string)
+	if keep_regex.is_match(s) {
+		RedactType::Keep(s.to_string())
+	} else if hex_regex.is_match(s) || id_regex.is_match(s) {
+		RedactType::RedactValue
+	} else {
+		RedactType::Original(s.to_string())
 	}
 }
 
@@ -70,33 +50,51 @@ pub fn redact_queries(ss: &[(&str, &str)]) -> Vec<(RedactType, RedactType)> {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
 	use super::*;
+
 	#[test]
-	fn test_nav() {
-		let t = "nav123456";
-		assert_eq!(RedactType::Keep(t.to_string()), RedactType::new(t));
-	}
-	#[test]
-	fn test_test() {
-		let t = "test123456";
-		assert_eq!(RedactType::Keep(t.to_string()), RedactType::new(t));
-	}
-	#[test]
-	fn test_hex() {
-		let t = "f6338366-64a5-44a7-8459-6cbf17a57343";
-		assert_eq!(RedactType::RedactValue, RedactType::new(t));
+	fn test_keep_regex() {
+		let input = "nav123456";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::Keep(input.to_string()));
+
+		let input = "test654321";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::Keep(input.to_string()));
 	}
 
 	#[test]
-	fn test_id() {
-		let t = "12o798324i";
-		assert_eq!(RedactType::RedactValue, RedactType::new(t));
+	fn test_redact_regex() {
+		let input = "abcdef123456";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::RedactValue);
+
+		let input = "1ABCD23456789";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::RedactValue);
+
+		let input = "123456";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::RedactValue);
+
+		let input = "a1b2c3d4e5";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::RedactValue);
 	}
 
 	#[test]
-	fn test_norm() {
-		let t = "quick brown fox jumped over the lazy dog";
-		assert_eq!(RedactType::Original(t.to_string()), RedactType::new(t));
+	fn test_original_regex() {
+		let input = "regularstring";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::Original(input.to_string()));
+
+		let input = "anotherString";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::Original(input.to_string()));
+
+		let input = "12345";
+		let result = determine_redact_type(input);
+		assert_eq!(result, RedactType::Original(input.to_string()));
 	}
 }

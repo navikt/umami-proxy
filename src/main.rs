@@ -11,7 +11,7 @@ mod redact;
 // RUST_LOG=INFO cargo run --example modify_response
 // curl 127.0.0.1:6191
 fn main() {
-	let config = config::Config::new().expect("Configuration");
+	let config = config::Config::new();
 	env_logger::init();
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
