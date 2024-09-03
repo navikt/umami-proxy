@@ -7,6 +7,7 @@ use pingora_core::server::Server;
 mod proxy;
 use proxy::*;
 mod config;
+mod probes;
 mod redact;
 
 // RUST_LOG=INFO cargo run --example modify_response
@@ -24,6 +25,16 @@ fn main() {
 	.unwrap();
 	amplitrude_proxy.bootstrap();
 
+	let mut probe_instance = pingora_proxy::http_proxy_service(
+		&amplitrude_proxy.configuration,
+		probes::Probes {
+			addr: ("127.0.0.1", 8080)
+				.to_socket_addrs()
+				.unwrap()
+				.next()
+				.unwrap(),
+		},
+	);
 	let mut proxy_instance = pingora_proxy::http_proxy_service(
 		&amplitrude_proxy.configuration,
 		Addr {
@@ -48,8 +59,10 @@ fn main() {
 		},
 	);
 
+	probe_instance.add_tcp("127.0.0.1:6969");
 	proxy_instance.add_tcp("127.0.0.1:6191");
 	// amplitrude_proxy.add_service(prometheus_service_http); Pingora has a built in prometheus bit. It lives in Services somewhere
+	amplitrude_proxy.add_service(probe_instance);
 	amplitrude_proxy.add_service(proxy_instance);
 	amplitrude_proxy.run_forever();
 }

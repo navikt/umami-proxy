@@ -11,4 +11,8 @@ Is-Bot
 
 * Todo
 healtz/ready Probes
-Metrics
+Metrics pingora has built in prometheus
+
+
+* Wut
+We need to expose multiple ports. Nais doesn't support that
