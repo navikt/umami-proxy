@@ -17,6 +17,7 @@ sus: Uses data from 2019, No rust impl. There's a c-library.
 * Todo
 ** Deployment
 See ports.
+This is maybe where Many k8s resources-as-nix-happen
 ** TODO Probes
 *** V- GOES IN README
 There's several green threads by tokio running different bits
