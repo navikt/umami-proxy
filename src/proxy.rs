@@ -90,11 +90,6 @@ impl ProxyHttp for Addr {
 	where
 		Self::CTX: Send + Sync,
 	{
-		// Remove content-length because the size of the new body is unknown
-		upstream_response.remove_header("Content-Length");
-		upstream_response
-			.insert_header("Transfer-Encoding", "Chunked")
-			.unwrap();
 		Ok(())
 	}
 
@@ -108,19 +103,6 @@ impl ProxyHttp for Addr {
 	where
 		Self::CTX: Send + Sync,
 	{
-		// buffer the data
-		if let Some(b) = body {
-			ctx.buffer.extend(&b[..]);
-			// drop the body
-			b.clear();
-		}
-		if end_of_stream {
-			// This is the last chunk, we can process the data now
-			let json_body: Resp = serde_json::de::from_slice(&ctx.buffer).unwrap();
-			let yaml_body = serde_yaml::to_string(&json_body).unwrap();
-			*body = Some(Bytes::copy_from_slice(yaml_body.as_bytes()));
-		}
-
 		Ok(None)
 	}
 }
