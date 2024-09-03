@@ -1,18 +1,35 @@
 * Features
 ** Redact urls
-based on four (actually three) regexes
-hash based caching
-Clean Events
-Clean Object
-Path Segments and Query Param
-Add GeoData ;; sus
-IP-address removal
-Is-Bot
+** TODO Redact headers
+We should ask about this
+** DONE based on four (actually three) regexes
+** hash based caching
+** Clean Events
+** Clean Object
+** DONE Path Segments and Query Param
+** Add GeoData
+sus: Uses data from 2019, No rust impl. There's a c-library.
+** IP-address removal
+** DONE Is-Bot ;;
+
+
 
 * Todo
-healtz/ready Probes
-Metrics pingora has built in prometheus
+** Deployment
+See ports.
+** TODO Probes
+*** V- GOES IN README
+There's several green threads by tokio running different bits
+of the program. They should fail at the same time. Experimentation
+with panic! in one service confirms that they do. They also block at the same time
+when tested with loop{}.
+*** DONE /health
+*** TODO /ready
+Is-alive and is-ready are the same thing IFF this is a stateless proxy without
+sync deps.
 
+** Metrics
+pingora has built in prometheus
 
 * Wut
-We need to expose multiple ports. Nais doesn't support that
+We need to expose multiple ports. Nais doesn't support that. Add these manually to the pod spec??
