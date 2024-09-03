@@ -1,0 +1,14 @@
+* Features
+** Redact urls
+based on four (actually three) regexes
+hash based caching
+Clean Events
+Clean Object
+Path Segments and Query Param
+Add GeoData ;; sus
+IP-address removal
+Is-Bot
+
+* Todo
+healtz/ready Probes
+Metrics
