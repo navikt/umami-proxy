@@ -1,12 +1,12 @@
+use crate::redact::{print_query, redact_paths, redact_queries};
 use async_trait::async_trait;
 use bytes::Bytes;
+use http::Uri;
 use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::Result;
 use pingora_http::{Method, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
 use serde::{Deserialize, Serialize};
-
-use crate::redact::{print_query, redact_paths, redact_queries};
 
 pub const HOST: &str = "localhost";
 
@@ -19,22 +19,27 @@ pub struct Addr {
 	pub addr: std::net::SocketAddr,
 }
 
+#[derive(Debug)]
 pub struct Ctx {
 	buffer: Vec<u8>,
+	newUri: Option<Uri>,
 }
 
 #[async_trait]
 impl ProxyHttp for Addr {
 	type CTX = Ctx;
 	fn new_ctx(&self) -> Self::CTX {
-		Ctx { buffer: vec![] }
+		Ctx {
+			buffer: vec![],
+			newUri: None,
+		}
 	}
 
 	// This guy should be the amplitude host, all requests through the proxy gets sent th upstream_peer
 	async fn upstream_peer(
 		&self,
-		_session: &mut Session,
-		_ctx: &mut Self::CTX,
+		session: &mut Session,
+		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
 		let peer = Box::new(HttpPeer::new(self.addr, false, HOST.to_owned()));
 		Ok(peer)
@@ -45,9 +50,8 @@ impl ProxyHttp for Addr {
 		&self,
 		session: &mut Session,
 		upstream_request: &mut pingora_http::RequestHeader,
-		_ctx: &mut Self::CTX,
+		ctx: &mut Self::CTX,
 	) -> Result<()> {
-		dbg!(session.request_summary());
 		let redacted_paths = itertools::join(
 			redact_paths(&upstream_request.uri.path().split("/").collect::<Vec<_>>())
 				.iter()
@@ -73,36 +77,12 @@ impl ProxyHttp for Addr {
 			.map(print_query),
 			"&",
 		);
-		dbg!(redacted_paths);
-		dbg!(redacted_queries);
-		session.req_header_mut().set_method(Method::POST);
-		let uri = "/new/cool?path#frag".parse::<http::Uri>().unwrap();
-		session.req_header_mut().set_uri(uri);
+		dbg!(session.request_summary());
+		upstream_request.set_uri(
+			(format!("{}?{}", redacted_paths, redacted_queries))
+				.parse::<Uri>()
+				.unwrap(),
+		);
 		Ok(())
-	}
-
-	async fn response_filter(
-		&self,
-		_session: &mut Session,
-		upstream_response: &mut ResponseHeader,
-		_ctx: &mut Self::CTX,
-	) -> Result<()>
-	where
-		Self::CTX: Send + Sync,
-	{
-		Ok(())
-	}
-
-	fn response_body_filter(
-		&self,
-		_session: &mut Session,
-		body: &mut Option<Bytes>,
-		end_of_stream: bool,
-		ctx: &mut Self::CTX,
-	) -> Result<Option<std::time::Duration>>
-	where
-		Self::CTX: Send + Sync,
-	{
-		Ok(None)
 	}
 }
