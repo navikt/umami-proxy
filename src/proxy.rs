@@ -1,33 +1,33 @@
-use crate::redact::{print_query, redact_paths, redact_queries};
 use async_trait::async_trait;
-use http::Uri;
+use bytes::Bytes;
 use pingora::{
 	http::RequestHeader,
 	prelude::HttpPeer,
 	proxy::{ProxyHttp, Session},
 	Result,
 };
-use serde::{Deserialize, Serialize};
+
+mod amplitude;
+mod redact;
 
 pub const HOST: &str = "localhost";
-
-#[derive(Serialize, Deserialize)]
-pub struct Resp {
-	ip: String,
-}
 
 pub struct Addr {
 	pub addr: std::net::SocketAddr,
 }
 
 #[derive(Debug)]
-pub struct Ctx {}
+pub struct Ctx {
+	request_body_buffer: Vec<u8>,
+}
 
 #[async_trait]
 impl ProxyHttp for Addr {
 	type CTX = Ctx;
 	fn new_ctx(&self) -> Self::CTX {
-		Ctx {}
+		Ctx {
+			request_body_buffer: Vec::new(),
+		}
 	}
 
 	// This guy should be the amplitude host, all requests through the proxy gets sent th upstream_peer
@@ -40,46 +40,42 @@ impl ProxyHttp for Addr {
 		Ok(peer)
 	}
 
+	fn response_body_filter(
+		&self,
+		_session: &mut Session,
+		body: &mut Option<Bytes>,
+		end_of_stream: bool,
+		ctx: &mut Self::CTX,
+	) -> Result<Option<std::time::Duration>>
+	where
+		Self::CTX: Send + Sync,
+	{
+		// buffer the data
+		if let Some(b) = body {
+			ctx.request_body_buffer.extend(&b[..]);
+			// drop the body
+			b.clear();
+		}
+		if end_of_stream {
+			// This is the last chunk, we can process the data now
+			*body = amplitude::process_amplitude_event(&ctx.request_body_buffer);
+		}
+		Ok(None)
+	}
+
+	/// Redact path and query parameters of request
+	/// TODO: Also ensure fragment is redacted?
 	async fn upstream_request_filter(
 		&self,
 		_session: &mut Session,
 		upstream_request: &mut RequestHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()> {
-		dbg!(&upstream_request.uri);
-		dbg!(&upstream_request.headers);
-		let redacted_paths = itertools::join(
-			redact_paths(&upstream_request.uri.path().split('/').collect::<Vec<_>>())
-				.iter()
-				.map(|x| {
-					// dbg!(x);
-					x.pretty_print()
-				}),
-			"/",
-		);
-
-		let redacted_queries = itertools::join(
-			redact_queries(
-				&upstream_request
-					.uri
-					.query()
-					.unwrap_or("")
-					.split('&')
-					.flat_map(|q| q.split_once('='))
-					.collect::<Vec<_>>(),
-			)
-			.iter()
-			.map(print_query),
-			"&",
-		);
-		upstream_request.set_uri(
-			format!("{redacted_paths}?{redacted_queries}")
-				.parse::<Uri>()
-				.unwrap(),
-		);
-		dbg!(&upstream_request.uri);
+		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
 		Ok(())
 	}
+
+	/// Block user-agent strings that match known bots
 	async fn request_filter(&self, session: &mut Session, _ctx: &mut Self::CTX) -> Result<bool>
 	where
 		Self::CTX: Send + Sync,

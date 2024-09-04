@@ -6,7 +6,6 @@ use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 mod config;
 mod probes;
 mod proxy;
-mod redact;
 
 // RUST_LOG=INFO cargo run --example modify_response
 // curl 127.0.0.1:6191
@@ -38,7 +37,6 @@ fn main() {
 					echo \"Server: \$SOCAT_SOCKADDR:\$SOCAT_SOCKPORT\";
 					echo \"Client: \$SOCAT_PEERADDR:\$SOCAT_PEERPORT\";
 				"
-
 								*/
 			addr: ("127.0.0.1", 1234)
 				.to_socket_addrs()

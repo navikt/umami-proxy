@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+amplitude = "0.1.0"
 anyhow = "1.0.86"
 async-trait = "0.1.81"
 bytes = "1.7.1"
