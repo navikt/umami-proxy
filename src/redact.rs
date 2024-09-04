@@ -83,7 +83,7 @@ mod tests {
 
 		let mut json_data = json!({
 			"user_id": "12345",
-			"device_id": "device-98765",
+			"device_id": "device-98765",  // <- Should this be redacted??
 			"event_type": "button_click",
 			"event_properties": {
 				"button_name": "signup_button",
@@ -131,7 +131,7 @@ mod tests {
 			"device_model": "iPhone 12",
 			"event_time": 5,
 			"session_id": 5,
-			"insert_id": "[redacted]",  // Only this field is redacted
+			"insert_id": "[redacted]",
 			"location_lat": 37.7749,
 			"location_lng": -122.4194,
 			"ip_address": "123.45.67.89"
