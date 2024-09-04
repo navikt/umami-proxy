@@ -35,3 +35,84 @@ pingora has built in prometheus
 
 * Wut
 We need to expose multiple ports. Nais doesn't support that. Add these manually to the pod spec??
+
+
+* A DIAGRAM
++-------------------+
+| Client Request     |
++-------------------+
+        |
+        v
++----------------------------+
+| Extract request data        |
+| - Events and API Key        |
+| - Validate format           |
++----------------------------+
+        |
+        v
++--------------------------------------------+
+| Check if events exist                      |
+| - Parse body or set errors (if invalid)    |
++--------------------------------------------+
+        |
+        v
++----------------------------------------------------------+
+| Validate platform or ingestion metadata URLs             |
+| - If using new SDK, validate `ingestion_metadata` URL     |
+| - If using old SDK, validate `platform` URL               |
++----------------------------------------------------------+
+        |
+        v
++-------------------------------------------------+
+| Add cluster data to events using ingress info   |
+| - Extract app, team, and hostname from events   |
+| - Retrieve API key based on context             |
++-------------------------------------------------+
+        |
+        v
++-------------------------------+
+| Create log entry               |
+| - Log API Key, event type,     |
+|   user agent, and origin       |
++-------------------------------+
+        |
+        v
++----------------------------+
+| Check API key validity      |
+| - Compare with AUTO_TRACK_KEY |
++----------------------------+
+        |                          |
+        v                          v
++------------------------+       +----------------------------------------+
+| Invalid API Key        |       | Valid API Key                          |
+| - Increment counter    |       | - Check for errors                     |
+| - Log error            |       | - Process event based on errors        |
++------------------------+       +----------------------------------------+
+                    |                         |
+                    v                         v
++----------------------------+   +-------------------------------------+
+| Errors in events           |   | No Errors in events                 |
+| - Increment counter        |   | - Check if request is from bot      |
+| - Log errors               |   | - Check if hostname is ignored      |
++----------------------------+   +-------------------------------------+
+                    |                         |
+                    v                         v
++------------------------------------------+     +-------------------------------+
+| Bot traffic or ignored hostname          |     | Valid event                   |
+| - Increment respective counters          |     | - Add proxy data              |
+| - Log and return success/ignored message |     | - Add geo data                |
++------------------------------------------+     | - Clean URLs in events        |
+                                                 +-------------------------------+
+                                                             |
+                                                             v
+                                             +----------------------------------+
+                                             | Forward processed events         |
+                                             | to Amplitude with API key        |
+                                             +----------------------------------+
+                                                             |
+                                                             v
+                                             +----------------------------------+
+                                             | Handle Amplitude's response      |
+                                             | - Log success or failure         |
+                                             | - Return appropriate response    |
+                                             +----------------------------------+

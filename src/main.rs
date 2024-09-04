@@ -25,19 +25,19 @@ fn main() {
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, probes::Probes {});
 	let mut proxy_instance = pingora_proxy::http_proxy_service(
 		&amplitrude_proxy.configuration,
+		/* We test against this server
+		socat \
+			-v -d -d \
+			TCP-LISTEN:1234,crlf,reuseaddr,fork \
+			SYSTEM:"
+				echo HTTP/1.1 200 OK;
+				echo Content-Type\: text/plain;
+				echo;
+				echo \"Server: \$SOCAT_SOCKADDR:\$SOCAT_SOCKPORT\";
+				echo \"Client: \$SOCAT_PEERADDR:\$SOCAT_PEERPORT\";
+			"
+		*/
 		proxy::Addr {
-			/* We test against this server
-			socat \
-				-v -d -d \
-				TCP-LISTEN:1234,crlf,reuseaddr,fork \
-				SYSTEM:"
-					echo HTTP/1.1 200 OK;
-					echo Content-Type\: text/plain;
-					echo;
-					echo \"Server: \$SOCAT_SOCKADDR:\$SOCAT_SOCKPORT\";
-					echo \"Client: \$SOCAT_PEERADDR:\$SOCAT_PEERPORT\";
-				"
-								*/
 			addr: ("127.0.0.1", 1234)
 				.to_socket_addrs()
 				.unwrap()
