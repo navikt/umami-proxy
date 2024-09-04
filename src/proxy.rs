@@ -1,10 +1,8 @@
 use crate::redact::{print_query, redact_paths, redact_queries};
 use async_trait::async_trait;
-use bytes::Bytes;
 use http::Uri;
 use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::Result;
-use pingora_http::{Method, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
 use serde::{Deserialize, Serialize};
 
@@ -20,19 +18,13 @@ pub struct Addr {
 }
 
 #[derive(Debug)]
-pub struct Ctx {
-	buffer: Vec<u8>,
-	newUri: Option<Uri>,
-}
+pub struct Ctx {}
 
 #[async_trait]
 impl ProxyHttp for Addr {
 	type CTX = Ctx;
 	fn new_ctx(&self) -> Self::CTX {
-		Ctx {
-			buffer: vec![],
-			newUri: None,
-		}
+		Ctx {}
 	}
 
 	// This guy should be the amplitude host, all requests through the proxy gets sent th upstream_peer
@@ -50,10 +42,10 @@ impl ProxyHttp for Addr {
 		&self,
 		session: &mut Session,
 		upstream_request: &mut pingora_http::RequestHeader,
-		ctx: &mut Self::CTX,
+		_ctx: &mut Self::CTX,
 	) -> Result<()> {
 		let redacted_paths = itertools::join(
-			redact_paths(&upstream_request.uri.path().split("/").collect::<Vec<_>>())
+			redact_paths(&upstream_request.uri.path().split('/').collect::<Vec<_>>())
 				.iter()
 				.map(|x| {
 					dbg!(x);
@@ -68,9 +60,8 @@ impl ProxyHttp for Addr {
 					.uri
 					.query()
 					.unwrap_or("")
-					.split("&")
-					.map(|q| q.split_once("="))
-					.flatten()
+					.split('&')
+					.flat_map(|q| q.split_once('='))
 					.collect::<Vec<_>>(),
 			)
 			.iter()
@@ -79,7 +70,7 @@ impl ProxyHttp for Addr {
 		);
 		dbg!(session.request_summary());
 		upstream_request.set_uri(
-			(format!("{}?{}", redacted_paths, redacted_queries))
+			(format!("{redacted_paths}?{redacted_queries}"))
 				.parse::<Uri>()
 				.unwrap(),
 		);
@@ -99,7 +90,7 @@ impl ProxyHttp for Addr {
 					session.respond_error(200).await?;
 					return Ok(bot);
 				},
-				Err(e) => return Ok(false),
+				Err(_) => return Ok(false),
 			},
 			None => Ok(false),
 		}

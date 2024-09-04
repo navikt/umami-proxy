@@ -1,20 +1,18 @@
 use std::net::ToSocketAddrs;
 
-use pingora::services::Service;
+use clap::Parser;
 use pingora_core::server::configuration::Opt;
 use pingora_core::server::Server;
 
-mod proxy;
-use proxy::*;
 mod config;
 mod probes;
+mod proxy;
 mod redact;
 
 // RUST_LOG=INFO cargo run --example modify_response
 // curl 127.0.0.1:6191
 fn main() {
-	let config = config::Config::new();
-	env_logger::init();
+	let conf = config::Config::parse();
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
 		daemon: false,
@@ -29,7 +27,7 @@ fn main() {
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, probes::Probes {});
 	let mut proxy_instance = pingora_proxy::http_proxy_service(
 		&amplitrude_proxy.configuration,
-		Addr {
+		proxy::Addr {
 			/* We test against this server
 			socat \
 				-v -d -d \

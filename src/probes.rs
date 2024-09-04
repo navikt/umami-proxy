@@ -1,31 +1,24 @@
-use crate::redact::{print_query, redact_paths, redact_queries};
 use async_trait::async_trait;
-use bytes::Bytes;
-use http::Uri;
 use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::Result;
-use pingora_http::{Method, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
-use std::net::ToSocketAddrs;
 
 pub struct Probes;
 
 #[derive(Debug)]
-pub struct Ctx {
-	buffer: Vec<u8>,
-}
+pub struct Ctx {}
 
 #[async_trait]
 impl ProxyHttp for Probes {
 	type CTX = Ctx;
 	fn new_ctx(&self) -> Self::CTX {
-		Ctx { buffer: vec![] }
+		Ctx {}
 	}
 
 	async fn upstream_peer(
 		&self,
 		session: &mut Session,
-		ctx: &mut Self::CTX,
+		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
 		let host = session.downstream_session.req_header();
 		dbg!(session.downstream_session.request_summary());

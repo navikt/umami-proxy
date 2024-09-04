@@ -1,4 +1,4 @@
-use regex::{Regex, RegexBuilder};
+use regex::Regex;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RedactType {
@@ -11,12 +11,12 @@ impl RedactType {
 	pub fn pretty_print(&self) -> String {
 		let redacted = "[redacted]";
 		match self {
-			RedactType::RedactValue => redacted.to_string(),
-			RedactType::Keep(s) => s.to_string(),
-			RedactType::Original(s) => s.to_string(),
+			Self::RedactValue => redacted.to_string(),
+			Self::Keep(s) => s.to_string(),
+			Self::Original(s) => s.to_string(),
 		}
 	}
-	pub fn new(s: &str) -> RedactType {
+	pub fn new(s: &str) -> Self {
 		determine_redact_type(s)
 	}
 }
@@ -40,7 +40,7 @@ pub fn print_query((key, value): &(RedactType, RedactType)) -> String {
 }
 
 pub fn redact_paths(ps: &[&str]) -> Vec<RedactType> {
-	ps.iter().map(|p: &&str| RedactType::new(*p)).collect()
+	ps.iter().map(|p: &&str| RedactType::new(p)).collect()
 }
 
 pub fn redact_queries(ss: &[(&str, &str)]) -> Vec<(RedactType, RedactType)> {
