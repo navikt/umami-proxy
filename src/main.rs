@@ -10,7 +10,7 @@ mod proxy;
 // RUST_LOG=INFO cargo run --example modify_response
 // curl 127.0.0.1:6191
 fn main() {
-	let conf = config::Config::parse();
+	let _conf = config::Config::parse();
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
 		daemon: false,
