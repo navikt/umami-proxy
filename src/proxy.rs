@@ -1,9 +1,12 @@
 use crate::redact::{print_query, redact_paths, redact_queries};
 use async_trait::async_trait;
 use http::Uri;
-use pingora_core::upstreams::peer::HttpPeer;
-use pingora_core::Result;
-use pingora_proxy::{ProxyHttp, Session};
+use pingora::{
+	http::RequestHeader,
+	prelude::HttpPeer,
+	proxy::{ProxyHttp, Session},
+	Result,
+};
 use serde::{Deserialize, Serialize};
 
 pub const HOST: &str = "localhost";
@@ -40,7 +43,7 @@ impl ProxyHttp for Addr {
 	async fn upstream_request_filter(
 		&self,
 		_session: &mut Session,
-		upstream_request: &mut pingora_http::RequestHeader,
+		upstream_request: &mut RequestHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()> {
 		dbg!(&upstream_request.uri);

@@ -1,8 +1,7 @@
 use std::net::ToSocketAddrs;
 
 use clap::Parser;
-use pingora_core::server::configuration::Opt;
-use pingora_core::server::Server;
+use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 
 mod config;
 mod probes;
