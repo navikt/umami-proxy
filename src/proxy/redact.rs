@@ -1,5 +1,6 @@
 use http::Uri;
 use regex::Regex;
+use serde_json::{json, Value};
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum RedactType {
@@ -83,31 +84,30 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 	new_uri
 }
 
+pub fn redact_json(value: &mut Value) {
+	match value {
+		Value::String(s) => {
+			*s = redact(s).pretty_print();
+		},
+		Value::Array(arr) => {
+			for v in arr {
+				redact_json(v);
+			}
+		},
+		Value::Object(obj) => {
+			for (_, v) in obj.iter_mut() {
+				redact_json(v);
+			}
+		},
+		_ => {
+			// (Number, Bool, Null), do not need redacting (?)
+		},
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use serde_json::{json, Value};
-
-	pub fn redact_json(value: &mut Value) {
-		match value {
-			Value::String(s) => {
-				*s = redact(s).pretty_print();
-			},
-			Value::Array(arr) => {
-				for v in arr {
-					redact_json(v);
-				}
-			},
-			Value::Object(obj) => {
-				for (_, v) in obj.iter_mut() {
-					redact_json(v);
-				}
-			},
-			_ => {
-				// (Number, Bool, Null), do not need redacting (?)
-			},
-		}
-	}
 
 	#[test]
 	fn test_redact_uuid_in_amplitude_event() {
