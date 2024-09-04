@@ -25,16 +25,8 @@ fn main() {
 	.unwrap();
 	amplitrude_proxy.bootstrap();
 
-	let mut probe_instance = pingora_proxy::http_proxy_service(
-		&amplitrude_proxy.configuration,
-		probes::Probes {
-			addr: ("127.0.0.1", 8080)
-				.to_socket_addrs()
-				.unwrap()
-				.next()
-				.unwrap(),
-		},
-	);
+	let mut probe_instance =
+		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, probes::Probes {});
 	let mut proxy_instance = pingora_proxy::http_proxy_service(
 		&amplitrude_proxy.configuration,
 		Addr {

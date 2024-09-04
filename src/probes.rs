@@ -6,34 +6,22 @@ use pingora_core::upstreams::peer::HttpPeer;
 use pingora_core::Result;
 use pingora_http::{Method, ResponseHeader};
 use pingora_proxy::{ProxyHttp, Session};
+use std::net::ToSocketAddrs;
 
-pub struct Probes {
-	pub addr: std::net::SocketAddr,
-}
+pub struct Probes;
 
 #[derive(Debug)]
 pub struct Ctx {
 	buffer: Vec<u8>,
 }
 
+/// This is the k8s probes, since there is no upstream peer, we do not configure one.
+/// this only does 200 ok on is_alive and is_ready(TODO)
 #[async_trait]
 impl ProxyHttp for Probes {
 	type CTX = Ctx;
 	fn new_ctx(&self) -> Self::CTX {
 		Ctx { buffer: vec![] }
-	}
-
-	async fn upstream_peer(
-		&self,
-		session: &mut Session,
-		ctx: &mut Self::CTX,
-	) -> Result<Box<HttpPeer>> {
-		let host = session.downstream_session.req_header();
-		dbg!(session.downstream_session.request_summary());
-		dbg!(host);
-
-		let peer = Box::new(HttpPeer::new(self.addr, false, "localhost".to_owned()));
-		Ok(peer)
 	}
 
 	/// Handle the incoming request.
@@ -49,6 +37,7 @@ impl ProxyHttp for Probes {
 	where
 		Self::CTX: Send + Sync,
 	{
+		dbg!(session.request_summary());
 		if (session
 			.downstream_session
 			.req_header()
