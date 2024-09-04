@@ -140,8 +140,10 @@
               cargo-cyclonedx
               cargo-watch
               cmake
+
+              socat
+
               # Editor stuffs
-              helix
               lldb
               rust-analyzer
             ] ++ lib.optionals stdenv.isDarwin [

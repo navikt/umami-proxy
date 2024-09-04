@@ -37,7 +37,6 @@ impl ProxyHttp for Addr {
 		Ok(peer)
 	}
 
-	//
 	async fn upstream_request_filter(
 		&self,
 		session: &mut Session,

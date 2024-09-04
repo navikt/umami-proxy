@@ -1,6 +1,6 @@
 * Features
 ** Redact urls
-** TODO Redact headers
+*** TODO Redact headers
 We should ask about this
 ** DONE based on four (actually three) regexes
 ** hash based caching
@@ -26,6 +26,7 @@ with panic! in one service confirms that they do. They also block at the same ti
 when tested with loop{}.
 *** DONE /health
 *** TODO /ready
+**** Currently only returnin 200 OK when `path_string.contains("is_alive")`
 Is-alive and is-ready are the same thing IFF this is a stateless proxy without
 sync deps.
 
