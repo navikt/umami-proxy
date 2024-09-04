@@ -39,15 +39,17 @@ impl ProxyHttp for Addr {
 
 	async fn upstream_request_filter(
 		&self,
-		session: &mut Session,
+		_session: &mut Session,
 		upstream_request: &mut pingora_http::RequestHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()> {
+		dbg!(&upstream_request.uri);
+		dbg!(&upstream_request.headers);
 		let redacted_paths = itertools::join(
 			redact_paths(&upstream_request.uri.path().split('/').collect::<Vec<_>>())
 				.iter()
 				.map(|x| {
-					dbg!(x);
+					// dbg!(x);
 					x.pretty_print()
 				}),
 			"/",
@@ -67,26 +69,28 @@ impl ProxyHttp for Addr {
 			.map(print_query),
 			"&",
 		);
-		dbg!(session.request_summary());
 		upstream_request.set_uri(
-			(format!("{redacted_paths}?{redacted_queries}"))
+			format!("{redacted_paths}?{redacted_queries}")
 				.parse::<Uri>()
 				.unwrap(),
 		);
+		dbg!(&upstream_request.uri);
 		Ok(())
 	}
 	async fn request_filter(&self, session: &mut Session, _ctx: &mut Self::CTX) -> Result<bool>
 	where
 		Self::CTX: Send + Sync,
 	{
-		let user_agent = session.downstream_session.get_header("USER-AGENT");
-		dbg!(user_agent);
+		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		match user_agent {
 			Some(ua) => match ua.to_str() {
 				Ok(ua) => {
 					let bot = isbot::Bots::default().is_bot(ua);
 					//  ^  This should be instanciated top-level
 					session.respond_error(200).await?;
+					if bot {
+						eprintln!("This request's UA matches a known bot:\n\t{ua}");
+					}
 					return Ok(bot);
 				},
 				Err(_) => return Ok(false),
