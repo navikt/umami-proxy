@@ -74,6 +74,73 @@ pub fn redact_json(value: &mut Value) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use super::*;
+	use serde_json::json;
+
+	#[test]
+	fn test_redact_uuid_in_amplitude_event() {
+		let uuid = "123e4567-e89b-12d3-a456-426614174000";
+
+		let mut json_data = json!({
+			"user_id": "12345",
+			"device_id": "device-98765",
+			"event_type": "button_click",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue",
+				"page": "signup_page"
+			},
+			"user_properties": {
+				"age": 30,
+				"gender": "female",
+				"location": "USA"
+			},
+			"app_version": "1.0.0",
+			"platform": "iOS",
+			"os_name": "iOS",
+			"os_version": "14.4",
+			"device_brand": "Apple",
+			"device_model": "iPhone 12",
+			"event_time": 5,
+			"session_id": 5,
+			"insert_id": uuid,  // <-- This guy
+			"location_lat": 37.7749,
+			"location_lng": -122.4194,
+			"ip_address": "123.45.67.89"
+		});
+
+		let expected_data = json!({
+			"user_id": "12345",
+			"device_id": "[redacted]",
+			"event_type": "button_click",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue",
+				"page": "signup_page"
+			},
+			"user_properties": {
+				"age": 30,
+				"gender": "female",
+				"location": "USA"
+			},
+			"app_version": "1.0.0",
+			"platform": "iOS",
+			"os_name": "iOS",
+			"os_version": "14.4",
+			"device_brand": "Apple",
+			"device_model": "iPhone 12",
+			"event_time": 5,
+			"session_id": 5,
+			"insert_id": "[redacted]",  // Only this field is redacted
+			"location_lat": 37.7749,
+			"location_lng": -122.4194,
+			"ip_address": "123.45.67.89"
+		});
+
+		redact_json(&mut json_data);
+
+		assert_eq!(json_data, expected_data);
+	}
 
 	#[test]
 	fn test_keep_regex() {
