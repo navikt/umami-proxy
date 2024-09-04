@@ -49,16 +49,18 @@ impl ProxyHttp for Probes {
 		Self::CTX: Send + Sync,
 	{
 		dbg!(session.request_summary());
-		if (session
+		if session
 			.downstream_session
 			.req_header()
 			.as_owned_parts()
 			.uri
 			.path()
-			.contains("is_alive"))
+			.contains("is_alive")
+		// this also matches is_aliveeeeeeeee etc
 		{
-			session.respond_error(200).await?;
+			session.respond_error(200).await?; // Can we respond without saying error?
 		}
+		session.respond_error(404).await?;
 		Ok(true)
 	}
 }
