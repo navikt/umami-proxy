@@ -74,7 +74,6 @@ pub fn redact_json(value: &mut Value) {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use super::*;
 	use serde_json::json;
 
 	#[test]
