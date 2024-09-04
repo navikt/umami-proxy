@@ -1,4 +1,5 @@
 use regex::Regex;
+use serde_json::{Map, Value};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RedactType {
@@ -17,11 +18,11 @@ impl RedactType {
 		}
 	}
 	pub fn new(s: &str) -> Self {
-		determine_redact_type(s)
+		redact(s)
 	}
 }
 
-pub fn determine_redact_type(s: &str) -> RedactType {
+pub fn redact(s: &str) -> RedactType {
 	let keep_regex = Regex::new(r"(nav|test)[0-9]{6}").unwrap();
 	let hex_regex = Regex::new(r"[a-f0-9\-]{6,}").unwrap();
 	let id_regex = Regex::new(r"\d[oiA-Z0-9]{8,}").unwrap();
@@ -49,6 +50,27 @@ pub fn redact_queries(ss: &[(&str, &str)]) -> Vec<(RedactType, RedactType)> {
 		.collect()
 }
 
+pub fn redact_json(value: &mut Value) {
+	match value {
+		Value::String(s) => {
+			*s = redact(s).pretty_print();
+		},
+		Value::Array(arr) => {
+			for v in arr {
+				redact_json(v);
+			}
+		},
+		Value::Object(obj) => {
+			for (_, v) in obj.iter_mut() {
+				redact_json(v);
+			}
+		},
+		_ => {
+			// (Number, Bool, Null), do not need redacting (?)
+		},
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -56,45 +78,45 @@ mod tests {
 	#[test]
 	fn test_keep_regex() {
 		let input = "nav123456";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::Keep(input.to_string()));
 
 		let input = "test654321";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::Keep(input.to_string()));
 	}
 
 	#[test]
 	fn test_redact_regex() {
 		let input = "abcdef123456";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::RedactValue);
 
 		let input = "1ABCD23456789";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::RedactValue);
 
 		let input = "123456";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::RedactValue);
 
 		let input = "a1b2c3d4e5";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::RedactValue);
 	}
 
 	#[test]
 	fn test_original_regex() {
 		let input = "regularstring";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::Original(input.to_string()));
 
 		let input = "anotherString";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::Original(input.to_string()));
 
 		let input = "12345";
-		let result = determine_redact_type(input);
+		let result = redact(input);
 		assert_eq!(result, RedactType::Original(input.to_string()));
 	}
 }
