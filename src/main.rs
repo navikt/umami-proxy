@@ -3,6 +3,7 @@ use std::net::ToSocketAddrs;
 use clap::Parser;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 
+mod annotate;
 mod config;
 mod probes;
 mod proxy;
