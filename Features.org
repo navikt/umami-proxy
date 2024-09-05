@@ -19,7 +19,7 @@ sus: Uses data from 2019, No rust impl. There's a c-library.
 See ports.
 This is maybe where Many k8s resources-as-nix-happen
 ** TODO Probes
-*** V- GOES IN README
+*** DONE V- GOES IN README
 There's several green threads by tokio running different bits
 of the program. They should fail at the same time. Experimentation
 with panic! in one service confirms that they do. They also block at the same time

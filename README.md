@@ -1,5 +1,12 @@
 # Ampritude-proxy
 
+## Implementation notes
+There's several green threads by tokio running different bits of the program.
+They should fail at the same time.
+Experimentation with `panic!` in one service confirms that they do.
+
+The above also holds true when tested w/`loop { ... }`.
+
 ## Development
 Configured dev-env requires:
 1. Nix (flake supported)
