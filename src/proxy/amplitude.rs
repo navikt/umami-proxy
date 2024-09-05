@@ -36,7 +36,9 @@ pub(crate) fn process_amplitude_event(body: &Vec<u8>) -> Option<Bytes> {
 }
 
 /// This function does all the manipulation/treatment of the HTTP request body received from some browser's amplitude sdk
-/// 1. Parse bytes as some version of an Amplitude event; TODO: Check/handle multiple versions?
+/// 1. Parse JSON as some version of an Amplitude event; TODO: Check/handle multiple versions?
+///    - NB: `amplitude::Event`'s serde implementation lossly ignores any fields
+/// 		not existing over @ https://amplitude.com/docs/apis/analytics/http-v2#schemaevent
 /// 1. Replace (coarsen) downstream IP w/(coarse) geo data; TODO
 /// 1. Set `ProxyVersion` to name of this app (so we @ NAV can identify where the Amplitude event came from over @ Amplitude)
 /// 1. Use the `crate::proxy::redact` module's logic to redact any data inside `(event|user)_properties` of the event body
