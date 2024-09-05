@@ -83,6 +83,33 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 	dbg!(&new_uri);
 	new_uri
 }
+/// Redacts location data and ip  by setting them to null.
+pub fn redact_location(value: &mut Value) {
+	match value {
+		Value::Object(map) => {
+			if let Some(loc_lat) = map.get_mut("location_lat") {
+				*loc_lat = Value::Null;
+			}
+			if let Some(loc_lng) = map.get_mut("location_lng") {
+				*loc_lng = Value::Null;
+			}
+			if let Some(ip_address) = map.get_mut("ip_address") {
+				*ip_address = Value::Null;
+			}
+			for (_, v) in map.iter_mut() {
+				redact_location(v);
+			}
+		},
+
+		Value::Array(arr) => {
+			for item in arr.iter_mut() {
+				redact_location(item);
+			}
+		},
+		_ => { // We cant redact Bools etc.
+		},
+	}
+}
 
 pub fn redact_json(value: &mut Value) {
 	match value {
@@ -109,6 +136,61 @@ pub fn redact_json(value: &mut Value) {
 mod tests {
 	use super::*;
 	use serde_json::json;
+
+	#[test]
+	fn test_redact_location_in_amplitude_event() {
+		let mut json_data = json!({
+			"user_id": "12345",
+			"device_id": "device-98765",
+			"event_type": "button_click",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue"
+			},
+			"user_properties": {
+				"age": 30,
+				"gender": "female"
+			},
+			"location_lat": 37.7749,
+			"location_lng": -122.4194,
+			"ip_address": "123.45.67.89",
+			"session_id": 16789,
+			"nested_object": { // Just too have this too. Real events dont do nested objects
+				"location_lat": 48.8566,
+				"location_lng": 2.3522,
+				"ip_address": "98.76.54.32"
+			}
+		});
+
+		// Apply the redaction function
+		redact_location(&mut json_data);
+
+		// Expected JSON after redaction, where location fields are null
+		let expected_data = json!({
+			"user_id": "12345",
+			"device_id": "device-98765",
+			"event_type": "button_click",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue"
+			},
+			"user_properties": {
+				"age": 30,
+				"gender": "female"
+			},
+			"location_lat": null,
+			"location_lng": null,
+			"ip_address": null,
+			"session_id": 16789,
+			"nested_object": {
+				"location_lat": null,
+				"location_lng": null,
+				"ip_address": null
+			}
+		});
+
+		assert_eq!(json_data, expected_data);
+	}
 
 	#[test]
 	fn test_redact_uuid_in_amplitude_event() {
