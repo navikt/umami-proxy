@@ -1,6 +1,6 @@
 use http::Uri;
 use regex::Regex;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum RedactType {
@@ -108,6 +108,7 @@ pub fn redact_json(value: &mut Value) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use serde_json::json;
 
 	#[test]
 	fn test_redact_uuid_in_amplitude_event() {
