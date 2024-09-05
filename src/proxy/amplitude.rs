@@ -50,6 +50,17 @@ fn remove_key(json: &mut Value, key: &str) {
 /// 1. Set `ProxyVersion` to name of this app (so we @ NAV can identify where the Amplitude event came from over @ Amplitude)
 /// 1. Use the `crate::proxy::redact` module's logic to redact any data inside `(event|user)_properties` of the event body
 fn process_event(json: &mut Value) -> Value {
+	// Upstream requires this one to be present, so don't redact it
+	let event_type = match json.get_mut("event_type") {
+		Some(s) => s
+			.as_str()
+			.expect("Amplitude event's `event_type` JSON key not serializeable as string")
+			.to_owned(),
+		None => {
+			panic!("Amplitude event missing upstream required field: `event_type`")
+		},
+	};
+
 	// Clean up client-specified data
 	clean_up_json(json, Some("event_properties"));
 	clean_up_json(json, Some("user_properties"));
@@ -72,6 +83,8 @@ fn process_event(json: &mut Value) -> Value {
 	// REDACT ID of event w/ID of proxy
 	event.user_id(std::env::var("NAIS_CLIENT_ID").unwrap_or(env!("CARGO_PKG_NAME").to_string()));
 
+	// Add back in upstream required (non-redacted) fields/keys
+	event.event_type(event_type);
 	serde_json::to_value(event).expect("Processed Amplitude event is not well-formed JSON")
 }
 
@@ -90,8 +103,6 @@ mod tests {
 
 		let mut expected_json = original_json.clone();
 		*expected_json.get_mut("user_id").unwrap() = json!(env!("CARGO_PKG_NAME"));
-
-		// redact_json(&mut expected_json);
 
 		assert_json_include!(actual: process_event(&mut original_json), expected: expected_json);
 	}
