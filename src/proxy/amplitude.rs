@@ -69,7 +69,7 @@ fn process_event(json: &mut Value) -> Value {
 	remove_key(json, "adid");
 	remove_key(json, "android_id");
 
-	// Obfuscate ID of event w/ID of proxy
+	// REDACT ID of event w/ID of proxy
 	event.user_id(std::env::var("NAIS_CLIENT_ID").unwrap_or(env!("CARGO_PKG_NAME").to_string()));
 
 	serde_json::to_value(event).expect("Processed Amplitude event is not well-formed JSON")
@@ -82,7 +82,7 @@ mod tests {
 	use serde_json::json;
 
 	#[test]
-	fn test_obfuscate_user_id() {
+	fn test_redact_user_id() {
 		let mut original_json = json!({
 			"user_id": "12345",
 			"event_type": "button_click",
@@ -96,7 +96,7 @@ mod tests {
 		assert_json_include!(actual: process_event(&mut original_json), expected: expected_json);
 	}
 	#[test]
-	fn test_obfuscate_phone_ids() {
+	fn test_redact_phone_ids() {
 		// Set-up
 		let mut expected_json = json!({
 			"user_id": "12345",
