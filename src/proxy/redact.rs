@@ -135,6 +135,7 @@ pub fn redact_json(value: &mut Value) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use assert_json_diff::assert_json_include;
 	use serde_json::json;
 
 	#[test]
@@ -300,5 +301,57 @@ mod tests {
 		let input = "12345";
 		let result = redact(input);
 		assert_eq!(result, RedactType::Original(input.to_string()));
+	}
+
+	#[test]
+	fn test_redact_user_id() {
+		let mut original_json = json!({
+			"user_id": "12345",
+			"event_type": "button_click",
+		});
+
+		let mut expected_json = original_json.clone();
+		*expected_json.get_mut("user_id").unwrap() = json!(env!("CARGO_PKG_NAME"));
+
+		assert_json_include!(actual: process_event(&mut original_json), expected: expected_json);
+	}
+	#[test]
+	fn test_redact_phone_ids() {
+		// Set-up
+		let mut expected_json = json!({
+			"user_id": "12345",
+			"event_type": "button_click",
+		});
+		let mut original_json = expected_json.clone();
+
+		// Test difference
+		*expected_json.get_mut("user_id").unwrap() = json!(env!("CARGO_PKG_NAME"));
+		{
+			let json = original_json.as_object_mut().unwrap();
+			assert!(None == json.insert("idfa".to_string(), json!("foo")));
+			assert!(None == json.insert("idfv".to_string(), json!("bar")));
+			assert!(None == json.insert("adid".to_string(), json!("baz")));
+			assert!(None == json.insert("android_id".to_string(), json!("baw")));
+		}
+
+		// Verify
+		assert_json_include!(actual: process_event(&mut original_json), expected: expected_json);
+	}
+}
+
+pub fn redact_key(json: &mut Value, key: &str) {
+	if let Some(j) = json.get_mut(key) {
+		j.take();
+	}
+}
+
+pub fn redact_json_differently(json: &mut Value, key: Option<&str>) {
+	match key {
+		Some(k) => {
+			if let Some(j) = json.get_mut(k) {
+				redact_json(j)
+			}
+		},
+		None => redact_json(json),
 	}
 }
