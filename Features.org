@@ -4,8 +4,9 @@
 We should ask about this
 ** DONE based on four (actually three) regexes
 ** hash based caching
-** Clean Events
-** Clean Object
+** Clean Events/Object
+*** DONE potential phone IDs removed
+*** TODO decide if `device_id` should be redacted
 ** DONE Path Segments and Query Param
 ** Add GeoData
 sus: Uses data from 2019, No rust impl. There's a c-library.
@@ -58,8 +59,8 @@ We need to expose multiple ports. Nais doesn't support that. Add these manually 
         v
 +----------------------------------------------------------+
 | Validate platform or ingestion metadata URLs             |
-| - If using new SDK, validate `ingestion_metadata` URL     |
-| - If using old SDK, validate `platform` URL               |
+| - If using new SDK, validate `ingestion_metadata` URL    |
+| - If using old SDK, validate `platform` URL              |
 +----------------------------------------------------------+
         |
         v
@@ -77,10 +78,10 @@ We need to expose multiple ports. Nais doesn't support that. Add these manually 
 +-------------------------------+
         |
         v
-+----------------------------+
-| Check API key validity      |
++-------------------------------+
+| Check API key validity        |
 | - Compare with AUTO_TRACK_KEY |
-+----------------------------+
++-------------------------------+
         |                          |
         v                          v
 +------------------------+       +----------------------------------------+
