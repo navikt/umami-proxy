@@ -1,3 +1,4 @@
+use maxminddb::Reader;
 use serde_json::Value;
 
 pub fn annotate_with_proxy_version(event: &mut Value, proxy_version: &str) {
@@ -8,6 +9,8 @@ pub fn annotate_with_proxy_version(event: &mut Value, proxy_version: &str) {
 		);
 	}
 }
+
+pub fn annotate_with_location(event: &mut Value, reader: &Reader<Vec<u8>>) {}
 
 #[cfg(test)]
 mod tests {

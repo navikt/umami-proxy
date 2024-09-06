@@ -1,21 +1,81 @@
 use http::Uri;
 use regex::Regex;
-use serde_json::Value;
+use serde_json::{Map, Number, Value};
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum RedactType {
-	RedactValue,
+pub(crate) enum Transform {
+	Redacted,
 	Keep(String),
 	Original(String),
+	Annotated(String),
+	IpTransform(String),
 }
 
-impl RedactType {
+/// This is a nonserializeable Json with redact leaves
+pub enum Redact {
+	Null,
+	Bool(bool),
+	Number(Number),
+	String(String),
+	Transform(Transform),
+	Array(Vec<Transform>),
+	Object(Map<String, Transform>),
+}
+
+// //       serde_json::Value
+// pub enum Serde_Json__Value {
+// 	Null,
+// 	Bool(bool),
+// 	Number(Number),
+// 	String(String),
+//         Transform,
+// 	Array(Vec<Serde_Json__Value>),
+// 	Object(Map<String, Serde_Json__Value>),
+// }
+
+// // Todo, Bytes -> serde_json::Value -1> Redact -2> Value -> Bytes
+// // this is -2>
+// fn josnify(v: Redact) -> Serde_Json__Value {
+//     match v {
+//         Redact::Null => Serde_Json__Value::Null,
+//         Redact::Bool(x) => Serde_Json__Value::Bool(x),
+//             Redact::Number(n) => Serde_Json__Value::Number(n),
+//         Redact::String(s) => Serde_Json__Value::String(s),
+//         Redact::Transform(transform) => matchTransform(transform) //(Transform) -> Value
+//         Redact::Array(a) => a.iter.foreach()
+//         Redact::Object(m) => m.iter.foreach(|k,v| =
+//             if k == "some key" {
+
+//             }
+//         )
+
+//     }
+// }
+
+// // this is -1>
+// fn redact(v: Serde_Json__Value) -> Redact {
+// match sjv
+//        Serde_Json__Value::Null => Null
+//        Serde_Json__Value::Bool(bool) => Bool(bool)
+//        Serde_Json__Value::Number(Number) => Number(Number)
+//        Serde_Json__Value::String(String) => redact(String) (: String -> Redact)
+//            Serde_Json__Value::Array(vec) => vec.iter.map.redact.collect()
+//        Serde_Json__Value::Object(map) =>
+//            map.iter.map(|k,v|  {
+//                if key == "cool-key"
+
+//            })
+
+//                }
+
+impl Transform {
 	pub(crate) fn pretty_print(&self) -> String {
 		let redacted = "[redacted]";
 		match self {
-			Self::RedactValue => redacted.to_string(),
+			Self::Redacted => redacted.to_string(),
 			Self::Keep(s) => s.to_string(),
 			Self::Original(s) => s.to_string(),
+			Self::Annotated(s) => s.to_string(),
 		}
 	}
 	pub(crate) fn new(s: &str) -> Self {
@@ -23,43 +83,39 @@ impl RedactType {
 	}
 }
 
-fn redact(s: &str) -> RedactType {
+fn redact(s: &str) -> Transform {
 	let keep_regex = Regex::new(r"(nav|test)[0-9]{6}").unwrap();
 	let hex_regex = Regex::new(r"[a-f0-9\-]{6,}").unwrap();
 	let id_regex = Regex::new(r"\d[oiA-Z0-9]{8,}").unwrap();
 
 	if keep_regex.is_match(s) {
-		RedactType::Keep(s.to_string())
+		Transform::Keep(s.to_string())
 	} else if hex_regex.is_match(s) || id_regex.is_match(s) {
-		RedactType::RedactValue
+		Transform::Redacted
 	} else {
-		RedactType::Original(s.to_string())
+		Transform::Original(s.to_string())
 	}
 }
 
-fn print_query((key, value): &(RedactType, RedactType)) -> String {
+fn print_query((key, value): &(Transform, Transform)) -> String {
 	format!("{}={}", key.pretty_print(), value.pretty_print())
 }
 
-fn redact_paths(ps: &[&str]) -> Vec<RedactType> {
-	ps.iter().map(|p: &&str| RedactType::new(p)).collect()
+fn redact_paths(ps: &[&str]) -> Vec<Transform> {
+	ps.iter().map(|p: &&str| Transform::new(p)).collect()
 }
 
-fn redact_queries(ss: &[(&str, &str)]) -> Vec<(RedactType, RedactType)> {
+fn redact_queries(ss: &[(&str, &str)]) -> Vec<(Transform, Transform)> {
 	ss.iter()
-		.map(|q| (RedactType::new(q.0), RedactType::new(q.1)))
+		.map(|q| (Transform::new(q.0), Transform::new(q.1)))
 		.collect()
 }
 
 pub fn redact_uri(old_uri: &Uri) -> Uri {
-	dbg!(&old_uri);
 	let redacted_paths = itertools::join(
 		redact_paths(&old_uri.path().split('/').collect::<Vec<_>>())
 			.iter()
-			.map(|x| {
-				// dbg!(x);
-				x.pretty_print()
-			}),
+			.map(|x| x.pretty_print()),
 		"/",
 	);
 
@@ -262,45 +318,39 @@ mod tests {
 	fn test_keep_regex() {
 		let input = "nav123456";
 		let result = redact(input);
-		assert_eq!(result, RedactType::Keep(input.to_string()));
-
+		assert_eq!(result, Transform::Keep(input.to_string()));
 		let input = "test654321";
 		let result = redact(input);
-		assert_eq!(result, RedactType::Keep(input.to_string()));
+		assert_eq!(result, Transform::Keep(input.to_string()));
 	}
 
 	#[test]
 	fn test_redact_regex() {
 		let input = "abcdef123456";
 		let result = redact(input);
-		assert_eq!(result, RedactType::RedactValue);
-
+		assert_eq!(result, Transform::Redacted);
 		let input = "1ABCD23456789";
 		let result = redact(input);
-		assert_eq!(result, RedactType::RedactValue);
-
+		assert_eq!(result, Transform::Redacted);
 		let input = "123456";
 		let result = redact(input);
-		assert_eq!(result, RedactType::RedactValue);
-
+		assert_eq!(result, Transform::Redacted);
 		let input = "a1b2c3d4e5";
 		let result = redact(input);
-		assert_eq!(result, RedactType::RedactValue);
+		assert_eq!(result, Transform::Redacted);
 	}
 
 	#[test]
 	fn test_original_regex() {
 		let input = "regularstring";
 		let result = redact(input);
-		assert_eq!(result, RedactType::Original(input.to_string()));
-
+		assert_eq!(result, Transform::Original(input.to_string()));
 		let input = "anotherString";
 		let result = redact(input);
-		assert_eq!(result, RedactType::Original(input.to_string()));
-
+		assert_eq!(result, Transform::Original(input.to_string()));
 		let input = "12345";
 		let result = redact(input);
-		assert_eq!(result, RedactType::Original(input.to_string()));
+		assert_eq!(result, Transform::Original(input.to_string()));
 	}
 
 	#[test]
@@ -384,7 +434,6 @@ pub fn process_event(json: &mut Value) -> Value {
 	// 	},
 	// 	Ok(e) => e,
 	// };
-
 	// Clean up anything else left
 	redact_json(json);
 

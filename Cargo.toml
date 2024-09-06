@@ -13,6 +13,7 @@ env_logger = "0.11.5"
 http = "1.1.0"
 isbot = "0.1.3"
 itertools = "0.13.0"
+maxminddb = "0.24.0"
 pingora = { version = "0.3.0", features = ["proxy"] }
 regex = "1.10.6"
 serde = { version = "1.0.209", features = ["derive"] }

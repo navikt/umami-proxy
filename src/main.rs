@@ -7,7 +7,6 @@ mod annotate;
 mod config;
 mod probes;
 mod proxy;
-
 // RUST_LOG=INFO cargo run --example modify_response
 // curl 127.0.0.1:6191
 fn main() {
@@ -21,6 +20,8 @@ fn main() {
 	}))
 	.unwrap();
 	amplitrude_proxy.bootstrap();
+
+	let reader = maxminddb::Reader::open_readfile("src/data/geolite2-city-ipv4.mmdb").unwrap();
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, probes::Probes {});
@@ -44,6 +45,7 @@ fn main() {
 				.unwrap()
 				.next()
 				.unwrap(),
+			reader,
 		},
 	);
 

@@ -6,7 +6,7 @@ use crate::proxy::redact::redact_json;
 
 use super::redact;
 
-/// This function just handles the bytes deserialization and serialization of the http request body
+/// This function, among other things, handles the bytes deserialization and serialization of the http request body
 pub(crate) fn process_amplitude_event(body: &Vec<u8>) -> Option<Bytes> {
 	let mut json: serde_json::Value = match serde_json::de::from_slice(body) {
 		Err(e) => {

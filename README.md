@@ -1,5 +1,8 @@
 # Ampritude-proxy
 
+"This product includes GeoLite2 data created by MaxMind, available from
+<a href="https://www.maxmind.com">https://www.maxmind.com</a>."
+
 ## Implementation notes
 There's several green threads by tokio running different bits of the program.
 They should fail at the same time.

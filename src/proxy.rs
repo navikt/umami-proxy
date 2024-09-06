@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use bytes::Bytes;
+use maxminddb::Reader;
 use pingora::{
 	http::RequestHeader,
 	prelude::HttpPeer,
@@ -14,6 +15,7 @@ pub const HOST: &str = "localhost";
 
 pub struct Addr {
 	pub addr: std::net::SocketAddr,
+	pub reader: Reader<Vec<u8>>,
 }
 
 #[derive(Debug)]
