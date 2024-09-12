@@ -87,10 +87,6 @@ impl ProxyHttp for Addr {
 			.insert_header("Transfer-Encoding", "Chunked")
 			.unwrap();
 
-		upstream_request
-			.insert_header("X-WTF-X", "X-WTF-X")
-			.unwrap();
-
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
 		Ok(())
 	}

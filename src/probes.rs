@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use pingora::{
 	prelude::HttpPeer,
 	proxy::{ProxyHttp, Session},
-	Result,
+	Error, ErrorType, Result,
 };
 
 pub struct Probes;
@@ -22,11 +22,14 @@ impl ProxyHttp for Probes {
 		session: &mut Session,
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		let host = session.downstream_session.req_header();
-		dbg!(session.downstream_session.request_summary());
-		dbg!(host);
+		if let Some(peer_addr) = session.downstream_session.client_addr() {
+			// Create a new upstream peer using the downstream's address
+			let peer = Box::new(HttpPeer::new(peer_addr.to_string(), false, "".into()));
+			return Ok(peer);
+		}
 
 		let peer = Box::new(HttpPeer::new("localhost", false, "localhost".to_owned()));
+		// TODO, this should be a pingora error rather than a fake host.
 		Ok(peer)
 	}
 
@@ -53,7 +56,7 @@ impl ProxyHttp for Probes {
 			.contains("is_alive")
 		// this also matches is_aliveeeeeeeee etc
 		{
-			session.respond_error(200).await?; // Can we respond without saying error?
+			session.respond_error(242).await?; // Can we respond without saying error?
 		}
 		session.respond_error(404).await?;
 		Ok(true)
