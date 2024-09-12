@@ -2,7 +2,7 @@ use amplitude::Event;
 use bytes::Bytes;
 use serde_json::Value;
 
-use crate::proxy::redact::redact_json;
+// use crate::proxy::redact::redact_json;
 
 use super::redact;
 
@@ -17,14 +17,15 @@ pub(crate) fn process_amplitude_event(body: &Vec<u8>) -> Option<Bytes> {
 	};
 	dbg!(&json);
 
-	let processed_body = redact::process_event(&mut json);
+	//	let processed_body = redact::process_event(&mut json);
 
-	dbg!(&processed_body);
-	Some(Bytes::copy_from_slice(
-		serde_json::to_string(&processed_body)
-			.expect("Unable to serialize JSON into string")
-			.as_bytes(),
-	))
+	//	dbg!(&processed_body);
+	// Some(Bytes::copy_from_slice(
+	// 	serde_json::to_string(&processed_body)
+	// 		.expect("Unable to serialize JSON into string")
+	// 		.as_bytes(),
+	// ))
+	None
 }
 
 #[cfg(test)]
