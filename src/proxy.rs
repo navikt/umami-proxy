@@ -60,7 +60,11 @@ impl ProxyHttp for Addr {
 		}
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
-			*body = amplitude::process_amplitude_event(&ctx.request_body_buffer);
+			let mut v: serde_json::Value =
+				serde_json::from_slice(&ctx.request_body_buffer).unwrap();
+			redact::traverse_and_redact(&mut v);
+			let json_body = serde_json::to_string(&v).unwrap();
+			*body = Some(Bytes::from(json_body));
 		}
 		Ok(None)
 	}

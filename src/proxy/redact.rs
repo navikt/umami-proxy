@@ -40,55 +40,24 @@ impl Tra {
 		redact(s)
 	}
 }
-
-/// Goes from Value to Redact, This is an entrypoint to making redacted Value
-/// Note that there's no usage of Transform constructors here.
-pub fn value_to_transform(value: Value) -> Transform {
+pub fn traverse_and_redact(value: &mut Value) {
 	match value {
-		Value::Null => Transform::Null,
-		Value::Bool(b) => Transform::Bool(b),
-		Value::Number(n) => Transform::Number(n),
-		Value::String(s) => Transform::String(s),
+		Value::String(s) => {
+			*s = redact(s).pretty_print();
+		},
 		Value::Array(arr) => {
-			let transformed_array = arr.into_iter().map(value_to_transform).collect();
-			Transform::Array(transformed_array)
+			for v in arr {
+				traverse_and_redact(v);
+			}
 		},
-		Value::Object(map) => {
-			let transformed_map = map
-				.into_iter()
-				.map(|(k, v)| (k, value_to_transform(v)))
-				.collect();
-			Transform::Object(transformed_map)
+		Value::Object(obj) => {
+			for (_, v) in obj.iter_mut() {
+				traverse_and_redact(v);
+			}
 		},
-	}
-}
-
-pub fn transform_to_value<F>(transform: Transform, handler: F) -> Value
-where
-	F: Fn(Tra) -> Value, // Handler for TransformType nodes
-{
-	match transform {
-		Transform::Null => Value::Null,
-		Transform::Bool(b) => Value::Bool(b),
-		Transform::Number(n) => Value::Number(n),
-		Transform::String(s) => Value::String(s),
-		Transform::Array(arr) => {
-			let json_array: Vec<Value> = arr
-				.into_iter()
-				.map(|item| transform_to_value(item, &handler))
-				.collect();
-			Value::Array(json_array)
+		Value::Number(_) | Value::Bool(_) | Value::Null => {
+			// No need to do anything for these types
 		},
-		Transform::Object(map) => {
-			let json_object: serde_json::Map<String, Value> = map
-				.into_iter()
-				.map(|(k, v)| (k, transform_to_value(v, &handler)))
-				.collect();
-			Value::Object(json_object)
-		},
-
-		// Leaf nodes get >>Handled<< Here. This could be made explicit, we don't need pluggable handlers
-		Transform::Transform(t) => handler(t),
 	}
 }
 
@@ -147,82 +116,121 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 	new_uri
 }
 
-/// Redacts location-related fields in a `Transform` tree and returns a new `Transform`.
-pub fn redact_location(value: Transform) -> Transform {
-	match value {
-		Transform::Object(map) => {
-			let redacted_map = map
-				.into_iter()
-				.map(|(k, v)| {
-					if k == "location_lat" || k == "location_lng" || k == "ip_address" {
-						(k, Transform::Transform(Tra::Removed))
-					} else {
-						(k, redact_location(v))
-					}
-				})
-				.collect();
-			Transform::Object(redacted_map)
-		},
-		Transform::Array(arr) => {
-			let redacted_array = arr.into_iter().map(redact_location).collect();
-			Transform::Array(redacted_array)
-		},
-		other => other,
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use assert_json_diff::assert_json_include;
 	use serde_json::json;
 
+	fn test_redact_uuid_in_amplitude_event() {
+		// Hardcoded UUID string
+		let uuid = "123e4567-e89b-12d3-a456-426614174000";
+
+		// Create a JSON structure similar to an Amplitude event, with the UUID in the "insert_id" field
+		let mut json_data = json!({
+			"user_id": "12345",
+			"device_id": "device-98765",
+			"event_type": "button_click",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue",
+				"page": "signup_page"
+			},
+			"user_properties": {
+				"age": 30,
+				"gender": "female",
+				"location": "USA"
+			},
+			"app_version": "1.0.0",
+			"platform": "iOS",
+			"os_name": "iOS",
+			"os_version": "14.4",
+			"device_brand": "Apple",
+			"device_model": "iPhone 12",
+			"event_time": 1678,
+			"session_id": 1678,
+			"insert_id": uuid,  // The UUID to be redacted
+			"location_lat": 37.7749,
+			"location_lng": -122.4194,
+			"ip_address": "123.45.67.89"
+		});
+
+		// Expected JSON after redaction, where only the "insert_id" field is redacted
+		let expected_data = json!({
+			"user_id": "12345",
+			"device_id": "device-98765",
+			"event_type": "button_click",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue",
+				"page": "signup_page"
+			},
+			"user_properties": {
+				"age": 30,
+				"gender": "female",
+				"location": "USA"
+			},
+			"app_version": "1.0.0",
+			"platform": "iOS",
+			"os_name": "iOS",
+			"os_version": "14.4",
+			"device_brand": "Apple",
+			"device_model": "iPhone 12",
+			"event_time": 1678,
+			"session_id": 1678,
+			"insert_id": "[REDACTED]",  // Only this field is redacted
+			"location_lat": 37.7749,
+			"location_lng": -122.4194,
+			"ip_address": "123.45.67.89"
+		});
+
+		// Apply the redaction function
+		traverse_and_redact(&mut json_data);
+
+		// Assert that the redacted JSON matches the expected output
+		assert_eq!(json_data, expected_data);
+	}
 	#[test]
 	fn test_redact_location_in_amplitude_event() {
 		// TODO
 	}
 
 	#[test]
-	fn test_redact_uuid_in_amplitude_event() {
-		// TODO
-	}
-
-	#[test]
 	fn test_keep_regex() {
 		let input = "nav123456";
-		let result = redact(input);
-		assert_eq!(result, Tra::Kept(input.to_string()));
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Kept(input.to_string()).pretty_print());
 		let input = "test654321";
-		let result = redact(input);
-		assert_eq!(result, Tra::Kept(input.to_string()));
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Kept(input.to_string()).pretty_print());
 	}
 
 	#[test]
 	fn test_redact_regex() {
 		let input = "abcdef123456";
-		let result = redact(input);
-		assert_eq!(result, Tra::Redacted);
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Redacted.pretty_print());
 		let input = "1ABCD23456789";
-		let result = redact(input);
-		assert_eq!(result, Tra::Redacted);
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Redacted.pretty_print());
 		let input = "123456";
-		let result = redact(input);
-		assert_eq!(result, Tra::Redacted);
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Redacted.pretty_print());
 		let input = "a1b2c3d4e5";
-		let result = redact(input);
-		assert_eq!(result, Tra::Redacted);
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Redacted.pretty_print());
 	}
 
 	#[test]
 	fn test_original_regex() {
 		let input = "regularstring";
-		let result = redact(input);
-		assert_eq!(result, Tra::Original(input.to_string()));
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Original(input.to_string()).pretty_print());
 		let input = "anotherString";
-		let result = redact(input);
-		assert_eq!(result, Tra::Original(input.to_string()));
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Original(input.to_string()).pretty_print());
 		let input = "12345";
-		let result = redact(input);
-		assert_eq!(result, Tra::Original(input.to_string()));
+		let result = redact(input).pretty_print();
+		assert_eq!(result, Tra::Original(input.to_string()).pretty_print());
 	}
 }
