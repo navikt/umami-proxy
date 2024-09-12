@@ -52,6 +52,10 @@
         src = craneLib.cleanCargoSource (craneLib.path ./.);
         commonArgs = {
           inherit pname src CARGO_BUILD_TARGET;
+          OPENSSL_DIR = pkgs.openssl;
+          OPENSSL_LIB_DIR = pkgs.openssl;
+          OPENSSL_INCLUDE_DIR = pkgs.openssl;
+
           nativeBuildInputs = with pkgs;
             [ pkg-config cmake openssl ] ++ lib.optionals stdenv.isDarwin [
               darwin.apple_sdk.frameworks.Security
