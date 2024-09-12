@@ -55,9 +55,12 @@
           OPENSSL_DIR = pkgs.openssl;
           OPENSSL_LIB_DIR = pkgs.openssl;
           OPENSSL_INCLUDE_DIR = pkgs.openssl;
+          PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
 
+          buildInputs = with pkgs; [ openssl openssl.dev ];
           nativeBuildInputs = with pkgs;
-            [ pkg-config cmake openssl ] ++ lib.optionals stdenv.isDarwin [
+            [ pkg-config cmake openssl openssl.dev ]
+            ++ lib.optionals stdenv.isDarwin [
               darwin.apple_sdk.frameworks.Security
               darwin.apple_sdk.frameworks.SystemConfiguration
             ];

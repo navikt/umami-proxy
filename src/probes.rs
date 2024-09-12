@@ -17,22 +17,6 @@ impl ProxyHttp for Probes {
 		Ctx {}
 	}
 
-	async fn upstream_peer(
-		&self,
-		session: &mut Session,
-		_ctx: &mut Self::CTX,
-	) -> Result<Box<HttpPeer>> {
-		if let Some(peer_addr) = session.downstream_session.client_addr() {
-			// Create a new upstream peer using the downstream's address
-			let peer = Box::new(HttpPeer::new(peer_addr.to_string(), false, "".into()));
-			return Ok(peer);
-		}
-
-		let peer = Box::new(HttpPeer::new("localhost", false, "localhost".to_owned()));
-		// TODO, this should be a pingora error rather than a fake host.
-		Ok(peer)
-	}
-
 	/// Handle the incoming request.
 	///
 	/// In this phase, users can parse, validate, rate limit, perform access control and/or
@@ -46,7 +30,6 @@ impl ProxyHttp for Probes {
 	where
 		Self::CTX: Send + Sync,
 	{
-		dbg!(session.request_summary());
 		if session
 			.downstream_session
 			.req_header()
@@ -60,5 +43,15 @@ impl ProxyHttp for Probes {
 		}
 		session.respond_error(404).await?;
 		Ok(true)
+	}
+
+	/// After request_filter, this guy gets called but we've already handled everything so it does nothing.
+	async fn upstream_peer(
+		&self,
+		_session: &mut Session,
+		_ctx: &mut Self::CTX,
+	) -> Result<Box<HttpPeer>> {
+		/// Panic is not the best implementation here.
+		panic!(); // We don't need an implementation here as going further from request_filter is a bug in this proxy
 	}
 }

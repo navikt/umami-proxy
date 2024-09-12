@@ -18,7 +18,7 @@ pub const HOST: &str = "localhost";
 
 pub struct Addr {
 	pub addr: std::net::SocketAddr,
-	pub reader: Reader<Vec<u8>>,
+	pub reader: Reader<Vec<u8>>, // for maxmindb
 }
 
 #[derive(Debug)]
@@ -48,6 +48,7 @@ impl ProxyHttp for Addr {
 					let bot = isbot::Bots::default().is_bot(ua);
 					//  ^  This should be instanciated top-level
 					session.respond_error(200).await?;
+					// ^ This respond_error bit is silly, surely we can just respond?
 					if bot {
 						eprintln!("This request's UA matches a known bot:\n\t{ua}");
 					}
@@ -89,11 +90,9 @@ impl ProxyHttp for Addr {
 			let mut v: serde_json::Value =
 				serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
 			redact::traverse_and_redact(&mut v);
-			let json_body = serde_json::to_string(&v).unwrap();
-			dbg!(&json_body);
-			*body = Some(Bytes::from(json_body));
+			let json_body = serde_json::to_string(&v).expect("invalid redacted json");
+			*body = Some(Bytes::from(json_body))
 		}
-
 		Ok(())
 	}
 
