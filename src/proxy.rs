@@ -1,8 +1,11 @@
+use std::fmt::format;
+
 use async_trait::async_trait;
 use bytes::Bytes;
 use maxminddb::Reader;
 use pingora::{
 	http::RequestHeader,
+	http::ResponseHeader,
 	prelude::HttpPeer,
 	proxy::{ProxyHttp, Session},
 	Result,
@@ -42,13 +45,13 @@ impl ProxyHttp for Addr {
 		Ok(peer)
 	}
 
-	fn response_body_filter(
+	async fn request_body_filter(
 		&self,
 		_session: &mut Session,
 		body: &mut Option<Bytes>,
 		end_of_stream: bool,
 		ctx: &mut Self::CTX,
-	) -> Result<Option<std::time::Duration>>
+	) -> Result<()>
 	where
 		Self::CTX: Send + Sync,
 	{
@@ -61,12 +64,14 @@ impl ProxyHttp for Addr {
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
 			let mut v: serde_json::Value =
-				serde_json::from_slice(&ctx.request_body_buffer).unwrap();
+				serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
 			redact::traverse_and_redact(&mut v);
 			let json_body = serde_json::to_string(&v).unwrap();
+			dbg!(&json_body);
 			*body = Some(Bytes::from(json_body));
 		}
-		Ok(None)
+
+		Ok(())
 	}
 
 	/// Redact path and query parameters of request
@@ -77,6 +82,15 @@ impl ProxyHttp for Addr {
 		upstream_request: &mut RequestHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()> {
+		upstream_request.remove_header("Content-Length");
+		upstream_request
+			.insert_header("Transfer-Encoding", "Chunked")
+			.unwrap();
+
+		upstream_request
+			.insert_header("X-WTF-X", "X-WTF-X")
+			.unwrap();
+
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
 		Ok(())
 	}
