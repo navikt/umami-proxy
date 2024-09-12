@@ -56,7 +56,7 @@ impl ProxyHttp for Probes {
 			.contains("is_alive")
 		// this also matches is_aliveeeeeeeee etc
 		{
-			session.respond_error(242).await?; // Can we respond without saying error?
+			session.respond_error(200).await?; // Can we respond without saying error?
 		}
 		session.respond_error(404).await?;
 		Ok(true)
