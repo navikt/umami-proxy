@@ -14,8 +14,6 @@ use pingora::{
 mod amplitude;
 mod redact;
 
-pub const HOST: &str = "localhost";
-
 pub struct Addr {
 	pub addr: std::net::SocketAddr,
 	pub reader: Reader<Vec<u8>>, // for maxmindb
@@ -46,17 +44,25 @@ impl ProxyHttp for Addr {
 			Some(ua) => match ua.to_str() {
 				Ok(ua) => {
 					let bot = isbot::Bots::default().is_bot(ua);
-					//  ^  This should be instanciated top-level
-					session.respond_error(200).await?;
-					// ^ This respond_error bit is silly, surely we can just respond?
+					//  ^  This should be instanciated top-level, in the ctx
+
 					if bot {
+						session.respond_error(222).await?;
+						// ^ This respond_error bit is silly, surely we can just respond?
 						eprintln!("This request's UA matches a known bot:\n\t{ua}");
+						return Ok(bot);
 					}
-					return Ok(bot);
+					Ok(false)
 				},
-				Err(_) => return Ok(false),
+				Err(e) => {
+					eprintln!("Err :\n\t{e}");
+					return Ok(false);
+				},
 			},
-			None => Ok(false),
+			None => {
+				eprintln!("None");
+				Ok(false)
+			},
 		}
 	}
 	// This guy should be the amplitude host, all requests through the proxy gets sent th upstream_peer
@@ -65,7 +71,7 @@ impl ProxyHttp for Addr {
 		_session: &mut Session,
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		let peer = Box::new(HttpPeer::new(self.addr, false, HOST.to_owned()));
+		let peer = Box::new(HttpPeer::new(self.addr, false, "".into()));
 		Ok(peer)
 	}
 
@@ -87,12 +93,15 @@ impl ProxyHttp for Addr {
 		}
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
-			let mut v: serde_json::Value =
-				serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
-			redact::traverse_and_redact(&mut v);
-			let json_body = serde_json::to_string(&v).expect("invalid redacted json");
-			*body = Some(Bytes::from(json_body));
-			dbg!(_session.request_summary());
+			if ctx.request_body_buffer.len() > 0 {
+				let mut v: serde_json::Value =
+					serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
+				redact::traverse_and_redact(&mut v);
+				let json_body = serde_json::to_string(&v).expect("invalid redacted json");
+				*body = Some(Bytes::from(json_body));
+				dbg!(_session.request_summary());
+				dbg!(&body);
+			}
 		}
 		Ok(())
 	}
