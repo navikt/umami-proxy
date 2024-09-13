@@ -93,6 +93,7 @@ impl ProxyHttp for Addr {
 		}
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
+			// If there is a body
 			if ctx.request_body_buffer.len() > 0 {
 				let mut v: serde_json::Value =
 					serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
@@ -116,13 +117,14 @@ impl ProxyHttp for Addr {
 	) -> Result<()> {
 		// It's hard to know how big the body is before we start touching it
 		// We work around that by removing content length and setting the
-		// transfer encoding as chunked.
+		// transfer encoding as chunked. The source code in pingora core looks like it would
+		// do it automatically, but I don't see it happening, hence the explicit bits here
 		upstream_request.remove_header("Content-Length");
 		upstream_request
 			.insert_header("Transfer-Encoding", "Chunked")
 			.unwrap();
 
-		// Redact the uris
+		// Redact the uris, path segements and query params
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
 		Ok(())
 	}
