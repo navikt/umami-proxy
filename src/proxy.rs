@@ -11,6 +11,8 @@ use pingora::{
 	Result,
 };
 
+use crate::annotate;
+
 mod amplitude;
 mod redact;
 
@@ -93,12 +95,15 @@ impl ProxyHttp for Addr {
 		}
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
-			// If there is a body
+			// If there is a body.
 			if ctx.request_body_buffer.len() > 0 {
 				let mut v: serde_json::Value =
 					serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
 				redact::traverse_and_redact(&mut v);
+				annotate::annotate_with_proxy_version(&mut v, "1.0.0");
+
 				let json_body = serde_json::to_string(&v).expect("invalid redacted json");
+
 				*body = Some(Bytes::from(json_body));
 				dbg!(_session.request_summary());
 				dbg!(&body);
@@ -108,7 +113,7 @@ impl ProxyHttp for Addr {
 	}
 
 	/// Redact path and query parameters of request
-	/// TODO: Also ensure fragment is redacted?
+	/// TODO: Also ensure that path fragments are redacted?
 	async fn upstream_request_filter(
 		&self,
 		_session: &mut Session,
