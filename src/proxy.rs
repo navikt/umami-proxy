@@ -91,7 +91,8 @@ impl ProxyHttp for Addr {
 				serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
 			redact::traverse_and_redact(&mut v);
 			let json_body = serde_json::to_string(&v).expect("invalid redacted json");
-			*body = Some(Bytes::from(json_body))
+			*body = Some(Bytes::from(json_body));
+			dbg!(_session.request_summary());
 		}
 		Ok(())
 	}
@@ -104,11 +105,15 @@ impl ProxyHttp for Addr {
 		upstream_request: &mut RequestHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()> {
+		// It's hard to know how big the body is before we start touching it
+		// We work around that by removing content length and setting the
+		// transfer encoding as chunked.
 		upstream_request.remove_header("Content-Length");
 		upstream_request
 			.insert_header("Transfer-Encoding", "Chunked")
 			.unwrap();
 
+		// Redact the uris
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
 		Ok(())
 	}

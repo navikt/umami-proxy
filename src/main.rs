@@ -10,7 +10,8 @@ mod proxy;
 // RUST_LOG=INFO cargo run --example modify_response
 // curl 127.0.0.1:6191
 fn main() {
-	let _conf = config::Config::parse();
+	let conf = config::Config::parse();
+	dbg!(&conf);
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
 		daemon: false,
@@ -35,12 +36,10 @@ fn main() {
 				echo HTTP/1.1 200 OK;
 				echo Content-Type\: text/plain;
 				echo;
-				echo \"Server: \$SOCAT_SOCKADDR:\$SOCAT_SOCKPORT\";
-				echo \"Client: \$SOCAT_PEERADDR:\$SOCAT_PEERPORT\";
 			"
 		*/
 		proxy::Addr {
-			addr: ("127.0.0.1", 1234)
+			addr: (conf.amplitude_addr, 8080)
 				.to_socket_addrs()
 				.unwrap()
 				.next()

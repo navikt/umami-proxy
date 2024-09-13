@@ -1,6 +1,6 @@
 use clap::Parser;
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 pub struct Config {
 	#[arg(
 		env = "AMPLITUDE_URL",
