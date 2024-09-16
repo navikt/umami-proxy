@@ -1,0 +1,41 @@
+---
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  creationTimestamp: null
+  name: amplitrude
+  namespace: reops
+spec:
+  image: navikt/testapp:69.0.0
+  port: 6191
+  liveness:
+    failureThreshold: 10
+    initialDelay: 20
+    path: /isalive
+    periodSeconds: 5
+    port: 6969
+    timeout: 1
+  prometheus:
+    enabled: true
+    path: /metrics
+    port: "9090"
+  replicas:
+    cpuThresholdPercentage: 50
+    disableAutoScaling: true
+    max: 4
+    min: 2
+    scalingStrategy:
+      cpu:
+        thresholdPercentage: 50
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  service:
+    port: 6191
+    protocol: http
+  skipCaBundle: true
+status: {}
