@@ -11,10 +11,14 @@ use pingora::{
 	Result,
 };
 
-use crate::annotate;
+use crate::{annotate, INCOMING_REQUESTS};
 
 mod amplitude;
 mod redact;
+use prometheus::{self, Encoder, TextEncoder};
+
+use lazy_static::lazy_static;
+use prometheus::register_int_counter;
 
 pub struct Addr {
 	pub addr: std::net::SocketAddr,
@@ -42,6 +46,7 @@ impl ProxyHttp for Addr {
 		Self::CTX: Send + Sync,
 	{
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
+		INCOMING_REQUESTS.inc();
 		match user_agent {
 			Some(ua) => match ua.to_str() {
 				Ok(ua) => {
@@ -73,6 +78,7 @@ impl ProxyHttp for Addr {
 		_session: &mut Session,
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
+		INCOMING_REQUESTS.inc();
 		let peer = Box::new(HttpPeer::new(self.addr, false, "".into()));
 		Ok(peer)
 	}
@@ -95,7 +101,7 @@ impl ProxyHttp for Addr {
 		}
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
-			// If there is a body.
+			// If there is a body...
 			if ctx.request_body_buffer.len() > 0 {
 				let mut v: serde_json::Value =
 					serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
@@ -109,6 +115,14 @@ impl ProxyHttp for Addr {
 				dbg!(&body);
 			}
 		}
+
+		// Register & measure some metrics.
+		let mut buffer = Vec::new();
+		let encoder = TextEncoder::new();
+
+		let metric_families = prometheus::gather();
+		// Encode them to send.
+		encoder.encode(&metric_families, &mut buffer).unwrap();
 		Ok(())
 	}
 
