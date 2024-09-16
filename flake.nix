@@ -63,8 +63,9 @@
 
         imageTag = "v${cargoDetails.package.version}-${dockerTag}";
         imageName = "${pname}:${imageTag}";
-        teamName = "navdig";
+        teamName = "team-researchops";
         my-spec = import ./spec.nix { inherit lib teamName pname imageName; };
+
         # Compile (and cache) cargo dependencies _only_
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
