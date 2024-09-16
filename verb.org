@@ -1,0 +1,61 @@
+
+
+* Hostname :verb:
+get http://127.0.0.1:6191/hostname
+
+
+* user agents         :verb:
+post http://127.0.0.1:6191/dump/request?foo=123e4567-e89b-12d3-a456-426614174000
+user-agent: carl
+Accept: application/json
+Content-Type: application/json; charset=utf-8
+
+{ "user_id": "12345",
+  "device_id": "device-98765",
+  "event_type": "button_click",
+  "event_properties": {
+    "button_name": "signup_button",
+    "color": "blue",
+    "page": "signup_page"
+  },
+  "user_properties": {
+    "age": 30,
+    "gender": "female",
+    "location": "USA"
+  },
+  "app_version": "1.0.0",
+  "platform": "iOS",
+  "os_name": "iOS",
+  "os_version": "14.4",
+  "device_brand": "Apple",
+  "device_model": "iPhone 12",
+  "event_time": 1678,
+  "session_id": 1678,
+  "insert_id": "123e4567-e89b-12d3-a456-426614174000",
+  "location_lat": 37.7749,
+  "location_lng": -122.4194,
+  "ip_address": "123.45.67.89"
+}
+
+
+* Prometheus :verb:
+
+GET http://localhost:9090/metrics
+Content-Type: application/json
+Accept: application/json
+
+* umami  :verb:
+
+POST http://localhost:3000/api/collect
+Content-Type: application/json
+user-agent: carl
+Accept: application/json
+
+{
+    "type": "event",
+    "website": "4b335ffe-6f6f-40d0-a1cf-ef95f990d762",
+    "url": "nav.no",
+    "event_name": "button_click",
+    "event_data": {
+      "button_id": "submit_button"
+    }
