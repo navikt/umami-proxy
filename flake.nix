@@ -32,18 +32,6 @@
         };
         inherit (pkgs) lib;
 
-        # Target musl when building on 64-bit linux to create statically linked binaries
-        # Set-up build dependencies and configure rust for statically lined binaries
-        CARGO_BUILD_TARGET = {
-          # Insert other "<host archs> = <target archs>" at will
-          "x86_64-linux" = "x86_64-unknown-linux-musl";
-        }.${system} or (pkgs.rust.toRustTargetSpec pkgs.stdenv.hostPlatform);
-        rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-          targets = [
-            CARGO_BUILD_TARGET
-            (pkgs.rust.toRustTargetSpec pkgs.stdenv.hostPlatform)
-          ];
-        };
         craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
 
         # Common vars
