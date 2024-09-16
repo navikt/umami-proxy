@@ -32,14 +32,15 @@
         };
         inherit (pkgs) lib;
 
-        craneLib = (inputs.crane.mkLib pkgs).overrideToolchain rustToolchain;
+        craneLib = (inputs.crane.mkLib pkgs).overrideToolchain
+          (p: p.rust-bin.stable.latest.default);
 
         # Common vars
         cargoDetails = pkgs.lib.importTOML ./Cargo.toml;
         pname = cargoDetails.package.name;
         src = craneLib.cleanCargoSource (craneLib.path ./.);
         commonArgs = {
-          inherit pname src CARGO_BUILD_TARGET;
+          inherit pname src;
 
           buildInputs = with pkgs; [ openssl ];
           nativeBuildInputs = with pkgs;
@@ -120,11 +121,6 @@
               darwin.apple_sdk.frameworks.Security
               darwin.apple_sdk.frameworks.SystemConfiguration
             ];
-
-          shellHook = ''
-            ${rustToolchain}/bin/cargo --version
-            ${pkgs.helix}/bin/hx --health rust
-          '';
         };
 
         packages = rec {
