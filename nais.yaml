@@ -4,9 +4,9 @@ kind: Application
 metadata:
   creationTimestamp: null
   name: amplitrude
-  namespace: reops
+  namespace: team-researchops
 spec:
-  image: navikt/testapp:69.0.0
+  image: {{ image }}
   port: 6191
   liveness:
     failureThreshold: 10
@@ -27,6 +27,11 @@ spec:
     scalingStrategy:
       cpu:
         thresholdPercentage: 50
+  accessPolicy:
+    outbound:
+      external:
+        - host: api.eu.amplitude.com
+        - host: cdn.amplitude.com
   resources:
     limits:
       cpu: 500m
@@ -38,4 +43,25 @@ spec:
     port: 6191
     protocol: http
   skipCaBundle: true
+  ingresses:
+    - https://amplitude-2.intern.dev.nav.no
+  env:
+    - name: AMPLITUDE_URL
+    - value: https://api.eu.amplitude.com
 status: {}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: amplitrude-proxy-eu-networkpolicy
+  namespace: team-researchops
+spec:
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+  podSelector:
+    matchLabels:
+      app: amplitrude
+  policyTypes:
+    - Egress
