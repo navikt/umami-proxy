@@ -52,15 +52,10 @@
         src = craneLib.cleanCargoSource (craneLib.path ./.);
         commonArgs = {
           inherit pname src CARGO_BUILD_TARGET;
-          OPENSSL_DIR = pkgs.openssl;
-          OPENSSL_LIB_DIR = pkgs.openssl;
-          OPENSSL_INCLUDE_DIR = pkgs.openssl;
-          PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
 
-          buildInputs = with pkgs; [ openssl openssl.dev ];
+          buildInputs = with pkgs; [ openssl ];
           nativeBuildInputs = with pkgs;
-            [ pkg-config cmake openssl openssl.dev ]
-            ++ lib.optionals stdenv.isDarwin [
+            [ pkg-config cmake perl ] ++ lib.optionals stdenv.isDarwin [
               darwin.apple_sdk.frameworks.Security
               darwin.apple_sdk.frameworks.SystemConfiguration
             ];
@@ -107,19 +102,7 @@
           # prevent downstream consumers from building our crate by itself.
           cargo-clippy = craneLib.cargoClippy (commonArgs // {
             inherit cargoArtifacts;
-            cargoClippyExtraArgs = lib.concatStringsSep " " [
-              # "--all-targets"
-              # "--"
-              # "--deny warnings"
-              # "-W"
-              # "clippy::pedantic"
-              # "-W"
-              # "clippy::nursery"
-              # "-W"
-              # "clippy::unwrap_used"
-              # "-W"
-              # "clippy::expect_used"
-            ];
+            cargoClippyExtraArgs = lib.concatStringsSep " " [ ];
           });
           cargo-doc =
             craneLib.cargoDoc (commonArgs // { inherit cargoArtifacts; });
@@ -128,14 +111,6 @@
             inherit (inputs) advisory-db;
             inherit src;
           };
-          # Run tests with cargo-nextest
-          # Consider setting `doCheck = false` on `cargo-package` if you do not want
-          # the tests to run twice
-          # cargo-nextest = craneLib.cargoNextest (commonArgs // {
-          #   inherit cargoArtifacts;
-          #   partitions = 1;
-          #   partitionType = "count";
-          # });
         };
         devShells.default = craneLib.devShell {
           packages = with pkgs;
@@ -147,7 +122,6 @@
               cargo-cyclonedx
               cargo-watch
               cmake
-
               socat
 
               # Editor stuffs
