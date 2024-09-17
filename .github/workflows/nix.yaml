@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: delete-me-testing-docker-bug
+    runs-on: ubuntu-24.04
     permissions:
       packages: "write"
       contents: "read"
