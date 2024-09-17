@@ -21,6 +21,7 @@ jobs:
           team: team-researchops
           identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
           project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
+          debug: true
 
     outputs:
       image: ${{ steps.nix-build.outputs.image }}
