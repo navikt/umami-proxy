@@ -143,8 +143,8 @@
             };
             phases = [ "installPhase" ];
             installPhase = ''
-              mkdir -p $out/FOO
-              cp -r ${data} $out/FOO
+              mkdir -p $out/data
+              cp -r ${data} $out/data
             '';
           };
 
@@ -163,7 +163,7 @@
             copyToRoot = pkgs.buildEnv {
               name = "maxmindDb";
               paths = [ maxmindDb ];
-              pathsToLink = [ "/BAR" ];
+              pathsToLink = [ "/data" ];
             };
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
           };
