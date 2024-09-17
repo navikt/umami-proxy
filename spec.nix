@@ -51,7 +51,7 @@ let
         protocol = "http";
       };
       skipCaBundle = true;
-      ingresses = [{ host = "amplitude-2.intern.dev.nav.no"; }];
+      ingresses = [ "amplitude-2.intern.dev.nav.no" ];
       env = [{
         name = "AMPLITUDE_URL";
         value = "https://api.eu.amplitude.com";
