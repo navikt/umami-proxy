@@ -19,4 +19,8 @@ pub struct Config {
 	/// Defaults to env-var of same name
 	// TODO: Remove optional when confirmed/landed
 	pub project_keys_file: Option<String>,
+
+	#[arg(env = "DB_PATH", short)]
+	/// Defaults to env-var of same name
+	pub db_path: String,
 }

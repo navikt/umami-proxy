@@ -127,7 +127,7 @@
           default = rust;
           rust = cargo-package;
           sbom = cargo-sbom;
-          maxminddb = pkgs.stdenv.mkDerivation {
+          maxmindDb = pkgs.stdenv.mkDerivation rec {
             name = "maxmindDb";
             version = "1.0.0";
             src = builtins.fetchurl {
@@ -136,10 +136,15 @@
               sha256 = "sha256-ASgcPZygSw3sx8didjynXAVhD0HobKsZBuiX5Qpsi4U=";
             };
 
+            data = builtins.fetchurl {
+              url =
+                "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb/geolite2-city-ipv4.mmdb";
+              sha256 = "sha256-ASgcPZygSw3sx8didjynXAVhD0HobKsZBuiX5Qpsi4U=";
+            };
             phases = [ "installPhase" ];
             installPhase = ''
-              mkdir -p $out/maxmindDb
-              cp -r ${src} $out/maxmindDb
+              mkdir -p $out/FOO
+              cp -r ${data} $out/FOO
             '';
           };
 
@@ -155,7 +160,11 @@
           docker = pkgs.dockerTools.buildImage {
             name = pname;
             tag = imageTag;
-            copyToRoot = [ maxminddb ];
+            copyToRoot = pkgs.buildEnv {
+              name = "maxmindDb";
+              paths = [ maxmindDb ];
+              pathsToLink = [ "/BAR" ];
+            };
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
           };
         };

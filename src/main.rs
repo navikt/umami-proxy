@@ -1,3 +1,4 @@
+use std::fs;
 use std::net::ToSocketAddrs;
 
 use clap::Parser;
@@ -37,7 +38,10 @@ fn main() {
 	.unwrap();
 	amplitrude_proxy.bootstrap();
 
-	let reader = maxminddb::Reader::open_readfile("src/data/geolite2-city-ipv4.mmdb").unwrap();
+	let data_dir = fs::read_dir(conf.db_path).expect("data exists");
+	let file = data_dir.last().unwrap().unwrap();
+	dbg!(&file);
+	let reader = maxminddb::Reader::open_readfile(file.path()).unwrap();
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, probes::Probes {});
