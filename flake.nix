@@ -127,6 +127,12 @@
           default = rust;
           rust = cargo-package;
           sbom = cargo-sbom;
+          maxminddb = pkgs.fetchurl {
+            url =
+              "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb/geolite2-city-ipv4.mmdb";
+            sha256 = "sha256-ASgcPZygSw3sx8didjynXAVhD0HobKsZBuiX5Qpsi4U=";
+          };
+
           image = docker;
           spec = let
             toJson = attrSet: builtins.toJSON attrSet;
@@ -139,6 +145,7 @@
           docker = pkgs.dockerTools.buildImage {
             name = pname;
             tag = imageTag;
+            contents = [ maxminddb ];
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
           };
         };
