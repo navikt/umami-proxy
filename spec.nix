@@ -23,7 +23,7 @@ let
       prometheus = {
         enabled = true;
         path = "/metrics";
-        port = 9090;
+        port = "9090";
       };
       replicas = {
         min = 2;
@@ -51,7 +51,7 @@ let
         protocol = "http";
       };
       skipCaBundle = true;
-      ingresses = [ "amplitude-2.intern.dev.nav.no" ];
+      ingresses = [ "https://amplitude-2.intern.dev.nav.no" ];
       env = [{
         name = "AMPLITUDE_URL";
         value = "https://api.eu.amplitude.com";
