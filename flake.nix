@@ -165,7 +165,7 @@
               paths = [ maxmindDb ];
               pathsToLink = [ "/data" ];
             };
-            config.Env = { DB_PATH = "/data"; };
+            config.Env = [ "DB_PATH=/data" ];
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
           };
         };
