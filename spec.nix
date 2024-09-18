@@ -16,7 +16,7 @@ let
         failureThreshold = 10;
         initialDelay = 2;
         path = "/is_alive";
-        periodSeconds = 60;
+        periodSeconds = 10;
         port = 6969;
         timeout = 1;
       };
