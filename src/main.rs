@@ -5,10 +5,12 @@ use std::net::ToSocketAddrs;
 use clap::Parser;
 use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
+use tracing::info;
 mod annotate;
 mod config;
 mod probes;
 mod proxy;
+mod trace;
 
 use lazy_static::lazy_static;
 use prometheus::{HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, Registry};
@@ -28,8 +30,9 @@ fn register_custom_metrics() {
 fn main() {
 	let conf = config::Config::parse();
 
+	trace::init();
+	info!("started proxy\n upstream: {}", conf.amplitude_addr);
 	register_custom_metrics();
-	dbg!(&conf);
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
 		daemon: false,
@@ -42,7 +45,6 @@ fn main() {
 
 	let data_dir = fs::read_dir(conf.db_path).expect("data exists");
 	let file = data_dir.last().unwrap().unwrap();
-	dbg!(&file);
 	let reader = maxminddb::Reader::open_readfile(file.path()).unwrap();
 
 	let mut probe_instance =

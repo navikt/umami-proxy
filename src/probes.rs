@@ -40,6 +40,7 @@ impl ProxyHttp for Probes {
 		// this also matches is_aliveeeeeeeee etc
 		{
 			session.respond_error(200).await?; // Can we respond without saying error?
+			return Ok(true);
 		}
 		session.respond_error(404).await?;
 		Ok(true) //exit, do nothing else. We're done

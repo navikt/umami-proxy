@@ -102,7 +102,7 @@ impl ProxyHttp for Addr {
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
 			// If there is a body...
-			if ctx.request_body_buffer.len() > 0 {
+			if !ctx.request_body_buffer.is_empty() {
 				let mut v: serde_json::Value =
 					serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
 				redact::traverse_and_redact(&mut v);
@@ -111,8 +111,6 @@ impl ProxyHttp for Addr {
 				let json_body = serde_json::to_string(&v).expect("invalid redacted json");
 
 				*body = Some(Bytes::from(json_body));
-				dbg!(_session.request_summary());
-				dbg!(&body);
 			}
 		}
 
