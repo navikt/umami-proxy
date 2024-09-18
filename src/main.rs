@@ -1,4 +1,5 @@
 use std::fs;
+use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 
 use clap::Parser;
@@ -25,7 +26,15 @@ fn register_custom_metrics() {
 }
 
 fn main() {
-	let conf = config::Config::parse();
+	let mut conf = config::Config::parse();
+	let amplitude_addr = "api.eu.amplitude.com:80"
+		.to_socket_addrs()
+		.unwrap()
+		.next()
+		.unwrap();
+
+	conf.amplitude_addr = amplitude_addr.to_string();
+
 	register_custom_metrics();
 	dbg!(&conf);
 	let mut amplitrude_proxy = Server::new(Some(Opt {
