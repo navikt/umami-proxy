@@ -7,6 +7,7 @@ use pingora::{
 	proxy::{ProxyHttp, Session},
 	Result,
 };
+use tracing::{error, info};
 
 use crate::{annotate, INCOMING_REQUESTS};
 
@@ -38,6 +39,20 @@ impl ProxyHttp for Addr {
 	where
 		Self::CTX: Send + Sync,
 	{
+		if session
+			.downstream_session
+			.req_header()
+			.as_owned_parts()
+			.uri
+			.path()
+			.contains("is_alive")
+		// this also matches is_aliveeeeeeeee etc
+		{
+			session.respond_error(200).await?; // Can we respond without saying error?
+			info!("is_alive: 200");
+			return Ok(true);
+		}
+
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		INCOMING_REQUESTS.inc();
 		match user_agent {
@@ -49,20 +64,17 @@ impl ProxyHttp for Addr {
 					if bot {
 						session.respond_error(222).await?;
 						// ^ This respond_error bit is silly, surely we can just respond?
-						eprintln!("This request's UA matches a known bot:\n\t{ua}");
+						info!("This request's UA matches a known bot:\n\t{ua}");
 						return Ok(bot);
 					}
 					Ok(false)
 				},
 				Err(e) => {
-					eprintln!("Err :\n\t{e}");
+					error!("Err :\n\t{e}");
 					return Ok(false);
 				},
 			},
-			None => {
-				eprintln!("None");
-				Ok(false)
-			},
+			None => Ok(false),
 		}
 	}
 	// This guy should be the amplitude host, all requests through the proxy gets sent th upstream_peer
