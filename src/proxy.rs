@@ -48,7 +48,7 @@ impl ProxyHttp for Addr {
 					//  ^  This should be instanciated top-level, in the ctx
 
 					if bot {
-						session.respond_error(222).await?;
+						session.respond_error(403).await?;
 						// ^ This respond_error bit is silly, surely we can just respond?
 						info!("This request's UA matches a known bot:\n\t{ua}");
 						return Ok(bot);
