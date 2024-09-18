@@ -14,9 +14,9 @@ let
       port = 6191;
       liveness = {
         failureThreshold = 10;
-        initialDelay = 20;
+        initialDelay = 2;
         path = "/is_alive";
-        periodSeconds = 5;
+        periodSeconds = 60;
         port = 6969;
         timeout = 1;
       };
