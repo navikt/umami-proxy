@@ -26,14 +26,7 @@ fn register_custom_metrics() {
 }
 
 fn main() {
-	let mut conf = config::Config::parse();
-	let amplitude_addr = "api.eu.amplitude.com:80"
-		.to_socket_addrs()
-		.unwrap()
-		.next()
-		.unwrap();
-
-	conf.amplitude_addr = amplitude_addr.to_string();
+	let conf = config::Config::parse();
 
 	register_custom_metrics();
 	dbg!(&conf);
@@ -67,7 +60,7 @@ fn main() {
 			"
 		*/
 		proxy::Addr {
-			addr: (conf.amplitude_addr, 8080)
+			addr: (conf.amplitude_addr)
 				.to_socket_addrs()
 				.unwrap()
 				.next()
