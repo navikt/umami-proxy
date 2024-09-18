@@ -1,4 +1,5 @@
 use std::fs;
+use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 
 use clap::Parser;
@@ -12,7 +13,7 @@ mod proxy;
 mod trace;
 
 use lazy_static::lazy_static;
-use prometheus::{IntCounter, Registry};
+use prometheus::{HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, Registry};
 
 lazy_static! {
 	pub static ref REGISTRY: Registry = Registry::new();
@@ -30,7 +31,7 @@ fn main() {
 	let conf = config::Config::parse();
 
 	trace::init();
-	info!("configuring: {}", conf.amplitude_addr);
+	info!("started proxy\n upstream: {}", conf.amplitude_addr);
 	register_custom_metrics();
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
@@ -46,6 +47,8 @@ fn main() {
 	let file = data_dir.last().unwrap().unwrap();
 	let reader = maxminddb::Reader::open_readfile(file.path()).unwrap();
 
+	let mut probe_instance =
+		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, probes::Probes {});
 	let mut proxy_instance = pingora_proxy::http_proxy_service(
 		&amplitrude_proxy.configuration,
 		/* We test against this server
@@ -69,11 +72,12 @@ fn main() {
 	);
 
 	let mut prome_service_http = Service::prometheus_http_service();
-	prome_service_http.add_tcp("127.0.0.1:9090");
-	proxy_instance.add_tcp("127.0.0.1:6191");
+	prome_service_http.add_tcp("0.0.0.0:9090");
+	probe_instance.add_tcp("0.0.0.0:6969");
+	proxy_instance.add_tcp("0.0.0.0:6191");
+	amplitrude_proxy.add_service(probe_instance);
 	amplitrude_proxy.add_service(proxy_instance);
 	amplitrude_proxy.add_service(prome_service_http);
 
-	info!("starting proxy");
 	amplitrude_proxy.run_forever();
 }

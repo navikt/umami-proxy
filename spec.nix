@@ -17,7 +17,7 @@ let
         initialDelay = 2;
         path = "/is_alive";
         periodSeconds = 10;
-        port = 6191;
+        port = 6969;
         timeout = 1;
       };
       prometheus = {
