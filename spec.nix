@@ -46,10 +46,6 @@ let
           memory = "256Mi";
         };
       };
-      service = {
-        port = 6191;
-        protocol = "http";
-      };
       skipCaBundle = true;
       ingresses = [ "https://amplitude-2.intern.dev.nav.no" ];
       env = [{
