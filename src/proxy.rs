@@ -39,19 +39,6 @@ impl ProxyHttp for Addr {
 	where
 		Self::CTX: Send + Sync,
 	{
-		if session
-			.downstream_session
-			.req_header()
-			.as_owned_parts()
-			.uri
-			.path()
-			.contains("is_alive")
-		{
-			session.respond_error(200).await?; // Can we respond without saying error?
-			info!("is_alive: 200");
-			return Ok(true);
-		}
-
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		INCOMING_REQUESTS.inc();
 		match user_agent {
