@@ -1,27 +1,12 @@
 use http::Uri;
 use regex::Regex;
-use serde_json::{Number, Value};
-use std::collections::HashMap as Map;
+use serde_json::Value;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Tra {
-	Redacted,           // Replace with the string [Redacted]
-	Removed,            // Replace with null
-	Kept(String),       // string
-	Original(String),   // String
-	Annotated(String),  // String
-	GeoLocated(String), // Several fields!
-}
-
-/// This is a nonserializeable(sic!) Json with redact leaf nodes
-pub enum Transform {
-	Null,
-	Bool(bool),
-	Number(Number),
-	String(String),
-	Transform(Tra),
-	Array(Vec<Transform>),
-	Object(Map<String, Transform>), // Maybe there should be a note on the keys too?
+	Redacted,         // Replace with the string [Redacted]
+	Kept(String),     // string
+	Original(String), // String
 }
 
 impl Tra {
@@ -31,9 +16,6 @@ impl Tra {
 			Self::Redacted => redacted.to_string(),
 			Self::Kept(s) => s.to_string(),
 			Self::Original(s) => s.to_string(),
-			Self::Annotated(s) => s.to_string(),
-			Self::Removed => "".to_string(),
-			_ => "".to_string(),
 		}
 	}
 	pub(crate) fn new(s: &str) -> Self {

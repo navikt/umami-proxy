@@ -1,5 +1,4 @@
 use std::fs;
-use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 
 use clap::Parser;
@@ -13,7 +12,7 @@ mod proxy;
 mod trace;
 
 use lazy_static::lazy_static;
-use prometheus::{HistogramOpts, HistogramVec, IntCounter, IntCounterVec, Opts, Registry};
+use prometheus::{IntCounter, Registry};
 
 lazy_static! {
 	pub static ref REGISTRY: Registry = Registry::new();

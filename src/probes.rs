@@ -56,9 +56,9 @@ impl ProxyHttp for Probes {
 		_session: &mut Session,
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		/// Panic is not the best implementation here.
-		/// The correct implementation would be to have the readyness probe go all the way down here and
-		/// check that we can connect to the upstream. In case of ip change
+		// Panic is not the best implementation here.
+		// The correct implementation would be to have the readyness probe go all the way down here and
+		// check that we can connect to the upstream. In case of ip change
 		panic!(); // We don't need an implementation here as going further from request_filter is a bug in this proxy
 	}
 }
