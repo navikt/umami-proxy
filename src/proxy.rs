@@ -10,7 +10,6 @@ use pingora::{
 
 use crate::{annotate, INCOMING_REQUESTS};
 
-mod amplitude;
 mod redact;
 use prometheus::{self, Encoder, TextEncoder};
 
