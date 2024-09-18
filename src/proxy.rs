@@ -1,4 +1,3 @@
-
 use async_trait::async_trait;
 use bytes::Bytes;
 use maxminddb::Reader;
@@ -14,7 +13,6 @@ use crate::{annotate, INCOMING_REQUESTS};
 mod amplitude;
 mod redact;
 use prometheus::{self, Encoder, TextEncoder};
-
 
 pub struct Addr {
 	pub addr: std::net::SocketAddr,
