@@ -42,7 +42,7 @@ impl ProxyHttp for Probes {
 			session.respond_error(200).await?; // Can we respond without saying error?
 		}
 		session.respond_error(404).await?;
-		Ok(true)
+		Ok(true) //exit, do nothing else. We're done
 	}
 
 	/// After request_filter, this guy gets called but we've already handled everything so it does nothing.
@@ -52,6 +52,8 @@ impl ProxyHttp for Probes {
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
 		/// Panic is not the best implementation here.
+		/// The correct implementation would be to have the readyness probe go all the way down here and
+		/// check that we can connect to the upstream. In case of ip change
 		panic!(); // We don't need an implementation here as going further from request_filter is a bug in this proxy
 	}
 }
