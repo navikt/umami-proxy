@@ -54,7 +54,7 @@ let
       ingresses = [ "https://amplitude-2.intern.dev.nav.no" ];
       env = [{
         name = "AMPLITUDE_URL";
-        value = "https://api.eu.amplitude.com";
+        value = "api.eu.amplitude.com:80";
       }];
     };
   };
