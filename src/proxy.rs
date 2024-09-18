@@ -1,11 +1,9 @@
-use std::fmt::format;
 
 use async_trait::async_trait;
 use bytes::Bytes;
 use maxminddb::Reader;
 use pingora::{
 	http::RequestHeader,
-	http::ResponseHeader,
 	prelude::HttpPeer,
 	proxy::{ProxyHttp, Session},
 	Result,
@@ -17,8 +15,6 @@ mod amplitude;
 mod redact;
 use prometheus::{self, Encoder, TextEncoder};
 
-use lazy_static::lazy_static;
-use prometheus::register_int_counter;
 
 pub struct Addr {
 	pub addr: std::net::SocketAddr,
