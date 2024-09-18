@@ -4,6 +4,7 @@ use pingora::{
 	proxy::{ProxyHttp, Session},
 	Result,
 };
+use tracing::info;
 
 pub struct Probes;
 
@@ -40,9 +41,12 @@ impl ProxyHttp for Probes {
 		// this also matches is_aliveeeeeeeee etc
 		{
 			session.respond_error(200).await?; // Can we respond without saying error?
+			info!("is_alive: 200");
 			return Ok(true);
 		}
 		session.respond_error(404).await?;
+		info!("fail: 404");
+
 		Ok(true) //exit, do nothing else. We're done
 	}
 
