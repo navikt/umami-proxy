@@ -119,7 +119,7 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	
+
 	use serde_json::json;
 
 	fn test_redact_uuid_in_amplitude_event() {

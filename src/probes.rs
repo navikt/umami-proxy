@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use pingora::{
 	prelude::HttpPeer,
-	proxy::{ProxyHttp, Session}, Result,
+	proxy::{ProxyHttp, Session},
+	Result,
 };
 
 pub struct Probes;
