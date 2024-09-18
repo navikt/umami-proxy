@@ -46,7 +46,6 @@ impl ProxyHttp for Addr {
 			.uri
 			.path()
 			.contains("is_alive")
-		// this also matches is_aliveeeeeeeee etc
 		{
 			session.respond_error(200).await?; // Can we respond without saying error?
 			info!("is_alive: 200");
