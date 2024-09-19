@@ -5,6 +5,9 @@ metadata:
   creationTimestamp: null
   name: amplitrude
   namespace: team-researchops
+  annotations:
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
 spec:
   image: {{ image }}
   port: 6191
@@ -44,7 +47,7 @@ spec:
     protocol: http
   skipCaBundle: true
   ingresses:
-    - https://amplitude-2.intern.dev.nav.no
+    - https://amplitude.intern.dev.nav.no
   env:
     - name: AMPLITUDE_URL
     - value: https://api.eu.amplitude.com
