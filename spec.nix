@@ -72,7 +72,7 @@ let
       annotations = {
         "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP";
         "nginx.ingress.kubernetes.io/canary" = "true";
-        "nginx.ingress.kubernetes.io/canary-weight" = "2";
+        "nginx.ingress.kubernetes.io/canary-by-header" = "X-Canary";
         "nginx.ingress.kubernetes.io/use-regex" = "true";
         "prometheus.io/path" = "/is_alive";
         "prometheus.io/scrape" = "true";
