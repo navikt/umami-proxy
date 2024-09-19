@@ -1,10 +1,4 @@
-{
-  lib,
-  teamName,
-  pname,
-  imageName,
-  ...
-}:
+{ lib, teamName, pname, imageName, ... }:
 let
   naisApp = {
     apiVersion = "nais.io/v1alpha1";
@@ -37,10 +31,8 @@ let
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
-      accessPolicy.outbound.external = [
-        { host = "api.eu.amplitude.com"; }
-        { host = "cdn.amplitude.com"; }
-      ];
+      accessPolicy.outbound.external =
+        [ { host = "api.eu.amplitude.com"; } { host = "cdn.amplitude.com"; } ];
       resources = {
         limits.memory = "512Mi";
         requests = {
@@ -61,7 +53,7 @@ let
       namespace = teamName;
     };
     spec = {
-      egress = [{ to = [{ipBlock.cidr = "0.0.0.0/0";}];}];
+      egress = [{ to = [{ ipBlock.cidr = "0.0.0.0/0"; }]; }];
       podSelector.matchLabels.app = pname;
       policyTypes = [ "Egress" ];
     };
