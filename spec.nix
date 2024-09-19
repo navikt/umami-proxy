@@ -1,4 +1,9 @@
-{ lib, teamName, pname, imageName, ... }:
+{
+  teamName,
+  pname,
+  imageName,
+  ...
+}:
 let
   statusplattformNaisOperator = {
     apiVersion = "nais.io/v1alpha1";
@@ -9,8 +14,7 @@ let
       labels.team = teamName;
     };
     spec = {
-      image =
-        "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
+      image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
       liveness = {
         failureThreshold = 10;
@@ -29,7 +33,11 @@ let
         min = 2;
         max = 4;
         cpuThresholdPercentage = 50;
-        scalingStrategy = { cpu = { thresholdPercentage = 50; }; };
+        scalingStrategy = {
+          cpu = {
+            thresholdPercentage = 50;
+          };
+        };
       };
       accessPolicy = {
         outbound = {
@@ -40,18 +48,21 @@ let
         };
       };
       resources = {
-        limits = { memory = "512Mi"; };
+        limits = {
+          memory = "512Mi";
+        };
         requests = {
           cpu = "200m";
           memory = "256Mi";
         };
       };
       skipCaBundle = true;
-      ingresses = [ "https://amplitude-2.intern.dev.nav.no" ];
-      env = [{
-        name = "AMPLITUDE_URL";
-        value = "api.eu.amplitude.com:80";
-      }];
+      env = [
+        {
+          name = "AMPLITUDE_URL";
+          value = "api.eu.amplitude.com:80";
+        }
+      ];
     };
   };
 
@@ -63,10 +74,67 @@ let
       namespace = teamName;
     };
     spec = {
-      egress = [{ to = [{ ipBlock = { cidr = "0.0.0.0/0"; }; }]; }];
-      podSelector = { matchLabels = { app = pname; }; };
+      egress = [
+        {
+          to = [
+            {
+              ipBlock = {
+                cidr = "0.0.0.0/0";
+              };
+            }
+          ];
+        }
+      ];
+      podSelector = {
+        matchLabels = {
+          app = pname;
+        };
+      };
       policyTypes = [ "Egress" ];
     };
   };
 
-in [ statusplattformNaisOperator allowAllEgress ]
+  canaryIngress = {
+    apiVersion = "networking.k8s.io/v1";
+    kind = "Ingress";
+    labels = {
+      app = pname;
+      team = teamName;
+    };
+    metadata = {
+      name = "${pname}-canary-ingress";
+      namespace = teamName;
+      annotations = {
+        "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP";
+        "nginx.ingress.kubernetes.io/canary" = "true";
+        "nginx.ingress.kubernetes.io/canary-weight" = "10";
+        "nginx.ingress.kubernetes.io/use-regex" = "true";
+        "prometheus.io/path" = "/is_alive";
+        "prometheus.io/scrape" = "true";
+      };
+    };
+    spec = {
+      ingressClassName = "nais-ingress";
+      rules = [
+        {
+          host = "amplitude.intern.dev.nav.no";
+          http.paths = [
+            {
+              backend.service = {
+                name = pname;
+                port.number = 80;
+              };
+              path = "/";
+              pathType = "ImplementationSpecific";
+            }
+          ];
+        }
+      ];
+    };
+  };
+in
+[
+  statusplattformNaisOperator
+  allowAllEgress
+  canaryIngress
+]
