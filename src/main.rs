@@ -63,9 +63,11 @@ fn main() {
 				echo Content-Type\: text/plain;
 				echo;
 			"
-		*/
+
+				 */
+		// Hard-code this url. It's not really a configurable anyway
 		proxy::Addr {
-			addr: (conf.amplitude_url)
+			addr: ("api.eu.amplitude.com:443")
 				.to_socket_addrs()
 				.unwrap()
 				.next()

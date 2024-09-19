@@ -40,12 +40,9 @@ impl ProxyHttp for Addr {
 		Self::CTX: Send + Sync,
 	{
 		info!("{}", &session.request_summary());
-		session.respond_error(200);
 
 		// We short circuit here because I dont want no traffic to go to amplitude without
 		// more unit-tests and nix tests on the redact stuff
-		return Ok(false);
-
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		INCOMING_REQUESTS.inc();
 		match user_agent {
@@ -77,7 +74,13 @@ impl ProxyHttp for Addr {
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
 		INCOMING_REQUESTS.inc();
-		let peer = Box::new(HttpPeer::new(self.addr, false, "".into()));
+
+		let peer = Box::new(HttpPeer::new(
+			self.addr,
+			true,
+			"api.eu.amplitude.com".into(),
+		));
+		info!("peer:{}", peer);
 		Ok(peer)
 	}
 
