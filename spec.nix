@@ -6,7 +6,7 @@
   ...
 }:
 let
-  naisApp = rec {
+  naisApp = {
     apiVersion = "nais.io/v1alpha1";
     kind = "Application";
     metadata = {
@@ -15,8 +15,9 @@ let
       labels.team = teamName;
     };
     spec = {
-      image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
-      port = 6191;
+      image =
+        "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
+      port = 4242;
       liveness = {
         failureThreshold = 10;
         initialDelay = 2;
@@ -41,9 +42,7 @@ let
         { host = "cdn.amplitude.com"; }
       ];
       resources = {
-        limits = {
-          memory = "512Mi";
-        };
+        limits = { memory = "512Mi"; };
         requests = {
           cpu = "200m";
           memory = "256Mi";
@@ -62,7 +61,7 @@ let
       namespace = teamName;
     };
     spec = {
-      egress = [ { to = [ { ipBlock.cidr = "0.0.0.0/0"; } ]; } ];
+      egress = [{ to = [{ipBlock.cidr = "0.0.0.0/0";}];}];
       podSelector.matchLabels.app = pname;
       policyTypes = [ "Egress" ];
     };
@@ -89,26 +88,17 @@ let
     };
     spec = {
       ingressClassName = "nais-ingress";
-      rules = [
-        {
-          host = "amplitude.intern.dev.nav.no";
-          http.paths = [
-            {
-              backend.service = {
-                name = pname;
-                port.number = 80;
-              };
-              path = "/";
-              pathType = "ImplementationSpecific";
-            }
-          ];
-        }
-      ];
+      rules = [{
+        host = "amplitude.intern.dev.nav.no";
+        http.paths = [{
+          backend.service = {
+            name = pname;
+            port.number = 80;
+          };
+          path = "/";
+          pathType = "ImplementationSpecific";
+        }];
+      }];
     };
   };
-in
-[
-  naisApp
-  allowAllEgress
-  canaryIngress
-]
+in [ naisApp allowAllEgress canaryIngress ]
