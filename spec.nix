@@ -5,7 +5,7 @@
   ...
 }:
 let
-  statusplattformNaisOperator = {
+  naisApp = rec {
     apiVersion = "nais.io/v1alpha1";
     kind = "Application";
     metadata = {
@@ -109,7 +109,7 @@ let
         "nginx.ingress.kubernetes.io/canary" = "true";
         "nginx.ingress.kubernetes.io/canary-weight" = "10";
         "nginx.ingress.kubernetes.io/use-regex" = "true";
-        "prometheus.io/path" = "/is_alive";
+        "prometheus.io/path" = naisApp.spec.liveness.path;
         "prometheus.io/scrape" = "true";
       };
     };
@@ -134,7 +134,7 @@ let
   };
 in
 [
-  statusplattformNaisOperator
+  naisApp
   allowAllEgress
   canaryIngress
 ]
