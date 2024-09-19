@@ -30,7 +30,7 @@ fn main() {
 	let conf = config::Config::parse();
 
 	trace::init();
-	info!("started proxy\n upstream: {}", conf.amplitude_addr);
+	info!("started proxy\n upstream: {}", conf.amplitude_url);
 	register_custom_metrics();
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
@@ -42,9 +42,13 @@ fn main() {
 	.unwrap();
 	amplitrude_proxy.bootstrap();
 
-	let data_dir = fs::read_dir(conf.db_path).expect("data exists");
-	let file = data_dir.last().unwrap().unwrap();
-	let reader = maxminddb::Reader::open_readfile(file.path()).unwrap();
+	let data_dir = fs::read_dir(conf.db_path).expect("the directory to exist");
+	let file = data_dir
+		.last()
+		.expect("for the directory not to be empty")
+		.expect("for the file to be readable");
+	let reader =
+		maxminddb::Reader::open_readfile(file.path()).expect("to read the maximind db file");
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, probes::Probes {});
@@ -61,7 +65,7 @@ fn main() {
 			"
 		*/
 		proxy::Addr {
-			addr: (conf.amplitude_addr)
+			addr: (conf.amplitude_url)
 				.to_socket_addrs()
 				.unwrap()
 				.next()

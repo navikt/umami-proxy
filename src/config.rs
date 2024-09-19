@@ -9,7 +9,7 @@ pub struct Config {
 		default_value = "eu.amplitude.com"
 	)]
 	/// Defaults to env-var of same name, has default if not set
-	pub amplitude_addr: String,
+	pub amplitude_url: String,
 
 	#[arg(env = "KAFKA_INGRESS_TOPIC", short)]
 	/// Defaults to env-var of same name

@@ -39,6 +39,7 @@ impl ProxyHttp for Addr {
 	where
 		Self::CTX: Send + Sync,
 	{
+		info!("{}", &session.request_summary());
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		INCOMING_REQUESTS.inc();
 		match user_agent {
