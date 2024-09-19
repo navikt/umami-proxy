@@ -77,7 +77,7 @@ fn main() {
 	let mut prome_service_http = Service::prometheus_http_service();
 	prome_service_http.add_tcp("0.0.0.0:9090");
 	probe_instance.add_tcp("0.0.0.0:6969");
-	proxy_instance.add_tcp("0.0.0.0:4242");
+	proxy_instance.add_tcp("0.0.0.0:6191");
 	amplitrude_proxy.add_service(probe_instance);
 	amplitrude_proxy.add_service(proxy_instance);
 	amplitrude_proxy.add_service(prome_service_http);

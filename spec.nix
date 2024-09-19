@@ -17,7 +17,7 @@ let
     spec = {
       image =
         "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
-      port = 4242;
+      port = 6191;
       liveness = {
         failureThreshold = 10;
         initialDelay = 2;
