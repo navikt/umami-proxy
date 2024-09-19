@@ -109,7 +109,7 @@ let
         "nginx.ingress.kubernetes.io/canary" = "true";
         "nginx.ingress.kubernetes.io/canary-weight" = "10";
         "nginx.ingress.kubernetes.io/use-regex" = "true";
-        "prometheus.io/path" = naisApp.spec.liveness.path;
+        "prometheus.io/path" = "/is_alive";
         "prometheus.io/scrape" = "true";
       };
     };
