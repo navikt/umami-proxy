@@ -1,4 +1,5 @@
 {
+  lib,
   teamName,
   pname,
   imageName,
@@ -33,20 +34,12 @@ let
         min = 2;
         max = 4;
         cpuThresholdPercentage = 50;
-        scalingStrategy = {
-          cpu = {
-            thresholdPercentage = 50;
-          };
-        };
+        scalingStrategy.cpu.thresholdPercentage = 50;
       };
-      accessPolicy = {
-        outbound = {
-          external = [
-            { host = "api.eu.amplitude.com"; }
-            { host = "cdn.amplitude.com"; }
-          ];
-        };
-      };
+      accessPolicy.outbound.external = [
+        { host = "api.eu.amplitude.com"; }
+        { host = "cdn.amplitude.com"; }
+      ];
       resources = {
         limits = {
           memory = "512Mi";
@@ -57,12 +50,7 @@ let
         };
       };
       skipCaBundle = true;
-      env = [
-        {
-          name = "AMPLITUDE_URL";
-          value = "api.eu.amplitude.com:80";
-        }
-      ];
+      env = lib.attrsToList { AMPLITUDE_URL = "api.eu.amplitude.com:80"; };
     };
   };
 
@@ -74,22 +62,8 @@ let
       namespace = teamName;
     };
     spec = {
-      egress = [
-        {
-          to = [
-            {
-              ipBlock = {
-                cidr = "0.0.0.0/0";
-              };
-            }
-          ];
-        }
-      ];
-      podSelector = {
-        matchLabels = {
-          app = pname;
-        };
-      };
+      egress = [ { to = [ { ipBlock.cidr = "0.0.0.0/0"; } ]; } ];
+      podSelector.matchLabels.app = pname;
       policyTypes = [ "Egress" ];
     };
   };
