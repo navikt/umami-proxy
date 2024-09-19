@@ -133,13 +133,13 @@
             src = builtins.fetchurl {
               url =
                 "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb/geolite2-city-ipv4.mmdb";
-              sha256 = "sha256-MDhhaTQ3a2J2M2IzdjJ3YWt6YnY4aTZteHc0anB2bHlteGkxYzBwNHlpZGtpZnNraXc1Zw==";
+              sha256 = "sha256:08ai47kbv3b3v2wakzbv8i6mxw4jpvlymxi1c0p4yidkifskiw5g";
             };
 
             data = builtins.fetchurl {
               url =
                 "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb/geolite2-city-ipv4.mmdb";
-              sha256 = "sha256-MDhhaTQ3a2J2M2IzdjJ3YWt6YnY4aTZteHc0anB2bHlteGkxYzBwNHlpZGtpZnNraXc1Zw==";
+              sha256 = "sha256:08ai47kbv3b3v2wakzbv8i6mxw4jpvlymxi1c0p4yidkifskiw5g";
             };
             phases = [ "installPhase" ];
             installPhase = ''
