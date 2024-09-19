@@ -81,7 +81,7 @@ let
     spec = {
       ingressClassName = "nais-ingress";
       rules = [{
-        host = "amplitude.intern.dev.nav.no";
+        host = "amplitude.nav.no";
         http.paths = [{
           backend.service = {
             name = pname;
