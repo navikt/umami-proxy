@@ -79,7 +79,7 @@ let
       };
     };
     spec = {
-      ingressClassName = "nais-ingress";
+      ingressClassName = "nais-ingress-external";
       rules = [{
         host = "amplitude.nav.no";
         http.paths = [{
