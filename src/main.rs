@@ -65,9 +65,8 @@ fn main() {
 			"
 
 				 */
-		// Hard-code this url. It's not really a configurable anyway
 		proxy::Addr {
-			addr: ("api.eu.amplitude.com:443")
+			addr: (conf.amplitude_url.to_owned())
 				.to_socket_addrs()
 				.unwrap()
 				.next()

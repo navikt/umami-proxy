@@ -26,8 +26,8 @@ let
         port = "9090";
       };
       replicas = {
-        min = 2;
-        max = 4;
+        min = 1;
+        max = 1;
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
@@ -41,7 +41,7 @@ let
         };
       };
       skipCaBundle = true;
-      env = lib.attrsToList { AMPLITUDE_URL = "api.eu.amplitude.com:80"; };
+      env = lib.attrsToList { AMPLITUDE_URL = "api.eu.amplitude.com:443"; };
     };
   };
 
