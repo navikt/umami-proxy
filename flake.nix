@@ -132,14 +132,16 @@
             version = "1.0.0";
             src = builtins.fetchurl {
               url =
-                "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb/geolite2-city-ipv4.mmdb";
-              sha256 = "sha256:08ai47kbv3b3v2wakzbv8i6mxw4jpvlymxi1c0p4yidkifskiw5g";
+                "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb@2.3.2024091418/geolite2-city-ipv4.mmdb";
+              sha256 =
+                "sha256:11cbdh5fb5z80qcsnv78847n21awlwy7cqn7qzn0sjx0khyiqa01";
             };
 
             data = builtins.fetchurl {
               url =
-                "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb/geolite2-city-ipv4.mmdb";
-              sha256 = "sha256:08ai47kbv3b3v2wakzbv8i6mxw4jpvlymxi1c0p4yidkifskiw5g";
+                "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb@2.3.2024091418/geolite2-city-ipv4.mmdb";
+              sha256 =
+                "sha256:11cbdh5fb5z80qcsnv78847n21awlwy7cqn7qzn0sjx0khyiqa01";
             };
             phases = [ "installPhase" ];
             installPhase = ''
