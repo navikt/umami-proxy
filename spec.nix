@@ -97,13 +97,13 @@ let
   canaryIngress = {
     apiVersion = "networking.k8s.io/v1";
     kind = "Ingress";
-    labels = {
-      app = pname;
-      team = teamName;
-    };
     metadata = {
       name = "${pname}-canary-ingress";
       namespace = teamName;
+      labels = {
+        app = pname;
+        team = teamName;
+      };
       annotations = {
         "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP";
         "nginx.ingress.kubernetes.io/canary" = "true";
