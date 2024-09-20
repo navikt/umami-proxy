@@ -9,6 +9,7 @@ let
       labels.team = teamName;
     };
     spec = {
+      ingresses = [ "https://amplitude-2.intern.dev.nav.no" ];
       image =
         "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
@@ -59,38 +60,42 @@ let
     };
   };
 
-  canaryIngress = {
-    apiVersion = "networking.k8s.io/v1";
-    kind = "Ingress";
-    metadata = {
-      name = "${pname}-canary-ingress";
-      namespace = teamName;
-      labels = {
-        app = pname;
-        team = teamName;
-      };
-      annotations = {
-        "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP";
-        "nginx.ingress.kubernetes.io/canary" = "true";
-        "nginx.ingress.kubernetes.io/canary-by-header" = "X-Canary";
-        "nginx.ingress.kubernetes.io/use-regex" = "true";
-        "prometheus.io/path" = "/is_alive";
-        "prometheus.io/scrape" = "true";
-      };
-    };
-    spec = {
-      ingressClassName = "nais-ingress-external";
-      rules = [{
-        host = "amplitude.nav.no";
-        http.paths = [{
-          backend.service = {
-            name = pname;
-            port.number = 80;
-          };
-          path = "/";
-          pathType = "ImplementationSpecific";
-        }];
-      }];
-    };
-  };
-in [ naisApp allowAllEgress canaryIngress ]
+  # canaryIngress = {
+  #   apiVersion = "networking.k8s.io/v1";
+  #   kind = "Ingress";
+  #   metadata = {
+  #     name = "${pname}-canary-ingress";
+  #     namespace = teamName;
+  #     labels = {
+  #       app = pname;
+  #       team = teamName;
+  #     };
+  #     annotations = {
+  #       "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP";
+  #       "nginx.ingress.kubernetes.io/canary" = "true";
+  #       "nginx.ingress.kubernetes.io/canary-by-header" = "X-Canary";
+  #       "nginx.ingress.kubernetes.io/use-regex" = "true";
+  #       "prometheus.io/path" = "/is_alive";
+  #       "prometheus.io/scrape" = "true";
+  #     };
+  #   };
+  #   spec = {
+  #     ingressClassName = "nais-ingress-external";
+  #     rules = [{
+  #       host = "amplitude.nav.no";
+  #       http.paths = [{
+  #         backend.service = {
+  #           name = pname;
+  #           port.number = 80;
+  #         };
+  #         path = "/";
+  #         pathType = "ImplementationSpecific";
+  #       }];
+  #     }];
+  #   };
+  # };
+in [
+  naisApp
+  allowAllEgress
+  #canaryIngress
+]
