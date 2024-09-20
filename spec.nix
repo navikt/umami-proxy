@@ -10,11 +10,10 @@ let
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
         "nginx.ingress.kubernetes.io/canary-by-header" = "X-Canary";
-
       };
     };
     spec = {
-      ingresses = [ "https://amplitude-2.nav.no" ];
+      ingresses = [ "https://amplitude.nav.no" ];
       image =
         "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
