@@ -165,9 +165,16 @@
 
             copyToRoot = (pkgs.buildEnv {
               name = "maxmindDb";
-              paths =
-                [ maxmindDb pkgs.nettools pkgs.curl pkgs.bash pkgs.coreutils ];
-              pathsToLink = [ "/data" ];
+              paths = [
+                maxmindDb
+                pkgs.nettools
+                pkgs.curl
+                pkgs.bash
+                pkgs.coreutils
+                binSh
+                fakeNss
+              ];
+              pathsToLink = [ "/data" "/bin" "/etc/" "/var" ];
             });
             config.Env = [ "DB_PATH=/data" ];
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
