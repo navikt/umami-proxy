@@ -94,6 +94,7 @@ impl ProxyHttp for Addr {
 	where
 		Self::CTX: Send + Sync,
 	{
+		info!("Request body filter");
 		// // buffer the data
 		// if let Some(b) = body {
 		// 	ctx.request_body_buffer.extend(&b[..]);

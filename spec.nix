@@ -46,7 +46,10 @@ let
         };
       };
       skipCaBundle = true;
-      env = lib.attrsToList { AMPLITUDE_URL = "api.eu.amplitude.com:443"; };
+      env = lib.attrsToList {
+        RUST_LOG = "TRACE";
+        AMPLITUDE_URL = "api.eu.amplitude.com:443";
+      };
     };
   };
 
