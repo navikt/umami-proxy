@@ -165,7 +165,8 @@
 
             copyToRoot = (pkgs.buildEnv {
               name = "maxmindDb";
-              paths = [ maxmindDb pkgs.nettools pkgs.curl ];
+              paths =
+                [ maxmindDb pkgs.nettools pkgs.curl pkgs.bash pkgs.coreutils ];
               pathsToLink = [ "/data" ];
             });
             config.Env = [ "DB_PATH=/data" ];
