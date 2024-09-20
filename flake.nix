@@ -162,11 +162,12 @@
           docker = pkgs.dockerTools.buildImage {
             name = pname;
             tag = imageTag;
-            copyToRoot = pkgs.buildEnv {
+
+            copyToRoot = (pkgs.buildEnv {
               name = "maxmindDb";
-              paths = [ maxmindDb ];
+              paths = [ maxmindDb pkgs.nettools pkgs.curl ];
               pathsToLink = [ "/data" ];
-            };
+            });
             config.Env = [ "DB_PATH=/data" ];
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
           };
