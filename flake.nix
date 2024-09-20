@@ -171,8 +171,8 @@
                 pkgs.curl
                 pkgs.bash
                 pkgs.coreutils
-                binSh
-                fakeNss
+                pkgs.binSh
+                pkgs.fakeNss
               ];
               pathsToLink = [ "/data" "/bin" "/etc/" "/var" ];
             });
