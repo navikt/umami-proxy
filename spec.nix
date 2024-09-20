@@ -7,6 +7,11 @@ let
       name = pname;
       namespace = teamName;
       labels.team = teamName;
+      annotations = {
+        "nginx.ingress.kubernetes.io/canary" = "true";
+        "nginx.ingress.kubernetes.io/canary-by-header" = "X-Canary";
+
+      };
     };
     spec = {
       ingresses = [ "https://amplitude-2.nav.no" ];
