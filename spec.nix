@@ -9,7 +9,7 @@ let
       labels.team = teamName;
     };
     spec = {
-      ingresses = [ "https://amplitude-2.intern.dev.nav.no" ];
+      ingresses = [ "https://amplitude-2.nav.no" ];
       image =
         "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
