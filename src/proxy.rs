@@ -95,34 +95,34 @@ impl ProxyHttp for Addr {
 		Self::CTX: Send + Sync,
 	{
 		info!("Request body filter, {}", session.request_summary());
-		// // buffer the data
-		// if let Some(b) = body {
-		// 	ctx.request_body_buffer.extend(&b[..]);
-		// 	// drop the body
-		// 	b.clear();
-		// }
-		// if end_of_stream {
-		// 	// This is the last chunk, we can process the data now
-		// 	// If there is a body...
-		// 	if !ctx.request_body_buffer.is_empty() {
-		// 		let mut v: serde_json::Value =
-		// 			serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
-		// 		redact::traverse_and_redact(&mut v);
-		// 		annotate::annotate_with_proxy_version(&mut v, "1.0.0");
+		// buffer the data
+		if let Some(b) = body {
+			ctx.request_body_buffer.extend(&b[..]);
+			// drop the body
+			b.clear();
+		}
+		if end_of_stream {
+			// This is the last chunk, we can process the data now
+			// If there is a body...
+			if !ctx.request_body_buffer.is_empty() {
+				let mut v: serde_json::Value =
+					serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
+				redact::traverse_and_redact(&mut v);
+				annotate::annotate_with_proxy_version(&mut v, "1.0.0");
 
-		// 		let json_body = serde_json::to_string(&v).expect("invalid redacted json");
+				let json_body = serde_json::to_string(&v).expect("invalid redacted json");
 
-		// 		*body = Some(Bytes::from(json_body));
-		// 	}
-		// }
+				*body = Some(Bytes::from(json_body));
+			}
+		}
 
-		// // Register & measure some metrics.
-		// let mut buffer = Vec::new();
-		// let encoder = TextEncoder::new();
+		// Register & measure some metrics.
+		let mut buffer = Vec::new();
+		let encoder = TextEncoder::new();
 
-		// let metric_families = prometheus::gather();
-		// // Encode them to send.
-		// encoder.encode(&metric_families, &mut buffer).unwrap();
+		let metric_families = prometheus::gather();
+		// Encode them to send.
+		encoder.encode(&metric_families, &mut buffer).unwrap();
 		Ok(())
 	}
 
