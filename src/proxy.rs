@@ -86,7 +86,7 @@ impl ProxyHttp for Addr {
 
 	async fn request_body_filter(
 		&self,
-		_session: &mut Session,
+		session: &mut Session,
 		body: &mut Option<Bytes>,
 		end_of_stream: bool,
 		ctx: &mut Self::CTX,
@@ -94,7 +94,7 @@ impl ProxyHttp for Addr {
 	where
 		Self::CTX: Send + Sync,
 	{
-		info!("Request body filter");
+		info!("Request body filter, {}", session.request_summary());
 		// // buffer the data
 		// if let Some(b) = body {
 		// 	ctx.request_body_buffer.extend(&b[..]);
@@ -145,6 +145,7 @@ impl ProxyHttp for Addr {
 
 		// Redact the uris, path segements and query params
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
+		info!("upstream request filter");
 		Ok(())
 	}
 }
