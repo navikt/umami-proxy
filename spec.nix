@@ -48,7 +48,7 @@ let
       skipCaBundle = true;
       env = lib.attrsToList {
         RUST_LOG = "TRACE";
-        AMPLITUDE_URL = "amplitude.nav.no:443";
+        AMPLITUDE_URL = "one.one.one.one:443";
       };
     };
   };

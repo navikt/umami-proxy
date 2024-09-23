@@ -75,11 +75,7 @@ impl ProxyHttp for Addr {
 	) -> Result<Box<HttpPeer>> {
 		INCOMING_REQUESTS.inc();
 
-		let peer = Box::new(HttpPeer::new(
-			self.addr,
-			true,
-			"api.eu.amplitude.com".into(),
-		));
+		let peer = Box::new(HttpPeer::new(self.addr, true, "one.one.one.one".into()));
 		info!("peer:{}", peer);
 		Ok(peer)
 	}
