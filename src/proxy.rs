@@ -1,5 +1,5 @@
-use async_trait::async_trait;
 use crate::{annotate, INCOMING_REQUESTS};
+use async_trait::async_trait;
 use bytes::Bytes;
 use maxminddb::Reader;
 use pingora::Error;
