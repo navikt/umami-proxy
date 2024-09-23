@@ -1,6 +1,8 @@
 use async_trait::async_trait;
+use crate::{annotate, INCOMING_REQUESTS};
 use bytes::Bytes;
 use maxminddb::Reader;
+use pingora::Error;
 use pingora::{
 	http::RequestHeader,
 	prelude::HttpPeer,
@@ -8,8 +10,6 @@ use pingora::{
 	Result,
 };
 use tracing::{error, info};
-
-use crate::{annotate, INCOMING_REQUESTS};
 
 mod redact;
 use prometheus::{self, Encoder, TextEncoder};
@@ -84,6 +84,16 @@ impl ProxyHttp for Addr {
 		Ok(peer)
 	}
 
+	fn fail_to_connect(
+		&self,
+		_session: &mut Session,
+		_peer: &HttpPeer,
+		_ctx: &mut Self::CTX,
+		e: Box<Error>,
+	) -> Box<Error> {
+		info!("FAIL TO CONNECT: {}", e);
+		e
+	}
 	async fn request_body_filter(
 		&self,
 		session: &mut Session,
@@ -138,6 +148,7 @@ impl ProxyHttp for Addr {
 		// We work around that by removing content length and setting the
 		// transfer encoding as chunked. The source code in pingora core looks like it would
 		// do it automatically, but I don't see it happening, hence the explicit bits here
+		info!("upstream_requst_filter");
 		upstream_request.remove_header("Content-Length");
 		upstream_request
 			.insert_header("Transfer-Encoding", "Chunked")
