@@ -91,7 +91,18 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 		"&",
 	);
 
-	let new_uri = format!("{redacted_paths}?{redacted_queries}")
+	let query_params = if old_uri
+		.query()
+		.unwrap_or("")
+		.split('&')
+		.collect::<Vec<_>>()
+		.len() > 0
+	{
+		format!("?{redacted_queries}")
+	} else {
+		String::new()
+	};
+	let new_uri = format!("{redacted_paths}{query_params}")
 		.parse::<Uri>()
 		.unwrap();
 	dbg!(&new_uri);
