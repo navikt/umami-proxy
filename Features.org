@@ -108,12 +108,12 @@ We need to expose multiple ports. Nais doesn't support that. Add these manually 
                                                              v
                                              +----------------------------------+
                                              | Forward processed events         |
-                                             | to Amplitude with API key        |
+                                             | to Upstream with API key        |
                                              +----------------------------------+
                                                              |
                                                              v
                                              +----------------------------------+
-                                             | Handle Amplitude's response      |
+                                             | Handle Upstream's response      |
                                              | - Log success or failure         |
                                              | - Return appropriate response    |
                                              +----------------------------------+

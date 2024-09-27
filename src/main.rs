@@ -30,7 +30,7 @@ fn main() {
 	let conf = config::Config::parse();
 
 	trace::init();
-	info!("started proxy\n upstream: {}", conf.amplitude_url);
+	info!("started proxy\n upstream: {}", conf.upstream_host);
 	register_custom_metrics();
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
@@ -65,13 +65,19 @@ fn main() {
 			"
 
 				 */
-		proxy::Addr {
-			addr: (conf.amplitude_url.to_owned())
-				.to_socket_addrs()
-				.unwrap()
-				.next()
-				.unwrap(),
+		proxy::AmplitudeProxy {
+			addr: format!(
+				"{}:{}",
+				conf.upstream_host.to_owned(),
+				conf.upstream_port.to_owned()
+			)
+			.to_socket_addrs()
+			.unwrap()
+			.next()
+			.unwrap(),
+
 			reader,
+			sni: conf.upstream_sni.to_owned(),
 		},
 	);
 

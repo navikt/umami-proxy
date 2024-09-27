@@ -1,3 +1,4 @@
+use crate::config;
 use crate::{annotate, INCOMING_REQUESTS};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -10,13 +11,13 @@ use pingora::{
 	Result,
 };
 use tracing::{error, info};
-
 mod redact;
 use prometheus::{self, Encoder, TextEncoder};
 
-pub struct Addr {
+pub struct AmplitudeProxy {
 	pub addr: std::net::SocketAddr,
 	pub reader: Reader<Vec<u8>>, // for maxmindb
+	pub sni: String,
 }
 
 #[derive(Debug)]
@@ -25,7 +26,7 @@ pub struct Ctx {
 }
 
 #[async_trait]
-impl ProxyHttp for Addr {
+impl ProxyHttp for AmplitudeProxy {
 	type CTX = Ctx;
 	fn new_ctx(&self) -> Self::CTX {
 		Ctx {
@@ -41,7 +42,7 @@ impl ProxyHttp for Addr {
 	{
 		info!("{}", &session.request_summary());
 
-		// We short circuit here because I dont want no traffic to go to amplitude without
+		// We short circuit here because I dont want no traffic to go to upstream without
 		// more unit-tests and nix tests on the redact stuff
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		INCOMING_REQUESTS.inc();
@@ -67,7 +68,7 @@ impl ProxyHttp for Addr {
 			None => Ok(false),
 		}
 	}
-	// This guy should be the amplitude host, all requests through the proxy gets sent th upstream_peer
+	// This guy should be the upstream host, all requests through the proxy gets sent th upstream_peer
 	async fn upstream_peer(
 		&self,
 		_session: &mut Session,
@@ -75,11 +76,7 @@ impl ProxyHttp for Addr {
 	) -> Result<Box<HttpPeer>> {
 		INCOMING_REQUESTS.inc();
 
-		let peer = Box::new(HttpPeer::new(
-			self.addr,
-			true,
-			"api.eu.amplitude.com".into(),
-		));
+		let peer = Box::new(HttpPeer::new(self.addr, true, self.sni.clone()));
 		info!("peer:{}", peer);
 		Ok(peer)
 	}

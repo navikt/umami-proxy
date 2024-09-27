@@ -75,7 +75,10 @@ let
       };
       env = lib.attrsToList {
         RUST_LOG = "TRACE";
-        AMPLITUDE_URL = "api.eu.amplitude.com:443";
+        UPSTREAM_HOST = "api.eu.amplitude.com";
+        UPSTREAM_PORT = "443";
+        UPSTREAM_SNI = "api.eu.amplitude.com"
+
       };
     };
   };

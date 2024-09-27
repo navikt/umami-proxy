@@ -2,25 +2,17 @@ use clap::Parser;
 
 #[derive(Parser, Debug)]
 pub struct Config {
-	#[arg(
-		env = "AMPLITUDE_URL",
-		hide_env_values = true,
-		short,
-		default_value = "eu.amplitude.com"
-	)]
-	/// Defaults to env-var of same name, has default if not set
-	pub amplitude_url: String,
-
-	#[arg(env = "KAFKA_INGRESS_TOPIC", short)]
-	/// Defaults to env-var of same name
+	#[arg(env = "UPSTREAM_HOST")]
+	pub upstream_host: String,
+	#[arg(env = "UPSTREAM_SNI")]
+	pub upstream_sni: String,
+	#[arg(env = "UPSTREAM_PORT")]
+	pub upstream_port: String,
+	#[arg(env = "KAFKA_INGRESS_TOPIC")]
 	pub kafka_ingress_topic: Option<String>,
-
-	#[arg(env = "PROJECT_KEYS_FILE", short)]
-	/// Defaults to env-var of same name
 	// TODO: Remove optional when confirmed/landed
+	#[arg(env = "PROJECT_KEYS_FILE")]
 	pub project_keys_file: Option<String>,
-
-	#[arg(env = "DB_PATH", short)]
-	/// Defaults to env-var of same name
+	#[arg(env = "DB_PATH")]
 	pub db_path: String,
 }
