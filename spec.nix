@@ -77,8 +77,7 @@ let
         RUST_LOG = "TRACE";
         UPSTREAM_HOST = "api.eu.amplitude.com";
         UPSTREAM_PORT = "443";
-        UPSTREAM_SNI = "api.eu.amplitude.com"
-
+        UPSTREAM_SNI = "api.eu.amplitude.com";
       };
     };
   };
