@@ -79,7 +79,7 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 			.map(|x| {
 				// TODO: THIS IS HECKING HARAM AND THERE IS ACUTALLY ROUTING IN DISGUISE GOING ON HERE, AMPLITUDE SPECIDIFIC
 				if *x == Tra::Original("collect".into()) {
-					"2/httapi".into()
+					"2/httpapi".into()
 				} else {
 					x.pretty_print()
 				}
