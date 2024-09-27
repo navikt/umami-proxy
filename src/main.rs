@@ -1,7 +1,6 @@
 use std::fs;
 use std::net::ToSocketAddrs;
 
-use clap::Parser;
 use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 use tracing::info;

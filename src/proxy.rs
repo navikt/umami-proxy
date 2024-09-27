@@ -1,4 +1,3 @@
-use crate::config;
 use crate::{annotate, INCOMING_REQUESTS};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -152,7 +151,7 @@ impl ProxyHttp for AmplitudeProxy {
 			.unwrap();
 
 		// Redact the uris, path segements and query params
-		// 	upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
+		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
 		info!("upstream request filter, {}", &upstream_request.uri);
 		Ok(())
 	}

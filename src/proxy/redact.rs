@@ -33,7 +33,10 @@ pub fn traverse_and_redact(value: &mut Value) {
 			}
 		},
 		Value::Object(obj) => {
-			for (_, v) in obj.iter_mut() {
+			for (key, v) in obj.iter_mut() {
+				if key == "api_key" {
+					continue;
+				}
 				traverse_and_redact(v);
 			}
 		},
@@ -73,7 +76,14 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 	let redacted_paths = itertools::join(
 		redact_paths(&old_uri.path().split('/').collect::<Vec<_>>())
 			.iter()
-			.map(|x| x.pretty_print()),
+			.map(|x| {
+				// TODO: THIS IS HECKING HARAM AND THERE IS ACUTALLY ROUTING IN DISGUISE GOING ON HERE, AMPLITUDE SPECIDIFIC
+				if *x == Tra::Original("collect".into()) {
+					"2/httapi".into()
+				} else {
+					x.pretty_print()
+				}
+			}),
 		"/",
 	);
 
