@@ -104,7 +104,7 @@ impl ProxyHttp for Addr {
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
-			// drop the body
+			// drop the body - we've consumed it as b
 			b.clear();
 		}
 		if end_of_stream {

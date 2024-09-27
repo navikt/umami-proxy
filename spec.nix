@@ -1,5 +1,33 @@
 { lib, teamName, pname, imageName, ... }:
 let
+  baseApp = {
+    apiVersion = "nais.io/v1alpha1";
+    kind = "Application";
+    metadata = {
+      name = pname;
+      namespace = teamName;
+      labels.team = teamName;
+    };
+    spec = {
+      image =
+        "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
+      port = 6191;
+      replicas = {
+        min = 1;
+        max = 1;
+        cpuThresholdPercentage = 50;
+        scalingStrategy.cpu.thresholdPercentage = 50;
+      };
+      resources = {
+        limits.memory = "512Mi";
+        requests = {
+          cpu = "200m";
+          memory = "256Mi";
+        };
+      };
+    };
+  };
+
   naisApp = {
     apiVersion = "nais.io/v1alpha1";
     kind = "Application";
@@ -45,7 +73,6 @@ let
           memory = "256Mi";
         };
       };
-      skipCaBundle = true;
       env = lib.attrsToList {
         RUST_LOG = "TRACE";
         AMPLITUDE_URL = "one.one.one.one:443";
