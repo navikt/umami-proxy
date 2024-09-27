@@ -91,13 +91,7 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 		"&",
 	);
 
-	let query_params = if old_uri
-		.query()
-		.unwrap_or("")
-		.split('&')
-		.collect::<Vec<_>>()
-		.len() > 0
-	{
+	let query_params = if old_uri.query().is_some_and(|q| !q.is_empty()) {
 		format!("?{redacted_queries}")
 	} else {
 		String::new()
