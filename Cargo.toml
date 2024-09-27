@@ -4,11 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-amplitude = "0.1.0"
 anyhow = "1.0.86"
 async-trait = "0.1.81"
 bytes = "1.7.1"
-clap = { version = "4.5.16", features = ["derive", "env"] }
 env_logger = "0.11.5"
 http = "1.1.0"
 isbot = "0.1.3"

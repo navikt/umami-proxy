@@ -27,7 +27,7 @@ fn register_custom_metrics() {
 }
 
 fn main() {
-	let conf = config::Config::parse();
+	let conf = config::Config::new();
 
 	trace::init();
 	info!("started proxy\n upstream: {}", conf.upstream_host);
