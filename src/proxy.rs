@@ -153,7 +153,7 @@ impl ProxyHttp for AmplitudeProxy {
 
 		// Redact the uris, path segements and query params
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
-		info!("upstream request filter");
+		info!("upstream request filter, {}", &upstream_request.uri);
 		Ok(())
 	}
 }
