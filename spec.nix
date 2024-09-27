@@ -75,7 +75,7 @@ let
       };
       env = lib.attrsToList {
         RUST_LOG = "TRACE";
-        AMPLITUDE_URL = "one.one.one.one:443";
+        AMPLITUDE_URL = "api.eu.amplitude.com:443";
       };
     };
   };
