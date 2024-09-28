@@ -167,13 +167,8 @@
               name = "maxmindDb";
               paths = [
                 maxmindDb
-                pkgs.nettools
-                pkgs.curl
-                pkgs.bash
-                pkgs.coreutils
-                pkgs.fakeNss
               ];
-              pathsToLink = [ "/data" "/bin" "/etc/" "/var" ];
+              pathsToLink = [ "/data" ];
             });
             config.Env = [ "DB_PATH=/data" ];
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
