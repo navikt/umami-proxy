@@ -16,7 +16,7 @@ use prometheus::{self, Encoder, TextEncoder};
 pub struct AmplitudeProxy {
 	pub addr: std::net::SocketAddr,
 	pub reader: Reader<Vec<u8>>, // for maxmindb
-	pub sni: String,
+	pub sni: Option<String>,
 }
 
 #[derive(Debug)]
@@ -75,7 +75,11 @@ impl ProxyHttp for AmplitudeProxy {
 	) -> Result<Box<HttpPeer>> {
 		INCOMING_REQUESTS.inc();
 
-		let peer = Box::new(HttpPeer::new(self.addr, true, self.sni.clone()));
+		let peer = Box::new(HttpPeer::new(
+			self.addr,
+			self.sni.is_some(),
+			self.sni.clone().unwrap_or("".into()),
+		));
 		info!("peer:{}", peer);
 		Ok(peer)
 	}
