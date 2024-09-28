@@ -113,7 +113,7 @@
               cargo-watch
               cmake
               socat
-
+              hivemind
               # Editor stuffs
               lldb
               rust-analyzer
