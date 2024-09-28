@@ -6,7 +6,7 @@ use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 use tracing::info;
 mod annotate;
 mod config;
-mod probes;
+mod health;
 mod proxy;
 mod trace;
 
@@ -50,7 +50,7 @@ fn main() {
 		maxminddb::Reader::open_readfile(file.path()).expect("to read the maximind db file");
 
 	let mut probe_instance =
-		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, probes::Probes {});
+		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});
 	let mut proxy_instance = pingora_proxy::http_proxy_service(
 		&amplitrude_proxy.configuration,
 		/* We test against this server
@@ -87,6 +87,5 @@ fn main() {
 	amplitrude_proxy.add_service(probe_instance);
 	amplitrude_proxy.add_service(proxy_instance);
 	amplitrude_proxy.add_service(prome_service_http);
-
 	amplitrude_proxy.run_forever();
 }
