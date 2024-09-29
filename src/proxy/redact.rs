@@ -3,13 +3,13 @@ use regex::Regex;
 use serde_json::Value;
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Tra {
+pub(crate) enum Rule {
 	Redacted,         // Replace with the string [Redacted]
 	Kept(String),     // string
 	Original(String), // String
 }
 
-impl Tra {
+impl Rule {
 	pub(crate) fn pretty_print(&self) -> String {
 		let redacted = "[redacted]";
 		match self {
@@ -46,30 +46,32 @@ pub fn traverse_and_redact(value: &mut Value) {
 	}
 }
 
-fn redact(s: &str) -> Tra {
+fn redact(s: &str) -> Rule {
 	let keep_regex = Regex::new(r"(nav|test)[0-9]{6}").unwrap();
 	let hex_regex = Regex::new(r"[a-f0-9\-]{6,}").unwrap();
 	let id_regex = Regex::new(r"\d[oiA-Z0-9]{8,}").unwrap();
 
 	if keep_regex.is_match(s) {
-		Tra::Kept(s.to_string())
+		Rule::Kept(s.to_string())
 	} else if hex_regex.is_match(s) || id_regex.is_match(s) {
-		Tra::Redacted
+		Rule::Redacted
 	} else {
-		Tra::Original(s.to_string())
+		Rule::Original(s.to_string())
 	}
 }
 
-fn print_query((key, value): &(Tra, Tra)) -> String {
+fn print_query((key, value): &(Rule, Rule)) -> String {
 	format!("{}={}", key.pretty_print(), value.pretty_print())
 }
 
-fn redact_paths(ps: &[&str]) -> Vec<Tra> {
-	ps.iter().map(|p: &&str| Tra::new(p)).collect()
+fn redact_paths(ps: &[&str]) -> Vec<Rule> {
+	ps.iter().map(|p: &&str| Rule::new(p)).collect()
 }
 
-fn redact_queries(ss: &[(&str, &str)]) -> Vec<(Tra, Tra)> {
-	ss.iter().map(|q| (Tra::new(q.0), Tra::new(q.1))).collect()
+fn redact_queries(ss: &[(&str, &str)]) -> Vec<(Rule, Rule)> {
+	ss.iter()
+		.map(|q| (Rule::new(q.0), Rule::new(q.1)))
+		.collect()
 }
 
 pub fn redact_uri(old_uri: &Uri) -> Uri {
@@ -78,7 +80,7 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 			.iter()
 			.map(|x| {
 				// TODO: THIS IS HECKING HARAM AND THERE IS ACUTALLY ROUTING IN DISGUISE GOING ON HERE, AMPLITUDE SPECIDIFIC
-				if *x == Tra::Original("collect".into()) {
+				if *x == Rule::Original("collect".into()) {
 					"2/httpapi".into()
 				} else {
 					x.pretty_print()
@@ -196,38 +198,38 @@ mod tests {
 	fn test_keep_regex() {
 		let input = "nav123456";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Kept(input.to_string()).pretty_print());
+		assert_eq!(result, Rule::Kept(input.to_string()).pretty_print());
 		let input = "test654321";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Kept(input.to_string()).pretty_print());
+		assert_eq!(result, Rule::Kept(input.to_string()).pretty_print());
 	}
 
 	#[test]
 	fn test_redact_regex() {
 		let input = "abcdef123456";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Redacted.pretty_print());
+		assert_eq!(result, Rule::Redacted.pretty_print());
 		let input = "1ABCD23456789";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Redacted.pretty_print());
+		assert_eq!(result, Rule::Redacted.pretty_print());
 		let input = "123456";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Redacted.pretty_print());
+		assert_eq!(result, Rule::Redacted.pretty_print());
 		let input = "a1b2c3d4e5";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Redacted.pretty_print());
+		assert_eq!(result, Rule::Redacted.pretty_print());
 	}
 
 	#[test]
 	fn test_original_regex() {
 		let input = "regularstring";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Original(input.to_string()).pretty_print());
+		assert_eq!(result, Rule::Original(input.to_string()).pretty_print());
 		let input = "anotherString";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Original(input.to_string()).pretty_print());
+		assert_eq!(result, Rule::Original(input.to_string()).pretty_print());
 		let input = "12345";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Tra::Original(input.to_string()).pretty_print());
+		assert_eq!(result, Rule::Original(input.to_string()).pretty_print());
 	}
 }
