@@ -124,7 +124,7 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 				if *x == Rule::Original("collect".into()) {
 					"2/httpapi".into()
 				} else if *x == Rule::Original("umami".into()) {
-					"send".into()
+					"api/send".into()
 				} else {
 					x.pretty_print()
 				}
