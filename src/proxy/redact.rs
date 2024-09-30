@@ -123,6 +123,8 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 				// The original clients talk to /collect, we talk to /2/httpapi. Hence this
 				if *x == Rule::Original("collect".into()) {
 					"2/httpapi".into()
+				} else if *x == Rule::Original("umami".into()) {
+					"send".into()
 				} else {
 					x.pretty_print()
 				}
