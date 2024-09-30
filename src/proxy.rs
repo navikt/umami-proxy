@@ -1,7 +1,7 @@
-use std::future::Future;
-use std::pin::Pin;
-
-use crate::{annotate, ERRORS_WHILE_PROXY, INCOMING_REQUESTS, UPSTREAM_CONNECTION_FAILURES};
+use crate::{
+	annotate, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS, SSL_ERROR,
+	UPSTREAM_CONNECTION_FAILURES,
+};
 use async_trait::async_trait;
 use bytes::Bytes;
 use maxminddb::Reader;
@@ -14,7 +14,6 @@ use pingora::{
 };
 use tracing::{error, info};
 mod redact;
-use prometheus::{self, Encoder, TextEncoder};
 
 pub struct AmplitudeProxy {
 	pub addr: std::net::SocketAddr,
@@ -98,19 +97,6 @@ impl ProxyHttp for AmplitudeProxy {
 		e
 	}
 
-	fn error_while_proxy(
-		&self,
-		_peer: &HttpPeer,
-		_session: &mut Session,
-		e: Box<Error>,
-		_ctx: &mut Self::CTX,
-		_client_reused: bool,
-	) -> Box<Error> {
-		ERRORS_WHILE_PROXY.inc();
-		error!("Error while proxy: {}", e);
-		e
-	}
-
 	async fn request_body_filter(
 		&self,
 		session: &mut Session,
@@ -168,5 +154,41 @@ impl ProxyHttp for AmplitudeProxy {
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
 		info!("upstream request filter, {}", &upstream_request.uri);
 		Ok(())
+	}
+
+	async fn logging(&self, _session: &mut Session, e: Option<&Error>, _ctx: &mut Self::CTX)
+	where
+		Self::CTX: Send + Sync,
+	{
+		let Some(err) = e else {
+			// happy path
+			HANDLED_REQUESTS.inc();
+			return ();
+		};
+
+		// Some error happened
+		ERRORS_WHILE_PROXY.inc();
+		error!("{:?}", err);
+		use pingora::ErrorType as ErrType;
+		match err.etype {
+			ErrType::TLSHandshakeFailure
+			| ErrType::TLSHandshakeTimedout
+			| ErrType::InvalidCert
+			| ErrType::HandshakeError => SSL_ERROR.inc(),
+
+			ErrType::ConnectTimedout
+			| ErrType::ConnectRefused
+			| ErrType::ConnectNoRoute
+			| ErrType::ConnectError
+			| ErrType::BindError
+			| ErrType::AcceptError
+			| ErrType::SocketError => ERRORS_WHILE_PROXY.inc(),
+
+			ErrType::ConnectProxyFailure => UPSTREAM_CONNECTION_FAILURES.inc(),
+
+			// All the rest are ignored for now, bring in when needed
+			_ => {},
+		};
+		()
 	}
 }

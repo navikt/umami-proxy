@@ -11,7 +11,7 @@ mod proxy;
 mod trace;
 
 use once_cell::sync::Lazy;
-use prometheus::{register_int_counter, register_int_gauge, IntCounter, IntGauge, Registry};
+use prometheus::{register_int_counter, IntCounter};
 
 static INCOMING_REQUESTS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("incoming_requests", "incoming requests").unwrap());
@@ -21,6 +21,9 @@ static HANDLED_REQUESTS: Lazy<IntCounter> =
 
 static ERRORS_WHILE_PROXY: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("error_while_proxy", "error while proxy").unwrap());
+
+static SSL_ERROR: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("ssl_errors", "ssl errors").unwrap());
 
 static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
 	register_int_counter!("UPSTREAM_CONNECTION_FAILURE", "upstream connection failure").unwrap()
