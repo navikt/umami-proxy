@@ -78,19 +78,16 @@ impl ProxyHttp for AmplitudeProxy {
 		session: &mut Session,
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
+		let owned_parts = session.downstream_session.req_header().as_owned_parts();
+		let path = owned_parts.uri.path();
+		info!(path = ?path);
+
 		let mut peer = Box::new(HttpPeer::new(
 			self.addr,
 			self.sni.is_some(),
 			self.sni.clone().unwrap_or("".into()),
 		));
-		if session
-			.downstream_session
-			.req_header()
-			.as_owned_parts()
-			.uri
-			.path()
-			.starts_with("/umami")
-		{
+		if path.starts_with("/umami") {
 			peer = Box::new(HttpPeer::new(
 				"umami.nav.no:443"
 					.to_socket_addrs()
