@@ -9,32 +9,39 @@ post http://127.0.0.1:6191/dump/request?foo=123e4567-e89b-12d3-a456-426614174000
 user-agent: carl
 Accept: application/json
 Content-Type: application/json; charset=utf-8
+X-CANARY: ALWAYS
 
-{ "user_id": "12345",
-  "device_id": "device-98765",
-  "event_type": "button_click",
-  "event_properties": {
-    "button_name": "signup_button",
-    "color": "blue",
-    "page": "signup_page"
-  },
-  "user_properties": {
-    "age": 30,
-    "gender": "female",
-    "location": "USA"
-  },
-  "app_version": "1.0.0",
-  "platform": "iOS",
-  "os_name": "iOS",
-  "os_version": "14.4",
-  "device_brand": "Apple",
-  "device_model": "iPhone 12",
-  "event_time": 1678,
-  "session_id": 1678,
-  "insert_id": "123e4567-e89b-12d3-a456-426614174000",
-  "location_lat": 37.7749,
-  "location_lng": -122.4194,
-  "ip_address": "123.45.67.89"
+{ "api_key": "7883e1a1c733f2cfdf634b71f523ae67",
+  "events": [
+    {
+      "device_id": "219860e6-2c4e-4f05-b374-4447a649076f",
+      "session_id": 1727432370360,
+      "time": 1727432412393,
+      "platform": "Web",
+      "os_name": "Firefox",
+      "os_version": "130.0",
+      "device_model": "Mac OS",
+      "language": "nb-NO",
+      "ip": "$remote",
+      "insert_id": "98c6079b-1868-4d5d-8f23-725a7f5a4bf8",
+      "event_type": "[Amplitude] Page Viewed",
+      "event_properties": {
+        "utm_campaign": "23031510135",
+        "utm_medium": "23031510135",
+        "utm_source": "23031510135",
+        "referrer": "https://login.microsoftonline.com/",
+        "referring_domain": "login.microsoftonline.com",
+        "[Amplitude] Page Domain": "lekk.ansatt.nav.no",
+        "[Amplitude] Page Location": "https://lekk.ansatt.nav.no/profil/kari-nordmann/23031510135?name=kari-nordmann&fnr=23031510135&utm_source=23031510135&utm_medium=23031510135&utm_campaign=23031510135",
+        "[Amplitude] Page Path": "/profil/kari-nordmann/23031510135",
+        "[Amplitude] Page Title": "Lekk - Kari Nordmann (fnr: 23031510135)",
+        "[Amplitude] Page URL": "https://lekk.ansatt.nav.no/profil/kari-nordmann/23031510135"
+      },
+      "event_id": 0,
+      "library": "amplitude-ts/1.9.1"
+    }
+  ],
+  "options": {}
 }
 
 

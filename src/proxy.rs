@@ -85,18 +85,6 @@ impl ProxyHttp for AmplitudeProxy {
 		Ok(peer)
 	}
 
-	fn fail_to_connect(
-		&self,
-		_session: &mut Session,
-		_peer: &HttpPeer,
-		_ctx: &mut Self::CTX,
-		e: Box<Error>,
-	) -> Box<Error> {
-		UPSTREAM_CONNECTION_FAILURES.inc();
-		error!("FAIL TO CONNECT: {}", e);
-		e
-	}
-
 	async fn request_body_filter(
 		&self,
 		session: &mut Session,
