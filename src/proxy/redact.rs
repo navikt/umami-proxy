@@ -9,7 +9,6 @@ pub(crate) enum Rule {
 	Redacted,         // Replace with the string [Redacted]
 	Kept(String),     // string
 	Original(String), // String
-	Drop,             //Drop a field
 }
 
 impl Rule {
@@ -19,13 +18,17 @@ impl Rule {
 			Self::Redacted => redacted.to_string(),
 			Self::Kept(s) => s.to_string(),
 			Self::Original(s) => s.to_string(),
-			Self::Drop => "".to_string(),
 		}
 	}
 	pub(crate) fn new(s: &str) -> Self {
 		redact(s)
 	}
 }
+
+// This function should be split into two functions
+// one for           Value -> Extended_Value_With_Rule_Nodes and
+// one function for  Extended_Value_With_Rule_Nodes -> Value
+// So that
 pub fn traverse_and_redact(value: &mut Value) {
 	match value {
 		Value::String(s) => {
@@ -99,6 +102,7 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 			.iter()
 			.map(|x| {
 				// TODO: THIS IS HECKING HARAM AND THERE IS ACUTALLY ROUTING IN DISGUISE GOING ON HERE, AMPLITUDE SPECIDIFIC
+				// The original clients talk to /collect, we talk to /2/httpapi. Hence this
 				if *x == Rule::Original("collect".into()) {
 					"2/httpapi".into()
 				} else {
@@ -130,7 +134,6 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 	let new_uri = format!("{redacted_paths}{query_params}")
 		.parse::<Uri>()
 		.unwrap();
-	dbg!(&new_uri);
 	new_uri
 }
 
