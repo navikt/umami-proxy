@@ -15,7 +15,6 @@ pub(crate) enum Rule {
 }
 
 static KEEP_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"((nav|test)[0-9]{6})").unwrap());
-static DEVICE_ID_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"device-\d+").unwrap());
 static HEX_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"[a-f0-9\-]{6,}").unwrap());
 static ID_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"\d[oiA-Z0-9]{8,}").unwrap());
 
@@ -70,7 +69,7 @@ pub fn traverse_and_redact(value: &mut Value) {
 			}
 
 			for (key, v) in obj.iter_mut() {
-				if key == "api_key" {
+				if key == "api_key" || key == "device_id" {
 					continue;
 				}
 				if key == "ip" {
@@ -92,7 +91,7 @@ pub fn traverse_and_redact(value: &mut Value) {
 }
 
 fn redact(s: &str) -> Rule {
-	if KEEP_REGEX.is_match(s) || DEVICE_ID_REGEX.is_match(s) {
+	if KEEP_REGEX.is_match(s) {
 		Rule::Keep(s.to_string())
 	} else if HEX_REGEX.is_match(s) || ID_REGEX.is_match(s) {
 		Rule::RedactSsns(s.to_string())

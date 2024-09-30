@@ -1,3 +1,5 @@
+use std::net::ToSocketAddrs;
+
 use crate::{
 	annotate, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS, SSL_ERROR,
 	UPSTREAM_CONNECTION_FAILURES,
@@ -73,14 +75,32 @@ impl ProxyHttp for AmplitudeProxy {
 	// This guy should be the upstream host, all requests through the proxy gets sent th upstream_peer
 	async fn upstream_peer(
 		&self,
-		_session: &mut Session,
+		session: &mut Session,
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		let peer = Box::new(HttpPeer::new(
+		let mut peer = Box::new(HttpPeer::new(
 			self.addr,
 			self.sni.is_some(),
 			self.sni.clone().unwrap_or("".into()),
 		));
+		if session
+			.downstream_session
+			.req_header()
+			.as_owned_parts()
+			.uri
+			.path()
+			.starts_with("umami.")
+		{
+			peer = Box::new(HttpPeer::new(
+				"umami.nav.no:443"
+					.to_socket_addrs()
+					.unwrap()
+					.next()
+					.unwrap(),
+				true,
+				"umami.nav.no".into(),
+			));
+		}
 		info!("peer:{}", peer);
 		Ok(peer)
 	}
