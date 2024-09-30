@@ -1,4 +1,7 @@
-use crate::{annotate, INCOMING_REQUESTS};
+use std::future::Future;
+use std::pin::Pin;
+
+use crate::{annotate, ERRORS_WHILE_PROXY, INCOMING_REQUESTS, UPSTREAM_CONNECTION_FAILURES};
 use async_trait::async_trait;
 use bytes::Bytes;
 use maxminddb::Reader;
@@ -39,12 +42,13 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
+		INCOMING_REQUESTS.inc();
+
 		info!("{}", &session.request_summary());
 
 		// We short circuit here because I dont want no traffic to go to upstream without
 		// more unit-tests and nix tests on the redact stuff
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
-		INCOMING_REQUESTS.inc();
 		match user_agent {
 			Some(ua) => match ua.to_str() {
 				Ok(ua) => {
@@ -73,8 +77,6 @@ impl ProxyHttp for AmplitudeProxy {
 		_session: &mut Session,
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		INCOMING_REQUESTS.inc();
-
 		let peer = Box::new(HttpPeer::new(
 			self.addr,
 			self.sni.is_some(),
@@ -91,9 +93,24 @@ impl ProxyHttp for AmplitudeProxy {
 		_ctx: &mut Self::CTX,
 		e: Box<Error>,
 	) -> Box<Error> {
-		info!("FAIL TO CONNECT: {}", e);
+		UPSTREAM_CONNECTION_FAILURES.inc();
+		error!("FAIL TO CONNECT: {}", e);
 		e
 	}
+
+	fn error_while_proxy(
+		&self,
+		_peer: &HttpPeer,
+		_session: &mut Session,
+		e: Box<Error>,
+		_ctx: &mut Self::CTX,
+		_client_reused: bool,
+	) -> Box<Error> {
+		ERRORS_WHILE_PROXY.inc();
+		error!("Error while proxy: {}", e);
+		e
+	}
+
 	async fn request_body_filter(
 		&self,
 		session: &mut Session,
@@ -126,13 +143,6 @@ impl ProxyHttp for AmplitudeProxy {
 			}
 		}
 
-		// Register & measure some metrics.
-		let mut buffer = Vec::new();
-		let encoder = TextEncoder::new();
-
-		let metric_families = prometheus::gather();
-		// Encode them to send.
-		encoder.encode(&metric_families, &mut buffer).unwrap();
 		Ok(())
 	}
 

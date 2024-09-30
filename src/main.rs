@@ -10,27 +10,27 @@ mod health;
 mod proxy;
 mod trace;
 
-use lazy_static::lazy_static;
-use prometheus::{IntCounter, Registry};
+use once_cell::sync::Lazy;
+use prometheus::{register_int_counter, register_int_gauge, IntCounter, IntGauge, Registry};
 
-lazy_static! {
-	pub static ref REGISTRY: Registry = Registry::new();
-	pub static ref INCOMING_REQUESTS: IntCounter =
-		IntCounter::new("incoming_requests", "Incoming Requests").expect("metric can be created");
-}
+static INCOMING_REQUESTS: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("incoming_requests", "incoming requests").unwrap());
 
-fn register_custom_metrics() {
-	REGISTRY
-		.register(Box::new(INCOMING_REQUESTS.clone()))
-		.expect("collector can be registered");
-}
+static HANDLED_REQUESTS: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("handled_requests", "handled requests").unwrap());
+
+static ERRORS_WHILE_PROXY: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("error_while_proxy", "error while proxy").unwrap());
+
+static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
+	register_int_counter!("UPSTREAM_CONNECTION_FAILURE", "upstream connection failure").unwrap()
+});
 
 fn main() {
 	let conf = config::Config::new();
 
 	trace::init();
 	info!("started proxy\n upstream: {}", conf.upstream_host);
-	register_custom_metrics();
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
 		daemon: false,
