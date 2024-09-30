@@ -89,7 +89,7 @@ impl ProxyHttp for AmplitudeProxy {
 			.as_owned_parts()
 			.uri
 			.path()
-			.starts_with("umami.")
+			.starts_with("/umami")
 		{
 			peer = Box::new(HttpPeer::new(
 				"umami.nav.no:443"
