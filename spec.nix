@@ -14,7 +14,7 @@
       labels.team = teamName;
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
-        "nginx.ingress.kubernetes.io/canary-by-header" = "X-Canary";
+        "nginx.ingress.kubernetes.io/canary-weight" = "10";
       };
     };
     spec = {
