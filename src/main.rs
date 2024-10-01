@@ -26,7 +26,11 @@ static SSL_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("ssl_errors_total", "ssl errors").unwrap());
 
 static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
-	register_int_counter!("upstream_connection_failures_total", "upstream connection failure").unwrap()
+	register_int_counter!(
+		"upstream_connection_failures_total",
+		"upstream connection failure"
+	)
+	.unwrap()
 });
 
 fn main() {
