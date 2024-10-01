@@ -155,16 +155,16 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Transfer-Encoding", "Chunked")
 			.unwrap();
 
-		upstream_request.remove_header("HOST");
+		upstream_request.remove_header("Host");
 		upstream_request
-			.insert_header("HOST", "api.eu.amplitude.com")
-			.expect("Needs correct HOST header");
+			.insert_header("Host", "api.eu.amplitude.com")
+			.expect("Needs correct Host header");
 
 		let path = upstream_request.uri.path();
 		if path.starts_with("/umami") {
 			upstream_request
-				.insert_header("HOST", "umami.nav.no")
-				.expect("Needs correct HOST header");
+				.insert_header("Host", "umami.nav.no")
+				.expect("Needs correct Host header");
 		}
 
 		// Redact the uris, path segements and query params
