@@ -91,11 +91,14 @@ impl ProxyHttp for AmplitudeProxy {
 		));
 		if path.starts_with("/umami") {
 			peer = Box::new(HttpPeer::new(
-				format!("{self.conf.upstream_umami.host}:{self.conf.upstream_umami.port}")
-					.to_socket_addrs()
-					.unwrap()
-					.next()
-					.unwrap(),
+				format!(
+					"{}:{}",
+					self.conf.upstream_umami.host, self.conf.upstream_umami.port
+				)
+				.to_socket_addrs()
+				.unwrap()
+				.next()
+				.unwrap(),
 				self.conf.upstream_umami.sni.is_some(),
 				self.conf.upstream_umami.sni.clone().unwrap_or("".into()),
 			));
