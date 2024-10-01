@@ -69,7 +69,7 @@ pub fn traverse_and_redact(value: &mut Value) {
 			}
 
 			for (key, v) in obj.iter_mut() {
-				if key == "api_key" || key == "device_id" {
+				if key == "api_key" || key == "device_id" || key == "website" {
 					continue;
 				}
 				if key == "ip" {
