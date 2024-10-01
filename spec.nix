@@ -1,5 +1,10 @@
-{ lib, teamName, pname, imageName, ... }:
-let
+{
+  lib,
+  teamName,
+  pname,
+  imageName,
+  ...
+}: let
   naisApp = {
     apiVersion = "nais.io/v1alpha1";
     kind = "Application";
@@ -13,9 +18,8 @@ let
       };
     };
     spec = {
-      ingresses = [ "https://amplitude.nav.no" ];
-      image =
-        "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
+      ingresses = ["https://amplitude.nav.no"];
+      image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
       liveness = {
         failureThreshold = 10;
@@ -36,12 +40,11 @@ let
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
-      accessPolicy.outbound.external =
-        [ { host = "api.eu.amplitude.com"; } { host = "cdn.amplitude.com"; } ];
+      accessPolicy.outbound.external = [{host = "api.eu.amplitude.com";} {host = "cdn.amplitude.com";} {host = "umami.nav.no";}];
       resources = {
         limits.memory = "512Mi";
         requests = {
-          cpu = "200m";
+          cpu = "1000m";
           memory = "256Mi";
         };
       };
@@ -65,12 +68,11 @@ let
       namespace = teamName;
     };
     spec = {
-      egress = [{ to = [{ ipBlock.cidr = "0.0.0.0/0"; }]; }];
+      egress = [{to = [{ipBlock.cidr = "0.0.0.0/0";}];}];
       podSelector.matchLabels.app = pname;
-      policyTypes = [ "Egress" ];
+      policyTypes = ["Egress"];
     };
   };
-
   # canaryIngress = {
   #   apiVersion = "networking.k8s.io/v1";
   #   kind = "Ingress";

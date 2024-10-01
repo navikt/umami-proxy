@@ -1,6 +1,5 @@
 {
-  description =
-    "A Nix-flake based development interface for NAV's Statusplattform's K8s operator";
+  description = "A Nix-flake based development interface for NAV's Statusplattform's K8s operator";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -23,42 +22,44 @@
     };
   };
 
-  outputs = { self, ... }@inputs:
-    inputs.flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import inputs.nixpkgs {
-          inherit system;
-          overlays = [ (import inputs.rust-overlay) ];
-        };
-        inherit (pkgs) lib;
+  outputs = {self, ...} @ inputs:
+    inputs.flake-utils.lib.eachDefaultSystem (system: let
+      pkgs = import inputs.nixpkgs {
+        inherit system;
+        overlays = [(import inputs.rust-overlay)];
+      };
+      inherit (pkgs) lib;
 
-        craneLib = (inputs.crane.mkLib pkgs).overrideToolchain
-          (p: p.rust-bin.stable.latest.default);
+      craneLib =
+        (inputs.crane.mkLib pkgs).overrideToolchain
+        (p: p.rust-bin.stable.latest.default);
 
-        # Common vars
-        cargoDetails = pkgs.lib.importTOML ./Cargo.toml;
-        pname = cargoDetails.package.name;
-        src = craneLib.cleanCargoSource (craneLib.path ./.);
-        commonArgs = {
-          inherit pname src;
+      # Common vars
+      cargoDetails = pkgs.lib.importTOML ./Cargo.toml;
+      pname = cargoDetails.package.name;
+      src = craneLib.cleanCargoSource (craneLib.path ./.);
+      commonArgs = {
+        inherit pname src;
 
-          buildInputs = with pkgs; [ openssl ];
-          nativeBuildInputs = with pkgs;
-            [ pkg-config cmake perl ] ++ lib.optionals stdenv.isDarwin [
-              darwin.apple_sdk.frameworks.Security
-              darwin.apple_sdk.frameworks.SystemConfiguration
-            ];
-        };
+        buildInputs = with pkgs; [openssl];
+        nativeBuildInputs = with pkgs;
+          [pkg-config cmake perl]
+          ++ lib.optionals stdenv.isDarwin [
+            darwin.apple_sdk.frameworks.Security
+            darwin.apple_sdk.frameworks.SystemConfiguration
+          ];
+      };
 
-        imageTag = "v${cargoDetails.package.version}-${dockerTag}";
-        imageName = "${pname}:${imageTag}";
-        teamName = "team-researchops";
-        my-spec = import ./spec.nix { inherit lib teamName pname imageName; };
+      imageTag = "v${cargoDetails.package.version}-${dockerTag}";
+      imageName = "${pname}:${imageTag}";
+      teamName = "team-researchops";
+      my-spec = import ./spec.nix {inherit lib teamName pname imageName;};
 
-        # Compile (and cache) cargo dependencies _only_
-        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+      # Compile (and cache) cargo dependencies _only_
+      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-        cargo-sbom = craneLib.mkCargoDerivation (commonArgs // {
+      cargo-sbom = craneLib.mkCargoDerivation (commonArgs
+        // {
           # Require the caller to specify cargoArtifacts we can use
           inherit cargoArtifacts;
 
@@ -67,115 +68,114 @@
 
           # Set the cargo command we will use and pass through the flags
           installPhase = "mv bom.json $out";
-          buildPhaseCargoCommand =
-            "cargo cyclonedx -f json --all --override-filename bom";
-          nativeBuildInputs = (commonArgs.nativeBuildInputs or [ ])
-            ++ [ pkgs.cargo-cyclonedx ];
+          buildPhaseCargoCommand = "cargo cyclonedx -f json --all --override-filename bom";
+          nativeBuildInputs =
+            (commonArgs.nativeBuildInputs or [])
+            ++ [pkgs.cargo-cyclonedx];
         });
 
-        dockerTag = if lib.hasAttr "rev" self then
-          "${builtins.toString self.revCount}-${self.shortRev}"
-        else
-          "gitDirty";
+      dockerTag =
+        if lib.hasAttr "rev" self
+        then "${builtins.toString self.revCount}-${self.shortRev}"
+        else "gitDirty";
 
-        # Compile workspace code (including 3rd party dependencies)
-        cargo-package =
-          craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
-      in {
-        checks = {
-          inherit cargo-package cargo-sbom;
-          # Run clippy (and deny all warnings) on the crate source,
-          # again, resuing the dependency artifacts from above.
-          #
-          # Note that this is done as a separate derivation so that
-          # we can block the CI if there are issues here, but not
-          # prevent downstream consumers from building our crate by itself.
-          cargo-clippy = craneLib.cargoClippy (commonArgs // {
+      # Compile workspace code (including 3rd party dependencies)
+      cargo-package =
+        craneLib.buildPackage (commonArgs // {inherit cargoArtifacts;});
+    in {
+      checks = {
+        inherit cargo-package cargo-sbom;
+        # Run clippy (and deny all warnings) on the crate source,
+        # again, resuing the dependency artifacts from above.
+        #
+        # Note that this is done as a separate derivation so that
+        # we can block the CI if there are issues here, but not
+        # prevent downstream consumers from building our crate by itself.
+        cargo-clippy = craneLib.cargoClippy (commonArgs
+          // {
             inherit cargoArtifacts;
-            cargoClippyExtraArgs = lib.concatStringsSep " " [ ];
+            cargoClippyExtraArgs = lib.concatStringsSep " " [];
           });
-          cargo-doc =
-            craneLib.cargoDoc (commonArgs // { inherit cargoArtifacts; });
-          cargo-fmt = craneLib.cargoFmt { inherit src; };
-          cargo-audit = craneLib.cargoAudit {
-            inherit (inputs) advisory-db;
-            inherit src;
-          };
+        cargo-doc =
+          craneLib.cargoDoc (commonArgs // {inherit cargoArtifacts;});
+        cargo-fmt = craneLib.cargoFmt {inherit src;};
+        cargo-audit = craneLib.cargoAudit {
+          inherit (inputs) advisory-db;
+          inherit src;
         };
-        devShells.default = craneLib.devShell {
-          packages = with pkgs;
-            [
-              cargo-audit
-              cargo-auditable
-              cargo-deny
-              cargo-outdated
-              cargo-cyclonedx
-              cargo-watch
-              cmake
-              socat
-              hivemind
-              # Editor stuffs
-              lldb
-              rust-analyzer
-            ] ++ lib.optionals stdenv.isDarwin [
-              darwin.apple_sdk.frameworks.Security
-              darwin.apple_sdk.frameworks.SystemConfiguration
-            ];
+      };
+      devShells.default = craneLib.devShell {
+        packages = with pkgs;
+          [
+            cargo-audit
+            cargo-auditable
+            cargo-deny
+            cargo-outdated
+            cargo-cyclonedx
+            cargo-watch
+            cmake
+            socat
+            hivemind
+            # Editor stuffs
+            lldb
+            rust-analyzer
+          ]
+          ++ lib.optionals stdenv.isDarwin [
+            darwin.apple_sdk.frameworks.Security
+            darwin.apple_sdk.frameworks.SystemConfiguration
+          ];
+      };
+
+      packages = rec {
+        default = rust;
+        rust = cargo-package;
+        sbom = cargo-sbom;
+        maxmindDb = pkgs.stdenv.mkDerivation rec {
+          name = "maxmindDb";
+          version = "1.0.0";
+          src = builtins.fetchurl {
+            url = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb@2.3.2024091418/geolite2-city-ipv4.mmdb";
+            sha256 = "sha256:11cbdh5fb5z80qcsnv78847n21awlwy7cqn7qzn0sjx0khyiqa01";
+          };
+
+          data = builtins.fetchurl {
+            url = "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb@2.3.2024091418/geolite2-city-ipv4.mmdb";
+            sha256 = "sha256:11cbdh5fb5z80qcsnv78847n21awlwy7cqn7qzn0sjx0khyiqa01";
+          };
+          phases = ["installPhase"];
+          installPhase = ''
+            mkdir -p $out/data
+            cp -r ${data} $out/data
+          '';
         };
 
-        packages = rec {
-          default = rust;
-          rust = cargo-package;
-          sbom = cargo-sbom;
-          maxmindDb = pkgs.stdenv.mkDerivation rec {
+        image = docker;
+        spec = let
+          toJson = attrSet: builtins.toJSON attrSet;
+          yamlContent = builtins.concatStringsSep ''
+
+            ---
+          '' (map toJson my-spec);
+        in
+          pkgs.writeText "spec.yaml" yamlContent;
+
+        docker = pkgs.dockerTools.buildImage {
+          name = pname;
+          tag = imageTag;
+
+          copyToRoot = pkgs.buildEnv {
             name = "maxmindDb";
-            version = "1.0.0";
-            src = builtins.fetchurl {
-              url =
-                "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb@2.3.2024091418/geolite2-city-ipv4.mmdb";
-              sha256 =
-                "sha256:11cbdh5fb5z80qcsnv78847n21awlwy7cqn7qzn0sjx0khyiqa01";
-            };
-
-            data = builtins.fetchurl {
-              url =
-                "https://cdn.jsdelivr.net/npm/@ip-location-db/geolite2-city-mmdb@2.3.2024091418/geolite2-city-ipv4.mmdb";
-              sha256 =
-                "sha256:11cbdh5fb5z80qcsnv78847n21awlwy7cqn7qzn0sjx0khyiqa01";
-            };
-            phases = [ "installPhase" ];
-            installPhase = ''
-              mkdir -p $out/data
-              cp -r ${data} $out/data
-            '';
+            paths = [
+              maxmindDb
+            ];
+            pathsToLink = ["/data"];
           };
-
-          image = docker;
-          spec = let
-            toJson = attrSet: builtins.toJSON attrSet;
-            yamlContent = builtins.concatStringsSep ''
-
-              ---
-            '' (map toJson my-spec);
-          in pkgs.writeText "spec.yaml" yamlContent;
-
-          docker = pkgs.dockerTools.buildImage {
-            name = pname;
-            tag = imageTag;
-
-            copyToRoot = (pkgs.buildEnv {
-              name = "maxmindDb";
-              paths = [
-                maxmindDb
-              ];
-              pathsToLink = [ "/data" ];
-            });
-            config.Env = [ "DB_PATH=/data" ];
-            config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
-          };
+          config.Env = ["DB_PATH=/data"];
+          config.Entrypoint = ["${cargo-package}/bin/${pname}"];
         };
+      };
 
-        # Now `nix fmt` works!
-        formatter = pkgs.alejandra;
-      });
+      # Now `nix fmt` works!
+      formatter = pkgs.alejandra;
+    });
 }
