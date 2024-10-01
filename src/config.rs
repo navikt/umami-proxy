@@ -1,20 +1,33 @@
 use std::env;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
+pub struct Upstream {
+	pub host: String,
+	pub sni: Option<String>,
+	pub port: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct Config {
-	pub upstream_host: String,
-	pub upstream_sni: Option<String>,
-	pub upstream_port: String,
+	pub upstream_amplitude: Upstream,
+	pub upstream_umami: Upstream,
 	pub db_path: String,
 }
 
 impl Config {
 	pub fn new() -> Config {
 		Config {
-			upstream_host: env::var("UPSTREAM_HOST").unwrap(),
-			upstream_sni: env::var("UPSTREAM_SNI").ok(),
-			upstream_port: env::var("UPSTREAM_PORT").unwrap(),
 			db_path: env::var("DB_PATH").unwrap(),
+			upstream_amplitude: Upstream {
+				host: env::var("AMPLITUDE_HOST").expect("Env var 'AMPLITUDE_HOST' needs to be set"),
+				sni: env::var("AMPLITUDE_SNI").ok(),
+				port: env::var("AMPLITUDE_PORT").expect("Env var 'AMPLITUDE_PORT' needs to be set"),
+			},
+			upstream_umami: Upstream {
+				host: env::var("UMAMI_HOST").expect("Env var 'UMAMI_HOST' needs to be set"),
+				sni: env::var("UMAMI_SNI").ok(),
+				port: env::var("UMAMI_PORT").expect("Env var 'UMAMI_PORT' needs to be set"),
+			},
 		}
 	}
 }

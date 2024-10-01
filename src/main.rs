@@ -33,7 +33,7 @@ fn main() {
 	let conf = config::Config::new();
 
 	trace::init();
-	info!("started proxy\n upstream: {}", conf.upstream_host);
+	info!("started proxy{:#?}", &conf);
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
 		daemon: false,
@@ -44,7 +44,7 @@ fn main() {
 	.unwrap();
 	amplitrude_proxy.bootstrap();
 
-	let data_dir = fs::read_dir(conf.db_path).expect("the directory to exist");
+	let data_dir = fs::read_dir(conf.db_path.clone()).expect("the directory to exist");
 	let file = data_dir
 		.last()
 		.expect("for the directory not to be empty")
@@ -68,10 +68,11 @@ fn main() {
 
 				 */
 		proxy::AmplitudeProxy {
+			conf: conf.clone(),
 			addr: format!(
 				"{}:{}",
-				conf.upstream_host.to_owned(),
-				conf.upstream_port.to_owned()
+				conf.upstream_amplitude.host.to_owned(),
+				conf.upstream_amplitude.port.to_owned()
 			)
 			.to_socket_addrs()
 			.unwrap()
@@ -79,7 +80,7 @@ fn main() {
 			.unwrap(),
 
 			reader,
-			sni: conf.upstream_sni.to_owned(),
+			sni: conf.upstream_amplitude.sni.to_owned(),
 		},
 	);
 

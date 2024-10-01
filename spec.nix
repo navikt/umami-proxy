@@ -45,11 +45,14 @@ let
           memory = "256Mi";
         };
       };
-      env = lib.attrsToList {
+      env = lib.attrsToList rec {
         RUST_LOG = "TRACE";
-        UPSTREAM_HOST = "api.eu.amplitude.com";
-        UPSTREAM_PORT = "443";
-        UPSTREAM_SNI = "api.eu.amplitude.com";
+        AMPLITUDE_HOST = "api.eu.amplitude.com";
+        AMPLITUDE_PORT = "443";
+        AMPLITUDE_SNI = AMPLITUDE_HOST;
+        UMAMI_HOST = "umami.nav.no";
+        UMAMI_PORT = "443";
+        UMAMI_SNI = UMAMI_HOST;
       };
     };
   };

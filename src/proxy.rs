@@ -1,5 +1,6 @@
 use std::net::ToSocketAddrs;
 
+use crate::config::Config;
 use crate::{
 	annotate, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS, SSL_ERROR,
 	UPSTREAM_CONNECTION_FAILURES,
@@ -18,6 +19,7 @@ use tracing::{error, info};
 mod redact;
 
 pub struct AmplitudeProxy {
+	pub conf: Config,
 	pub addr: std::net::SocketAddr,
 	pub reader: Reader<Vec<u8>>, // for maxmindb
 	pub sni: Option<String>,
@@ -89,13 +91,13 @@ impl ProxyHttp for AmplitudeProxy {
 		));
 		if path.starts_with("/umami") {
 			peer = Box::new(HttpPeer::new(
-				"umami.nav.no:443"
+				"{self.conf.upstream_umami.host}:{self.conf.upstream_umami.port}"
 					.to_socket_addrs()
 					.unwrap()
 					.next()
 					.unwrap(),
-				true,
-				"umami.nav.no".into(),
+				self.conf.upstream_umami.sni.is_some(),
+				self.conf.upstream_umami.sni.clone().unwrap_or("".into()),
 			));
 		}
 		info!("peer:{}", peer);
@@ -155,7 +157,6 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Transfer-Encoding", "Chunked")
 			.unwrap();
 
-		upstream_request.remove_header("Host");
 		upstream_request
 			.insert_header("Host", "api.eu.amplitude.com")
 			.expect("Needs correct Host header");
