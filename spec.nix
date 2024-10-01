@@ -5,12 +5,13 @@
   imageName,
   ...
 }: let
+  name = pname;
+  namespace = teamName;
   naisApp = {
     apiVersion = "nais.io/v1alpha1";
     kind = "Application";
     metadata = {
-      name = pname;
-      namespace = teamName;
+      inherit name namespace;
       labels.team = teamName;
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
@@ -40,7 +41,11 @@
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
-      accessPolicy.outbound.external = [{host = "api.eu.amplitude.com";} {host = "cdn.amplitude.com";} {host = "umami.nav.no";}];
+      accessPolicy.outbound = {
+        external = [{host = "api.eu.amplitude.com";} {host = "cdn.amplitude.com";} {host = "umami.nav.no";}];
+        # # TODO: Is it worth re-programming umami proxy not to go out onto internet and back?
+        # rules = [{inherit namespace; "application" = "reops-umami-beta";}];
+      };
       resources = {
         limits.memory = "512Mi";
         requests = {
@@ -65,7 +70,7 @@
     kind = "NetworkPolicy";
     metadata = {
       name = "amplitrude-proxy-eu-networkpolicy";
-      namespace = teamName;
+      inherit namespace;
     };
     spec = {
       egress = [{to = [{ipBlock.cidr = "0.0.0.0/0";}];}];
@@ -73,42 +78,7 @@
       policyTypes = ["Egress"];
     };
   };
-  # canaryIngress = {
-  #   apiVersion = "networking.k8s.io/v1";
-  #   kind = "Ingress";
-  #   metadata = {
-  #     name = "${pname}-canary-ingress";
-  #     namespace = teamName;
-  #     labels = {
-  #       app = pname;
-  #       team = teamName;
-  #     };
-  #     annotations = {
-  #       "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP";
-  #       "nginx.ingress.kubernetes.io/canary" = "true";
-  #       "nginx.ingress.kubernetes.io/canary-by-header" = "X-Canary";
-  #       "nginx.ingress.kubernetes.io/use-regex" = "true";
-  #       "prometheus.io/path" = "/is_alive";
-  #       "prometheus.io/scrape" = "true";
-  #     };
-  #   };
-  #   spec = {
-  #     ingressClassName = "nais-ingress-external";
-  #     rules = [{
-  #       host = "amplitude.nav.no";
-  #       http.paths = [{
-  #         backend.service = {
-  #           name = pname;
-  #           port.number = 80;
-  #         };
-  #         path = "/";
-  #         pathType = "ImplementationSpecific";
-  #       }];
-  #     }];
-  #   };
-  # };
 in [
   naisApp
   allowAllEgress
-  #canaryIngress
 ]
