@@ -48,11 +48,6 @@ fn main() {
 	.unwrap();
 	amplitrude_proxy.bootstrap();
 
-	let data_dir = fs::read_dir(conf.db_path.clone()).expect("the directory to exist");
-	let file = data_dir
-		.last()
-		.expect("for the directory not to be empty")
-		.expect("for the file to be readable");
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});
