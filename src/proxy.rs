@@ -118,6 +118,9 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
+		let (headers, _) = session.cache.cache_lookup().await.unwrap().unwrap();
+		let meta = headers.headers();
+		dbg!(meta);
 		// let city = session
 		// 	.downstream_session
 		// 	.get_header("X-CITY")
