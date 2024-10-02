@@ -193,9 +193,34 @@ impl ProxyHttp for AmplitudeProxy {
 		// transfer encoding as chunked. The source code in pingora core looks like it would
 		// do it automatically, but I don't see it happening, hence the explicit bits here
 		info!("upstream_requst_filter");
+		let city = session
+			.downstream_session
+			.get_header("x-client-city")
+			.and_then(|x| Some(x.to_str().map_or(String::new(), |s| s.to_owned())))
+			.unwrap_or(String::new());
+
+		let region = session
+			.downstream_session
+			.get_header("x-client-region")
+			.and_then(|x| {
+				Some(
+					x.to_str()
+						.map_or(String::from("UNKNOWN-COUNTRY-VALUE"), |s| s.to_owned()),
+				)
+			})
+			.unwrap_or(String::from("ONKNOWN-COONTRO-VOLOO"));
+
 		upstream_request.remove_header("Content-Length");
 		upstream_request
 			.insert_header("Transfer-Encoding", "Chunked")
+			.unwrap();
+
+		upstream_request
+			.insert_header("X-Vercel-IP-Country", region)
+			.unwrap();
+
+		upstream_request
+			.insert_header("X-Vercel-City", city)
 			.unwrap();
 
 		upstream_request
