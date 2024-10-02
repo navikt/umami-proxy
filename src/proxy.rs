@@ -2,8 +2,8 @@ use std::net::ToSocketAddrs;
 
 use crate::config::Config;
 use crate::{
-	annotate, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS, SSL_ERROR,
-	UPSTREAM_CONNECTION_FAILURES,
+	annotate, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS,
+	SSL_ERROR, UPSTREAM_CONNECTION_FAILURES,
 };
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -290,7 +290,7 @@ impl ProxyHttp for AmplitudeProxy {
 			| ErrType::ConnectError
 			| ErrType::BindError
 			| ErrType::AcceptError
-			| ErrType::SocketError => ERRORS_WHILE_PROXY.inc(), // This guy is used twice.
+			| ErrType::SocketError => CONNECTION_ERRORS.inc(), // This guy is used twice.
 
 			ErrType::ConnectProxyFailure => UPSTREAM_CONNECTION_FAILURES.inc(),
 

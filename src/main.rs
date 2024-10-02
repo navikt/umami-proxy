@@ -21,6 +21,9 @@ static HANDLED_REQUESTS: Lazy<IntCounter> =
 static ERRORS_WHILE_PROXY: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("error_while_proxy_total", "error while proxy").unwrap());
 
+static CONNECTION_ERRORS: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("connection_errors", "connection errors").unwrap());
+
 static SSL_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("ssl_errors_total", "ssl errors").unwrap());
 
