@@ -3,8 +3,6 @@
 pub struct AppInfo {
 	pub app: String,
 	pub namespace: String,
-	pub version: String,
-	pub context: String,
 	pub ingress: String,
 	pub creation_timestamp: String,
 }
