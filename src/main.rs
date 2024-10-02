@@ -1,14 +1,16 @@
+use std::collections::HashMap;
 use std::net::ToSocketAddrs;
+use std::sync::{Arc, Mutex};
 
 use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 use tracing::info;
 mod annotate;
+mod cache;
 mod config;
 mod health;
 mod proxy;
 mod trace;
-
 use once_cell::sync::Lazy;
 use prometheus::{register_int_counter, IntCounter};
 
@@ -50,34 +52,25 @@ fn main() {
 	.unwrap();
 	amplitrude_proxy.bootstrap();
 
+	let proxy = proxy::AmplitudeProxy::new(
+		conf.clone(),
+		format!(
+			"{}:{}",
+			conf.upstream_amplitude.host.to_owned(),
+			conf.upstream_amplitude.port.to_owned()
+		)
+		.to_socket_addrs()
+		.unwrap()
+		.next()
+		.unwrap(),
+		conf.upstream_amplitude.sni.to_owned(),
+		2000, // There's about ~1000 ingresses as of Wed Oct  2 16:23:24 CEST 2024
+	);
+
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});
-	let mut proxy_instance = pingora_proxy::http_proxy_service(
-		&amplitrude_proxy.configuration,
-		/* We test against this server
-		socat \
-			-v -d -d \
-			TCP-LISTEN:1234,crlf,reuseaddr,fork \
-			SYSTEM:"
-				echo HTTP/1.1 200 OK;
-				echo Content-Type\: text/plain;
-				echo;
-			"
-
-				 */
-		proxy::AmplitudeProxy {
-			conf: conf.clone(),
-			addr: format!(
-				"{}:{}",
-				conf.upstream_amplitude.host, conf.upstream_amplitude.port
-			)
-			.to_socket_addrs()
-			.expect("Amplitude specified `host` & `port` should give valid `std::net::SocketAddr`")
-			.next()
-			.expect("SocketAddr should resolve to at minimum 1x IP addr"),
-			sni: conf.upstream_amplitude.sni,
-		},
-	);
+	let mut proxy_instance =
+		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, proxy);
 
 	let mut prome_service_http = Service::prometheus_http_service();
 	prome_service_http.add_tcp("0.0.0.0:9090");

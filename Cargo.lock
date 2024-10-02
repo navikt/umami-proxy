@@ -79,6 +79,7 @@ dependencies = [
  "isbot",
  "itertools",
  "lazy_static",
+ "lru",
  "once_cell",
  "pingora",
  "prometheus",

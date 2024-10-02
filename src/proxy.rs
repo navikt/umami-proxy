@@ -1,20 +1,26 @@
-use std::net::ToSocketAddrs;
-
 use crate::config::Config;
 use crate::{
 	annotate, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS,
 	SSL_ERROR, UPSTREAM_CONNECTION_FAILURES,
 };
+
+use lru::LruCache;
+use std::num::NonZeroUsize;
+
+use crate::cache;
 use async_trait::async_trait;
 use bytes::Bytes;
+use pingora::Error;
+use pingora::ErrorType as ErrType;
 use pingora::{
 	http::RequestHeader,
 	prelude::HttpPeer,
 	proxy::{ProxyHttp, Session},
 	Result,
 };
-use pingora::{Error, ErrorType as ErrType};
 use serde_json::Value;
+use std::net::ToSocketAddrs;
+use std::sync::{Arc, Mutex};
 use tracing::{error, info};
 mod redact;
 
@@ -22,6 +28,36 @@ pub struct AmplitudeProxy {
 	pub conf: Config,
 	pub addr: std::net::SocketAddr,
 	pub sni: Option<String>,
+	pub cache: Arc<Mutex<LruCache<String, cache::IppAnfo>>>,
+}
+
+impl AmplitudeProxy {
+	pub fn new(
+		conf: Config,
+		addr: std::net::SocketAddr,
+		sni: Option<String>,
+		cache_capacity: usize,
+	) -> AmplitudeProxy {
+		let cache_size =
+			NonZeroUsize::new(cache_capacity).expect("Cache capacity must be greater than 0");
+
+		AmplitudeProxy {
+			conf,
+			addr,
+			sni,
+			cache: Arc::new(Mutex::new(LruCache::new(cache_size))),
+		}
+	}
+
+	pub fn insert_app_info(&self, app_name: String, app_info: cache::IppAnfo) {
+		let mut cache = self.cache.lock().unwrap();
+		cache.put(app_name, app_info);
+	}
+
+	pub fn get_app_info(&self, app_name: &str) -> Option<cache::IppAnfo> {
+		let mut cache = self.cache.lock().unwrap();
+		cache.get(app_name).cloned()
+	}
 }
 
 #[derive(Debug)]
@@ -45,7 +81,6 @@ impl ProxyHttp for AmplitudeProxy {
 		Self::CTX: Send + Sync,
 	{
 		INCOMING_REQUESTS.inc();
-
 		// We short circuit here because I dont want no traffic to go to upstream without
 		// more unit-tests and nix tests on the redact stuff
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
@@ -79,7 +114,8 @@ impl ProxyHttp for AmplitudeProxy {
 	) -> Result<Box<HttpPeer>> {
 		let owned_parts = session.downstream_session.req_header().as_owned_parts();
 		let path = owned_parts.uri.path();
-		info!(path = ?path);
+
+		self.insert_app_info(path.to_string(), cache::IppAnfo { app: "foo".into() });
 
 		let peer = if path.starts_with("/umami") {
 			Box::new(HttpPeer::new(
@@ -274,7 +310,8 @@ impl ProxyHttp for AmplitudeProxy {
 			HANDLED_REQUESTS.inc();
 			return;
 		};
-
+		let f = self.get_app_info("umami".into());
+		info!("cache: {:?}", f);
 		// Some error happened
 		ERRORS_WHILE_PROXY.inc();
 		error!("{:?}", err);
