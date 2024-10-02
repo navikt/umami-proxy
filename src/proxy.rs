@@ -121,22 +121,19 @@ impl ProxyHttp for AmplitudeProxy {
 		let city = session
 			.downstream_session
 			.get_header("x-client-city")
-			.unwrap_or(HeaderValue::from_str("no city").as_ref().unwrap())
-			.to_str()
-			.unwrap_or("no city")
-			.to_string();
+			.and_then(|x| Some(x.to_str().map_or(String::new(), |s| s.to_owned())))
+			.unwrap_or(String::new());
 
 		let country = session
 			.downstream_session
 			.get_header("x-client-region")
-			.unwrap_or(
-				HeaderValue::from_str("UNKNOWN-COUNTRY-VALUE")
-					.as_ref()
-					.unwrap(),
-			)
-			.to_str()
-			.unwrap_or("ONKNOWN-COONTRO-VOLOO")
-			.to_string();
+			.and_then(|x| {
+				Some(
+					x.to_str()
+						.map_or(String::from("UNKNOWN-COUNTRY-VALUE"), |s| s.to_owned()),
+				)
+			})
+			.unwrap_or(String::from("ONKNOWN-COONTRO-VOLOO"));
 
 		info!("country: {}, city: {}", country, city);
 		// buffer the data
