@@ -174,7 +174,7 @@ impl ProxyHttp for AmplitudeProxy {
 	/// TODO: Also ensure that path fragments are redacted?
 	async fn upstream_request_filter(
 		&self,
-		_session: &mut Session,
+		session: &mut Session,
 		upstream_request: &mut RequestHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()> {
@@ -197,6 +197,23 @@ impl ProxyHttp for AmplitudeProxy {
 			upstream_request
 				.insert_header("Host", "umami.nav.no")
 				.expect("Needs correct Host header");
+
+			// unwrap, unwrap, unwrap. :(
+			// There's also an ip4 vs ip6 consideration to be made here
+			let client_addr = session
+				.downstream_session
+				.client_addr()
+				.unwrap()
+				.to_socket_addrs()
+				.unwrap()
+				.next()
+				.unwrap()
+				.ip()
+				.to_string();
+
+			upstream_request
+				.insert_header("X-Forwarded-For", client_addr)
+				.unwrap();
 		}
 
 		// Redact the uris, path segements and query params
