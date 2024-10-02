@@ -118,23 +118,23 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		let city = session
-			.downstream_session
-			.get_header("X-CITY")
-			.unwrap()
-			.to_str()
-			.unwrap()
-			.to_string();
-		let country = session
-			.downstream_session
-			.get_header("X-COUNTRY")
-			.unwrap()
-			.to_str()
-			.unwrap()
-			.to_string();
+		// let city = session
+		// 	.downstream_session
+		// 	.get_header("X-CITY")
+		// 	.unwrap()
+		// 	.to_str()
+		// 	.unwrap()
+		// 	.to_string();
+		// let country = session
+		// 	.downstream_session
+		// 	.get_header("X-COUNTRY")
+		// 	.unwrap()
+		// 	.to_str()
+		// 	.unwrap()
+		// 	.to_string();
 
-		info!("country: {}", &country);
-		info!("city: {}", &city);
+		// info!("country: {}", &country);
+		// info!("city: {}", &city);
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
