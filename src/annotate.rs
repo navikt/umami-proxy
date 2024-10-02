@@ -1,4 +1,3 @@
-use maxminddb::Reader;
 use serde_json::Value;
 
 pub fn annotate_with_proxy_version(event: &mut Value, proxy_version: &str) {
@@ -10,7 +9,41 @@ pub fn annotate_with_proxy_version(event: &mut Value, proxy_version: &str) {
 	}
 }
 
-pub fn annotate_with_location(event: &mut Value, reader: &Reader<Vec<u8>>) {}
+// some of these
+// [Amplitude] City, [Amplitude] DMA, [Amplitude] Region, and [Amplitude] Country
+pub fn annotate_with_location(value: &mut Value, city: &String, country: &String) {
+	match value {
+		Value::Array(arr) => {
+			for v in arr {
+				annotate_with_location(v, &city, &country);
+			}
+		},
+		Value::Object(obj) => {
+			for (key, v) in obj.iter_mut() {
+				if key == "event_properties" {
+					v.as_object_mut()
+						.unwrap()
+						.insert(
+							"[Amplitude] City".into(),
+							Value::String(city.to_owned().into()),
+						)
+						.unwrap();
+					v.as_object_mut()
+						.unwrap()
+						.insert(
+							"[Amplitude] Country".into(),
+							Value::String(city.to_owned().into()),
+						)
+						.unwrap();
+				}
+			}
+		},
+
+		_ => {
+			// No need to do anything for these types
+		},
+	}
+}
 
 #[cfg(test)]
 mod tests {
