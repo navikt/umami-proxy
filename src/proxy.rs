@@ -5,10 +5,12 @@ use crate::{
 	annotate, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS, SSL_ERROR,
 	UPSTREAM_CONNECTION_FAILURES,
 };
+use ::http::HeaderValue;
 use async_trait::async_trait;
 use bytes::Bytes;
+use maxminddb::geoip2::country;
 use maxminddb::Reader;
-use pingora::Error;
+use pingora::{http, Error};
 use pingora::{
 	http::RequestHeader,
 	prelude::HttpPeer,
@@ -47,10 +49,6 @@ impl ProxyHttp for AmplitudeProxy {
 		Self::CTX: Send + Sync,
 	{
 		INCOMING_REQUESTS.inc();
-
-		let h = &session.req_header().headers;
-
-		dbg!(h);
 
 		// We short circuit here because I dont want no traffic to go to upstream without
 		// more unit-tests and nix tests on the redact stuff
@@ -120,23 +118,23 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		// let city = session
-		// 	.downstream_session
-		// 	.get_header("X-CITY")
-		// 	.unwrap()
-		// 	.to_str()
-		// 	.unwrap()
-		// 	.to_string();
-		// let country = session
-		// 	.downstream_session
-		// 	.get_header("X-COUNTRY")
-		// 	.unwrap()
-		// 	.to_str()
-		// 	.unwrap()
-		// 	.to_string();
+		let city = session
+			.downstream_session
+			.get_header("x-client-city")
+			.unwrap_or(HeaderValue::from_str("no city").as_ref().unwrap())
+			.to_str()
+			.unwrap_or("no city")
+			.to_string();
 
-		// info!("country: {}", &country);
-		// info!("city: {}", &city);
+		let country = session
+			.downstream_session
+			.get_header("x-client-country")
+			.unwrap_or(HeaderValue::from_str("no country").as_ref().unwrap())
+			.to_str()
+			.unwrap_or("no country")
+			.to_string();
+
+		info!("{}:{}", country, city);
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
