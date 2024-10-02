@@ -49,6 +49,9 @@ impl ProxyHttp for AmplitudeProxy {
 		INCOMING_REQUESTS.inc();
 
 		info!("{}", &session.request_summary());
+		let (headers, _) = session.cache.cache_lookup().await.unwrap().unwrap();
+		let meta = headers.headers();
+		dbg!(meta);
 
 		// We short circuit here because I dont want no traffic to go to upstream without
 		// more unit-tests and nix tests on the redact stuff
@@ -118,9 +121,6 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		let (headers, _) = session.cache.cache_lookup().await.unwrap().unwrap();
-		let meta = headers.headers();
-		dbg!(meta);
 		// let city = session
 		// 	.downstream_session
 		// 	.get_header("X-CITY")
