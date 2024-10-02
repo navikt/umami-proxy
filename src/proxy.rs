@@ -62,6 +62,10 @@ impl AmplitudeProxy {
 		let cache = self.cache.lock().unwrap();
 		cache.len()
 	}
+	pub fn pop_top_item(&self) -> Option<(String, cache::IppAnfo)> {
+		let mut cache = self.cache.lock().unwrap();
+		cache.pop_lru()
+	}
 }
 
 #[derive(Debug)]
@@ -197,6 +201,7 @@ impl ProxyHttp for AmplitudeProxy {
 					serde_json::from_slice(&ctx.request_body_buffer);
 
 				let Ok(mut v) = json_result else {
+					self.pop_top_item();
 					return Err(Error::explain(
 						pingora::ErrorType::Custom("invalid request-json"),
 						"Failed to parse request body",
@@ -261,6 +266,10 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Transfer-Encoding", "Chunked")
 			.unwrap();
 
+		// We are using vercel headers here because Umami supports them
+		// and they are not configurable. We already have this info in the request
+		// as x-client-city, x-client-country but umami does not support those names.
+		// (umami also supports Cloudflare headers, which we aren't (but could be) using )
 		upstream_request
 			.insert_header("X-Vercel-IP-Country", region)
 			.unwrap();
@@ -277,7 +286,7 @@ impl ProxyHttp for AmplitudeProxy {
 		info!("{}", &path);
 		if path.starts_with("/umami") {
 			upstream_request
-				.insert_header("Host", "umami.nav.no")
+			    .insert_header("Host", "umami.nav.no") // This is egress but could be by service discovery too, but i dont want to think about tls right now.
 				.expect("Needs correct Host header");
 
 			// unwrap, unwrap, unwrap. :(
@@ -293,7 +302,6 @@ impl ProxyHttp for AmplitudeProxy {
 				.ip()
 				.to_string();
 
-			dbg!(&client_addr);
 			// The X-Forwarded-For header is added here because otherwise umami will put
 			// all our users in the datacenter, which is in Nowhere, Finland.
 			// Amplitude doesn't need this as they do geolocation client side(???)
@@ -304,7 +312,6 @@ impl ProxyHttp for AmplitudeProxy {
 
 		// Redact the uris, path segements and query params
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
-		info!("upstream request filter, {}", &upstream_request.uri);
 		Ok(())
 	}
 
