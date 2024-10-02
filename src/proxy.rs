@@ -154,7 +154,10 @@ impl ProxyHttp for AmplitudeProxy {
 				};
 
 				redact::traverse_and_redact(&mut v);
-				annotate::annotate_with_proxy_version(&mut v, "1.0.0");
+				annotate::annotate_with_proxy_version(&mut v, "amplitrude-1.0.0");
+
+				// This uses exactly "event_properties, which maybe only amplitude has"
+				annotate::annotate_with_location(&mut v, &city, &country);
 
 				let json_body_result = serde_json::to_string(&v);
 
