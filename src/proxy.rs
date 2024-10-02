@@ -118,7 +118,23 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		info!("Request body filter, {}", session.request_summary());
+		let city = session
+			.downstream_session
+			.get_header("X-CITY")
+			.unwrap()
+			.to_str()
+			.unwrap()
+			.to_string();
+		let country = session
+			.downstream_session
+			.get_header("X-COUNTRY")
+			.unwrap()
+			.to_str()
+			.unwrap()
+			.to_string();
+
+		info!("country: {}", &country);
+		info!("city: {}", &city);
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
@@ -186,6 +202,7 @@ impl ProxyHttp for AmplitudeProxy {
 			.expect("Needs correct Host header");
 
 		let path = upstream_request.uri.path();
+		info!("{}", &path);
 		if path.starts_with("/umami") {
 			upstream_request
 				.insert_header("Host", "umami.nav.no")
@@ -204,6 +221,7 @@ impl ProxyHttp for AmplitudeProxy {
 				.ip()
 				.to_string();
 
+			dbg!(&client_addr);
 			// The X-Forwarded-For header is added here because otherwise umami will put
 			// all our users in the datacenter, which is in Nowhere, Finland.
 			// Amplitude doesn't need this as they do geolocation client side(???)
