@@ -134,7 +134,6 @@ impl ProxyHttp for AmplitudeProxy {
 				let mut v = match json_result {
 					Ok(parsed_json) => parsed_json,
 					Err(e) => {
-						error!("Failed to parse request body as JSON: {}", e);
 						return Err(Error::explain(
 							pingora::ErrorType::Custom("invalid request-json".into()),
 							"Failed to parse request body",
@@ -152,7 +151,6 @@ impl ProxyHttp for AmplitudeProxy {
 						*body = Some(Bytes::from(json_body));
 					},
 					Err(e) => {
-						error!("Failed to serialize redacted JSON: {}", e);
 						return Err(Error::explain(
 							pingora::ErrorType::Custom("invalid json after redacting".into()),
 							"Failed to co-parse redacted request body",
@@ -247,7 +245,7 @@ impl ProxyHttp for AmplitudeProxy {
 			| ErrType::ConnectError
 			| ErrType::BindError
 			| ErrType::AcceptError
-			| ErrType::SocketError => ERRORS_WHILE_PROXY.inc(),
+			| ErrType::SocketError => ERRORS_WHILE_PROXY.inc(), // This guy is used twice.
 
 			ErrType::ConnectProxyFailure => UPSTREAM_CONNECTION_FAILURES.inc(),
 
