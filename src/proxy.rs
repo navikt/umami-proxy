@@ -304,7 +304,6 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		info!("log: {}", _session.request_summary());
 		let Some(err) = e else {
 			// happy path
 			HANDLED_REQUESTS.inc();
