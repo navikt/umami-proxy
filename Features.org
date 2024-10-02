@@ -1,119 +1,33 @@
 * Features
-** Redact urls
-*** TODO Redact headers
-We should ask about this
+** DONE Redact urls
 ** DONE based on four (actually three) regexes
-** hash based caching
 ** Clean Events/Object
 *** DONE potential phone IDs removed
-*** TODO decide if `device_id` should be redacted
+*** DONE decide if `device_id` should be redacted
 ** DONE Path Segments and Query Param
-** Add GeoData
-sus: Uses data from 2019, No rust impl. There's a c-library.
-** IP-address removal
+** TODO Add GeoData
+** DONE IP-address removal
 ** DONE Is-Bot ;;
-
+** TODO that kafka-ingress stuff they do
 
 
 * Todo
-** Deployment
+** DONE Deployment
 See ports.
 This is maybe where Many k8s resources-as-nix-happen
-** TODO Probes
+** DONE Probes
 *** DONE V- GOES IN README
 There's several green threads by tokio running different bits
 of the program. They should fail at the same time. Experimentation
 with panic! in one service confirms that they do. They also block at the same time
 when tested with loop{}.
 *** DONE /health
-*** TODO /ready
-**** Currently only returnin 200 OK when `path_string.contains("is_alive")`
-Is-alive and is-ready are the same thing IFF this is a stateless proxy without
-sync deps.
 
-** Metrics
+** TODO Grafana dashboard
+
+** TODO log levels
+
+** TODO Structure the code to allow for severeal upstreams :(
+
+** DONE Metrics
 pingora has built in prometheus
-
-* Wut
-We need to expose multiple ports. Nais doesn't support that. Add these manually to the pod spec??
-
-
-* A DIAGRAM
-+-------------------+
-| Client Request     |
-+-------------------+
-        |
-        v
-+----------------------------+
-| Extract request data        |
-| - Events and API Key        |
-| - Validate format           |
-+----------------------------+
-        |
-        v
-+--------------------------------------------+
-| Check if events exist                      |
-| - Parse body or set errors (if invalid)    |
-+--------------------------------------------+
-        |
-        v
-+----------------------------------------------------------+
-| Validate platform or ingestion metadata URLs             |
-| - If using new SDK, validate `ingestion_metadata` URL    |
-| - If using old SDK, validate `platform` URL              |
-+----------------------------------------------------------+
-        |
-        v
-+-------------------------------------------------+
-| Add cluster data to events using ingress info   |
-| - Extract app, team, and hostname from events   |
-| - Retrieve API key based on context             |
-+-------------------------------------------------+
-        |
-        v
-+-------------------------------+
-| Create log entry               |
-| - Log API Key, event type,     |
-|   user agent, and origin       |
-+-------------------------------+
-        |
-        v
-+-------------------------------+
-| Check API key validity        |
-| - Compare with AUTO_TRACK_KEY |
-+-------------------------------+
-        |                          |
-        v                          v
-+------------------------+       +----------------------------------------+
-| Invalid API Key        |       | Valid API Key                          |
-| - Increment counter    |       | - Check for errors                     |
-| - Log error            |       | - Process event based on errors        |
-+------------------------+       +----------------------------------------+
-                    |                         |
-                    v                         v
-+----------------------------+   +-------------------------------------+
-| Errors in events           |   | No Errors in events                 |
-| - Increment counter        |   | - Check if request is from bot      |
-| - Log errors               |   | - Check if hostname is ignored      |
-+----------------------------+   +-------------------------------------+
-                    |                         |
-                    v                         v
-+------------------------------------------+     +-------------------------------+
-| Bot traffic or ignored hostname          |     | Valid event                   |
-| - Increment respective counters          |     | - Add proxy data              |
-| - Log and return success/ignored message |     | - Add geo data                |
-+------------------------------------------+     | - Clean URLs in events        |
-                                                 +-------------------------------+
-                                                             |
-                                                             v
-                                             +----------------------------------+
-                                             | Forward processed events         |
-                                             | to Upstream with API key        |
-                                             +----------------------------------+
-                                                             |
-                                                             v
-                                             +----------------------------------+
-                                             | Handle Upstream's response      |
-                                             | - Log success or failure         |
-                                             | - Return appropriate response    |
-                                             +----------------------------------+

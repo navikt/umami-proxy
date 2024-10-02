@@ -15,6 +15,7 @@ use pingora::{
 	proxy::{ProxyHttp, Session},
 	Result,
 };
+use serde_json::Value;
 use tracing::{error, info};
 mod redact;
 
@@ -126,16 +127,43 @@ impl ProxyHttp for AmplitudeProxy {
 		}
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
-			// If there is a body...
 			if !ctx.request_body_buffer.is_empty() {
-				let mut v: serde_json::Value =
-					serde_json::from_slice(&ctx.request_body_buffer).expect("invalid json");
+				// Try to parse the buffered data as JSON
+				let json_result: Result<Value, serde_json::Error> =
+					serde_json::from_slice(&ctx.request_body_buffer);
+
+				let mut v = match json_result {
+					Ok(parsed_json) => parsed_json,
+					Err(e) => {
+						// Log the error and return the error, or handle it accordingly
+						error!("Failed to parse request body as JSON: {}", e);
+						return Err(Error::explain(
+							pingora::ErrorType::Custom("invalid request-json".into()),
+							"Failed to parse request body",
+						));
+					},
+				};
+
+				// Redact and annotate the JSON
 				redact::traverse_and_redact(&mut v);
 				annotate::annotate_with_proxy_version(&mut v, "1.0.0");
 
-				let json_body = serde_json::to_string(&v).expect("invalid redacted json");
+				// Try to serialize the redacted and annotated JSON back to a string
+				let json_body_result = serde_json::to_string(&v);
 
-				*body = Some(Bytes::from(json_body));
+				match json_body_result {
+					Ok(json_body) => {
+						*body = Some(Bytes::from(json_body));
+					},
+					Err(e) => {
+						// Log the error and return the error, or handle it accordingly
+						error!("Failed to serialize redacted JSON: {}", e);
+						return Err(Error::explain(
+							pingora::ErrorType::Custom("invalid json after redacting".into()),
+							"Failed to co-parse redacted request body",
+						));
+					},
+				}
 			}
 		}
 
