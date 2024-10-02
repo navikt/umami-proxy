@@ -14,6 +14,7 @@ mod proxy;
 mod trace;
 use once_cell::sync::Lazy;
 use prometheus::{register_int_counter, IntCounter};
+use tracing_subscriber::util::SubscriberInitExt;
 
 static INCOMING_REQUESTS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("incoming_requests_total", "incoming requests").unwrap());
@@ -41,7 +42,7 @@ static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
 fn main() {
 	let conf = config::Config::new();
 
-	trace::init();
+	trace::configure_logging().init();
 	info!("started proxy{:#?}", &conf);
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
