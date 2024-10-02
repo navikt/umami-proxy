@@ -128,14 +128,12 @@ impl ProxyHttp for AmplitudeProxy {
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
 			if !ctx.request_body_buffer.is_empty() {
-				// Try to parse the buffered data as JSON
 				let json_result: Result<Value, serde_json::Error> =
 					serde_json::from_slice(&ctx.request_body_buffer);
 
 				let mut v = match json_result {
 					Ok(parsed_json) => parsed_json,
 					Err(e) => {
-						// Log the error and return the error, or handle it accordingly
 						error!("Failed to parse request body as JSON: {}", e);
 						return Err(Error::explain(
 							pingora::ErrorType::Custom("invalid request-json".into()),
@@ -144,11 +142,9 @@ impl ProxyHttp for AmplitudeProxy {
 					},
 				};
 
-				// Redact and annotate the JSON
 				redact::traverse_and_redact(&mut v);
 				annotate::annotate_with_proxy_version(&mut v, "1.0.0");
 
-				// Try to serialize the redacted and annotated JSON back to a string
 				let json_body_result = serde_json::to_string(&v);
 
 				match json_body_result {
@@ -156,7 +152,6 @@ impl ProxyHttp for AmplitudeProxy {
 						*body = Some(Bytes::from(json_body));
 					},
 					Err(e) => {
-						// Log the error and return the error, or handle it accordingly
 						error!("Failed to serialize redacted JSON: {}", e);
 						return Err(Error::explain(
 							pingora::ErrorType::Custom("invalid json after redacting".into()),
@@ -211,6 +206,9 @@ impl ProxyHttp for AmplitudeProxy {
 				.ip()
 				.to_string();
 
+			// The X-Forwarded-For header is added here because otherwise umami will put
+			// all our users in the datacenter, which is in Nowhere, Finland.
+			// Amplitude doesn't need this as they do geolocation client side(???)
 			upstream_request
 				.insert_header("X-Forwarded-For", client_addr)
 				.unwrap();
