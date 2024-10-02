@@ -48,7 +48,6 @@ fn main() {
 	.unwrap();
 	amplitrude_proxy.bootstrap();
 
-
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});
 	let mut proxy_instance = pingora_proxy::http_proxy_service(
