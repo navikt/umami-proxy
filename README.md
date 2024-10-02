@@ -1,9 +1,6 @@
 # Ampritude-proxy
 
-"This product includes GeoLite2 data created by MaxMind, available from
-<a href="https://www.maxmind.com">https://www.maxmind.com</a>."
-
-geoip data comes from https://github.com/sapics/ip-location-db#city
+A reverse proxy in front of amplitude and umami. It redacts some data and annotates requests with other data.
 
 ## Implementation notes
 There's several green threads by tokio running different bits of the program.

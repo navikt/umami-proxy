@@ -53,8 +53,6 @@ fn main() {
 		.last()
 		.expect("for the directory not to be empty")
 		.expect("for the file to be readable");
-	let reader =
-		maxminddb::Reader::open_readfile(file.path()).expect("to read the maximind db file");
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});
@@ -82,8 +80,6 @@ fn main() {
 			.unwrap()
 			.next()
 			.unwrap(),
-
-			reader,
 			sni: conf.upstream_amplitude.sni.to_owned(),
 		},
 	);

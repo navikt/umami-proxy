@@ -5,11 +5,8 @@ use crate::{
 	annotate, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS, SSL_ERROR,
 	UPSTREAM_CONNECTION_FAILURES,
 };
-use ::http::HeaderValue;
 use async_trait::async_trait;
 use bytes::Bytes;
-use maxminddb::geoip2::country;
-use maxminddb::Reader;
 use pingora::{http, Error};
 use pingora::{
 	http::RequestHeader,
@@ -24,7 +21,6 @@ mod redact;
 pub struct AmplitudeProxy {
 	pub conf: Config,
 	pub addr: std::net::SocketAddr,
-	pub reader: Reader<Vec<u8>>, // for maxmindb
 	pub sni: Option<String>,
 }
 
@@ -135,7 +131,6 @@ impl ProxyHttp for AmplitudeProxy {
 			})
 			.unwrap_or(String::from("ONKNOWN-COONTRO-VOLOO"));
 
-		info!("country: {}, city: {}", country, city);
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
