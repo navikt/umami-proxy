@@ -1,11 +1,10 @@
+use crate::config;
 use tracing::Level;
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
-pub fn init() {
+pub fn init(config: config::Config) {
 	let subscriber = FmtSubscriber::builder()
-        // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-        // will be written to stdout.
-        .with_max_level(Level::TRACE)
+            .with_env_filter(EnvFilter::from_default_env()) // Reads log level from the `RUST_LOG` env variable
             .finish();
 
 	tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed")

@@ -10,11 +10,10 @@
 ** DONE Is-Bot ;;
 ** TODO that kafka-ingress stuff they do
 
+** DONE Forward headers for umami
 
 * Todo
 ** DONE Deployment
-See ports.
-This is maybe where Many k8s resources-as-nix-happen
 ** DONE Probes
 *** DONE V- GOES IN README
 There's several green threads by tokio running different bits
@@ -28,6 +27,10 @@ when tested with loop{}.
 ** TODO log levels
 
 ** TODO Structure the code to allow for severeal upstreams :(
+Currently we just branch willy-nilly. Perhaps the upstream choice
+should get decided in request_filter and put into the context and
+then we branch on that. (What are pingora modules? can we use that?)
+
 
 ** DONE Metrics
 pingora has built in prometheus

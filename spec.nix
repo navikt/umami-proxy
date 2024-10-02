@@ -54,7 +54,7 @@
         };
       };
       env = lib.attrsToList rec {
-        RUST_LOG = "TRACE";
+        RUST_LOG = "INFO";
         AMPLITUDE_HOST = "api.eu.amplitude.com";
         AMPLITUDE_PORT = "443";
         AMPLITUDE_SNI = AMPLITUDE_HOST;
