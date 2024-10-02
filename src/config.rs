@@ -11,13 +11,11 @@ pub struct Upstream {
 pub struct Config {
 	pub upstream_amplitude: Upstream,
 	pub upstream_umami: Upstream,
-	pub db_path: String,
 }
 
 impl Config {
 	pub fn new() -> Config {
 		Config {
-			db_path: env::var("DB_PATH").unwrap(),
 			upstream_amplitude: Upstream {
 				host: env::var("AMPLITUDE_HOST").expect("Env var 'AMPLITUDE_HOST' needs to be set"),
 				sni: env::var("AMPLITUDE_SNI").ok(),
