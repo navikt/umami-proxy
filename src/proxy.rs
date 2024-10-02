@@ -58,6 +58,10 @@ impl AmplitudeProxy {
 		let mut cache = self.cache.lock().unwrap();
 		cache.get(app_name).cloned()
 	}
+	pub fn cache_size(&self) -> usize {
+		let cache = self.cache.lock().unwrap();
+		cache.len()
+	}
 }
 
 #[derive(Debug)]
@@ -114,8 +118,6 @@ impl ProxyHttp for AmplitudeProxy {
 	) -> Result<Box<HttpPeer>> {
 		let owned_parts = session.downstream_session.req_header().as_owned_parts();
 		let path = owned_parts.uri.path();
-
-		self.insert_app_info(path.to_string(), cache::IppAnfo { app: "foo".into() });
 
 		let peer = if path.starts_with("/umami") {
 			Box::new(HttpPeer::new(
@@ -176,6 +178,12 @@ impl ProxyHttp for AmplitudeProxy {
 				},
 			);
 
+		self.insert_app_info(
+			city.clone(),
+			cache::IppAnfo {
+				app: country.clone(),
+			},
+		);
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
@@ -309,8 +317,9 @@ impl ProxyHttp for AmplitudeProxy {
 			HANDLED_REQUESTS.inc();
 			return;
 		};
-		let f = self.get_app_info("umami".into());
-		info!("cache: {:?}", f);
+		let f = self.get_app_info("Hamar".into());
+		info!("cache: {:?} - {:?} items", f, self.cache_size());
+
 		// Some error happened
 		ERRORS_WHILE_PROXY.inc();
 		error!("{:?}", err);
