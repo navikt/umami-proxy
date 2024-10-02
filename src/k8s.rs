@@ -1,4 +1,3 @@
-use crate::AppInfo;
 use futures::{StreamExt, TryStreamExt};
 use kube::{
 	api::{Api, ListParams},
@@ -9,6 +8,7 @@ use kube_runtime::watcher::{self, Event};
 use lru::LruCache;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
+mod cache;
 
 pub struct K8sWatcher {
 	pub cache: Arc<Mutex<LruCache<String, AppInfo>>>,

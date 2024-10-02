@@ -9,6 +9,7 @@ mod annotate;
 mod cache;
 mod config;
 mod health;
+mod k8s;
 mod proxy;
 mod trace;
 use once_cell::sync::Lazy;
