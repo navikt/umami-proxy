@@ -21,20 +21,16 @@ pub fn annotate_with_location(value: &mut Value, city: &String, country: &String
 		Value::Object(obj) => {
 			for (key, v) in obj.iter_mut() {
 				if key == "event_properties" {
-					v.as_object_mut()
-						.unwrap()
-						.insert(
+					if v.is_object() {
+						v.as_object_mut().unwrap().insert(
 							"[Amplitude] City".into(),
 							Value::String(city.to_owned().into()),
-						)
-						.unwrap();
-					v.as_object_mut()
-						.unwrap()
-						.insert(
+						);
+						v.as_object_mut().unwrap().insert(
 							"[Amplitude] Country".into(),
-							Value::String(city.to_owned().into()),
-						)
-						.unwrap();
+							Value::String(country.to_owned().into()),
+						);
+					}
 				}
 			}
 		},
@@ -49,7 +45,65 @@ pub fn annotate_with_location(value: &mut Value, city: &String, country: &String
 mod tests {
 	use super::*;
 	use serde_json::json;
+	use serde_json::Value;
 
+	#[test]
+	fn test_annotate_with_location() {
+		let mut event = json!({
+			"user_id": "12345",
+			"device_id": "device-98765",
+			"event_type": "button_click",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue"
+			},
+			"session_id": 16789
+		});
+
+		annotate_with_location(&mut event, &"New York".to_string(), &"USA".to_string());
+
+		let expected_event = json!({
+			"user_id": "12345",
+			"device_id": "device-98765",
+			"event_type": "button_click",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue",
+				"[Amplitude] City": "New York",
+				"[Amplitude] Country": "USA"
+			},
+			"session_id": 16789
+		});
+
+		assert_eq!(event, expected_event);
+	}
+
+	#[test]
+	fn test_annotate_with_location_existing_location() {
+		let mut event = json!({
+			"user_id": "12345",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue",
+				"[Amplitude] City": "Los Angeles",
+				"[Amplitude] Country": "Canada"
+			}
+		});
+
+		annotate_with_location(&mut event, &"New York".to_string(), &"USA".to_string());
+
+		let expected_event = json!({
+			"user_id": "12345",
+			"event_properties": {
+				"button_name": "signup_button",
+				"color": "blue",
+				"[Amplitude] City": "New York",
+				"[Amplitude] Country": "USA"
+			}
+		});
+
+		assert_eq!(event, expected_event);
+	}
 	#[test]
 	fn test_annotate_with_proxy_version() {
 		let mut event = json!({
