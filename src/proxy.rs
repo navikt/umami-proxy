@@ -128,13 +128,17 @@ impl ProxyHttp for AmplitudeProxy {
 
 		let country = session
 			.downstream_session
-			.get_header("x-client-country")
-			.unwrap_or(HeaderValue::from_str("no country").as_ref().unwrap())
+			.get_header("x-client-region")
+			.unwrap_or(
+				HeaderValue::from_str("UNKNOWN-COUNTRY-VALUE")
+					.as_ref()
+					.unwrap(),
+			)
 			.to_str()
-			.unwrap_or("no country")
+			.unwrap_or("ONKNOWN-COONTRO-VOLOO")
 			.to_string();
 
-		info!("{}:{}", country, city);
+		info!("country: {}, city: {}", country, city);
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
