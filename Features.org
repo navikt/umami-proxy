@@ -23,8 +23,13 @@ when tested with loop{}.
 *** DONE /health
 
 ** TODO Grafana dashboard
+This one should have
+- failure rate
+- requests per second
+- cpu and memory
 
-** TODO log levels
+
+** DONE log levels
 
 ** TODO Structure the code to allow for severeal upstreams :(
 Currently we just branch willy-nilly. Perhaps the upstream choice
