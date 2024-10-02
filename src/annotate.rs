@@ -15,22 +15,19 @@ pub fn annotate_with_location(value: &mut Value, city: &String, country: &String
 	match value {
 		Value::Array(arr) => {
 			for v in arr {
-				annotate_with_location(v, &city, &country);
+				annotate_with_location(v, city, country);
 			}
 		},
 		Value::Object(obj) => {
 			for (key, v) in obj.iter_mut() {
-				if key == "event_properties" {
-					if v.is_object() {
-						v.as_object_mut().unwrap().insert(
-							"[Amplitude] City".into(),
-							Value::String(city.to_owned().into()),
-						);
-						v.as_object_mut().unwrap().insert(
-							"[Amplitude] Country".into(),
-							Value::String(country.to_owned().into()),
-						);
-					}
+				if key == "event_properties" && v.is_object() {
+					v.as_object_mut()
+						.unwrap()
+						.insert("[Amplitude] City".into(), Value::String(city.to_owned()));
+					v.as_object_mut().unwrap().insert(
+						"[Amplitude] Country".into(),
+						Value::String(country.to_owned()),
+					);
 				}
 			}
 		},
@@ -45,7 +42,6 @@ pub fn annotate_with_location(value: &mut Value, city: &String, country: &String
 mod tests {
 	use super::*;
 	use serde_json::json;
-	use serde_json::Value;
 
 	#[test]
 	fn test_annotate_with_location() {

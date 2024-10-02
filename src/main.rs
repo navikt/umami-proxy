@@ -1,4 +1,3 @@
-use std::fs;
 use std::net::ToSocketAddrs;
 
 use pingora::services::listening::Service;
@@ -67,14 +66,13 @@ fn main() {
 			conf: conf.clone(),
 			addr: format!(
 				"{}:{}",
-				conf.upstream_amplitude.host.to_owned(),
-				conf.upstream_amplitude.port.to_owned()
+				conf.upstream_amplitude.host, conf.upstream_amplitude.port
 			)
 			.to_socket_addrs()
-			.unwrap()
+			.expect("Amplitude specified `host` & `port` should give valid `std::net::SocketAddr`")
 			.next()
-			.unwrap(),
-			sni: conf.upstream_amplitude.sni.to_owned(),
+			.expect("SocketAddr should resolve to at minimum 1x IP addr"),
+			sni: conf.upstream_amplitude.sni,
 		},
 	);
 

@@ -6,7 +6,7 @@ use regex::Regex;
 use serde_json::Value;
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Rule {
+pub enum Rule {
 	Redact,             // Replace the string w/[Redacted]
 	RedactSsns(String), // Replace SSN substrings with the string [Redacted]
 	Keep(String),
@@ -19,7 +19,7 @@ static HEX_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"[a-f0-9\-]{6,}"
 static ID_REGEX: Lazy<regex::Regex> = Lazy::new(|| Regex::new(r"\d[oiA-Z0-9]{8,}").unwrap());
 
 impl Rule {
-	pub(crate) fn pretty_print(&self) -> String {
+	pub fn pretty_print(&self) -> String {
 		let redacted = "[redacted]";
 		match self {
 			Self::RedactSsns(s) => {
@@ -28,9 +28,7 @@ impl Rule {
 				new = ID_REGEX.replace_all(&new, redacted).to_string();
 				new
 			},
-			Self::Keep(s) => s.to_string(),
-			Self::Original(s) => s.to_string(),
-			Self::Obfuscate(foo) => foo.to_string(),
+			Self::Keep(s) | Self::Original(s) | Self::Obfuscate(s) => s.to_string(),
 			Self::Redact => redacted.to_string(),
 		}
 	}
@@ -55,7 +53,7 @@ pub fn traverse_and_redact(value: &mut Value) {
 		},
 		Value::Object(obj) => {
 			// Hashset/vec doesn't matter for one element! extremely O(1) lookup either way.
-			let fields_to_drop: HashSet<&str> = ["ip_address"].iter().cloned().collect();
+			let fields_to_drop: HashSet<&str> = std::iter::once(&"ip_address").copied().collect();
 
 			let keys_to_remove: Vec<String> = obj
 				.iter()
@@ -138,7 +136,7 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 				.query()
 				.unwrap_or("")
 				.split('&')
-				.flat_map(|q| q.split_once('='))
+				.filter_map(|q| q.split_once('='))
 				.collect::<Vec<_>>(),
 		)
 		.iter()
@@ -151,10 +149,9 @@ pub fn redact_uri(old_uri: &Uri) -> Uri {
 	} else {
 		String::new()
 	};
-	let new_uri = format!("{redacted_paths}{query_params}")
+	format!("{redacted_paths}{query_params}")
 		.parse::<Uri>()
-		.unwrap();
-	new_uri
+		.unwrap()
 }
 
 #[cfg(test)]

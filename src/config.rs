@@ -14,8 +14,8 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn new() -> Config {
-		Config {
+	pub fn new() -> Self {
+		Self {
 			upstream_amplitude: Upstream {
 				host: env::var("AMPLITUDE_HOST").expect("Env var 'AMPLITUDE_HOST' needs to be set"),
 				sni: env::var("AMPLITUDE_SNI").ok(),

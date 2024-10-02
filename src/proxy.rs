@@ -7,13 +7,13 @@ use crate::{
 };
 use async_trait::async_trait;
 use bytes::Bytes;
-use pingora::{http, Error};
 use pingora::{
 	http::RequestHeader,
 	prelude::HttpPeer,
 	proxy::{ProxyHttp, Session},
 	Result,
 };
+use pingora::{Error, ErrorType as ErrType};
 use serde_json::Value;
 use tracing::{error, info};
 mod redact;
@@ -81,25 +81,30 @@ impl ProxyHttp for AmplitudeProxy {
 		let path = owned_parts.uri.path();
 		info!(path = ?path);
 
-		let mut peer = Box::new(HttpPeer::new(
-			self.addr,
-			self.sni.is_some(),
-			self.sni.clone().unwrap_or("".into()),
-		));
-		if path.starts_with("/umami") {
-			peer = Box::new(HttpPeer::new(
+		let peer = if path.starts_with("/umami") {
+			Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
 					self.conf.upstream_umami.host, self.conf.upstream_umami.port
 				)
 				.to_socket_addrs()
-				.unwrap()
+				.expect("Umami specified `host` & `port` should give valid `std::net::SocketAddr`")
 				.next()
-				.unwrap(),
+				.expect(" SocketAddr should resolve to at minimum 1x IP addr"),
 				self.conf.upstream_umami.sni.is_some(),
-				self.conf.upstream_umami.sni.clone().unwrap_or("".into()),
-			));
-		}
+				self.conf
+					.upstream_umami
+					.sni
+					.clone()
+					.unwrap_or_else(|| "".into()),
+			))
+		} else {
+			Box::new(HttpPeer::new(
+				self.addr,
+				self.sni.is_some(),
+				self.sni.clone().unwrap_or_else(|| "".into()),
+			))
+		};
 		info!("peer:{}", peer);
 		Ok(peer)
 	}
@@ -117,19 +122,23 @@ impl ProxyHttp for AmplitudeProxy {
 		let city = session
 			.downstream_session
 			.get_header("x-client-city")
-			.and_then(|x| Some(x.to_str().map_or(String::new(), |s| s.to_owned())))
-			.unwrap_or(String::new());
+			.map_or_else(String::new, |x| {
+				x.to_str()
+					.map_or(String::new(), std::borrow::ToOwned::to_owned)
+			});
 
 		let country = session
 			.downstream_session
 			.get_header("x-client-region")
-			.and_then(|x| {
-				Some(
-					x.to_str()
-						.map_or(String::from("UNKNOWN-COUNTRY-VALUE"), |s| s.to_owned()),
-				)
-			})
-			.unwrap_or(String::from("ONKNOWN-COONTRO-VOLOO"));
+			.map_or_else(
+				|| String::from("ONKNOWN-COONTRO-VOLOO"),
+				|x| {
+					x.to_str().map_or(
+						String::from("UNKNOWN-COUNTRY-VALUE"),
+						std::borrow::ToOwned::to_owned,
+					)
+				},
+			);
 
 		// buffer the data
 		if let Some(b) = body {
@@ -143,14 +152,11 @@ impl ProxyHttp for AmplitudeProxy {
 				let json_result: Result<Value, serde_json::Error> =
 					serde_json::from_slice(&ctx.request_body_buffer);
 
-				let mut v = match json_result {
-					Ok(parsed_json) => parsed_json,
-					Err(e) => {
-						return Err(Error::explain(
-							pingora::ErrorType::Custom("invalid request-json".into()),
-							"Failed to parse request body",
-						));
-					},
+				let Ok(mut v) = json_result else {
+					return Err(Error::explain(
+						pingora::ErrorType::Custom("invalid request-json"),
+						"Failed to parse request body",
+					));
 				};
 
 				redact::traverse_and_redact(&mut v);
@@ -165,9 +171,9 @@ impl ProxyHttp for AmplitudeProxy {
 					Ok(json_body) => {
 						*body = Some(Bytes::from(json_body));
 					},
-					Err(e) => {
+					Err(_) => {
 						return Err(Error::explain(
-							pingora::ErrorType::Custom("invalid json after redacting".into()),
+							pingora::ErrorType::Custom("invalid json after redacting"),
 							"Failed to co-parse redacted request body",
 						));
 					},
@@ -194,19 +200,17 @@ impl ProxyHttp for AmplitudeProxy {
 		let city = session
 			.downstream_session
 			.get_header("x-client-city")
-			.and_then(|x| Some(x.to_str().map_or(String::new(), |s| s.to_owned())))
-			.unwrap_or(String::new());
+			.map(|x| x.to_str())
+			.map_or_else(String::new, |s| s.unwrap_or("").to_string());
 
 		let region = session
 			.downstream_session
 			.get_header("x-client-region")
-			.and_then(|x| {
-				Some(
-					x.to_str()
-						.map_or(String::from("UNKNOWN-COUNTRY-VALUE"), |s| s.to_owned()),
-				)
-			})
-			.unwrap_or(String::from("ONKNOWN-COONTRO-VOLOO"));
+			.map(|x| x.to_str())
+			.map_or_else(
+				|| String::from("UNKNOWN-COUNTRY-VALUE"),
+				|s| s.unwrap_or("ONKNOWN-COONTRO-VOLOO").to_string(),
+			);
 
 		upstream_request.remove_header("Content-Length");
 		upstream_request
@@ -268,13 +272,12 @@ impl ProxyHttp for AmplitudeProxy {
 		let Some(err) = e else {
 			// happy path
 			HANDLED_REQUESTS.inc();
-			return ();
+			return;
 		};
 
 		// Some error happened
 		ERRORS_WHILE_PROXY.inc();
 		error!("{:?}", err);
-		use pingora::ErrorType as ErrType;
 		match err.etype {
 			ErrType::TLSHandshakeFailure
 			| ErrType::TLSHandshakeTimedout
@@ -293,7 +296,6 @@ impl ProxyHttp for AmplitudeProxy {
 
 			// All the rest are ignored for now, bring in when needed
 			_ => {},
-		};
-		()
+		}
 	}
 }
