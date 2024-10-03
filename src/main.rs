@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use std::sync::{Arc, Mutex};
+use std::thread;
 
 use k8s_openapi::k8s_match;
 use lru::LruCache;
@@ -70,13 +71,6 @@ fn main() {
 		conf.upstream_amplitude.sni.to_owned(),
 		2000, // There's about ~1000 ingresses as of Wed Oct  2 16:23:24 CEST 2024
 	);
-
-	let cc = Arc::clone(&proxy.cache);
-	tokio::spawn(async move {
-		let c = k8s::K8sWatcher::new(cc);
-		let _ = c.populate_cache().await;
-		let _ = c.run_watcher().await;
-	});
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});

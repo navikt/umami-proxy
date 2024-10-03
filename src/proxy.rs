@@ -7,7 +7,7 @@ use crate::{
 use lru::LruCache;
 use std::num::NonZeroUsize;
 
-use crate::cache;
+use crate::cache::{self, AppInfo};
 use async_trait::async_trait;
 use bytes::Bytes;
 use pingora::Error;
@@ -89,6 +89,7 @@ impl ProxyHttp for AmplitudeProxy {
 		Self::CTX: Send + Sync,
 	{
 		INCOMING_REQUESTS.inc();
+
 		// We short circuit here because I dont want no traffic to go to upstream without
 		// more unit-tests and nix tests on the redact stuff
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
@@ -168,6 +169,16 @@ impl ProxyHttp for AmplitudeProxy {
 				x.to_str()
 					.map_or(String::new(), std::borrow::ToOwned::to_owned)
 			});
+
+		self.insert_app_info(
+			"city".into(),
+			cache::AppInfo {
+				app: "foo".into(),
+				namespace: "foo".into(),
+				ingress: "foo".into(),
+				creation_timestamp: "foo".into(),
+			},
+		);
 
 		let country = session
 			.downstream_session
