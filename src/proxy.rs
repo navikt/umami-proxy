@@ -40,7 +40,7 @@ pub static CACHE: Lazy<Arc<Mutex<LruCache<String, AppInfo>>>> = Lazy::new(|| {
 });
 
 // This keeps tracks of if the k8s exfiltration thread has spawned
-// AtomicBool uses atomic operations provided by the CPU to ensure that reads and writes to the boolean value are indivisible (atomic). This means that no thread can see a partially-updated value. Its pretty neat. imho
+// AtomicBool uses atomic operations provided by the CPU to ensure that reads and writes to the boolean value are indivisible (i.e atomic!). This means that no thread can see a partially-updated value. Its pretty neat. imho
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 impl AmplitudeProxy {
@@ -75,6 +75,7 @@ impl ProxyHttp for AmplitudeProxy {
 			// around watching changes to ingresses
 			if let Ok(_) =
 				// This is double checked locking, if you squint.
+				// https://en.wikipedia.org/wiki/Double-checked_locking
 				INITIALIZED.compare_exchange(
 					false,
 					true,
