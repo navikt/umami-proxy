@@ -3,6 +3,7 @@ use std::net::ToSocketAddrs;
 use std::sync::{Arc, Mutex};
 
 use k8s_openapi::k8s_match;
+use lru::LruCache;
 use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 use tracing::info;
@@ -15,8 +16,8 @@ mod proxy;
 mod trace;
 use once_cell::sync::Lazy;
 use prometheus::{register_int_counter, IntCounter};
+use tokio;
 use tracing_subscriber::util::SubscriberInitExt;
-
 static INCOMING_REQUESTS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("incoming_requests_total", "incoming requests").unwrap());
 
@@ -42,7 +43,6 @@ static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
 
 fn main() {
 	let conf = config::Config::new();
-
 	trace::configure_logging().init();
 	info!("started proxy{:#?}", &conf);
 	let mut amplitrude_proxy = Server::new(Some(Opt {
@@ -70,9 +70,13 @@ fn main() {
 		conf.upstream_amplitude.sni.to_owned(),
 		2000, // There's about ~1000 ingresses as of Wed Oct  2 16:23:24 CEST 2024
 	);
-	let c = k8s::K8sWatcher::new(Arc::clone(&proxy.cache));
-	let _ = c.populate_cache();
-	let _ = c.run_watcher();
+
+	let cc = Arc::clone(&proxy.cache);
+	tokio::spawn(async move {
+		let c = k8s::K8sWatcher::new(cc);
+		let _ = c.populate_cache().await;
+		let _ = c.run_watcher().await;
+	});
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});
