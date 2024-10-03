@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::{
-	annotate, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS,
+	annotate, k8s, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS,
 	SSL_ERROR, UPSTREAM_CONNECTION_FAILURES,
 };
 
@@ -28,43 +28,22 @@ pub struct AmplitudeProxy {
 	pub conf: Config,
 	pub addr: std::net::SocketAddr,
 	pub sni: Option<String>,
-	pub cache: Arc<Mutex<LruCache<String, cache::AppInfo>>>,
 }
 
+use once_cell::sync::Lazy;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+pub static CACHE: Lazy<Arc<Mutex<LruCache<String, AppInfo>>>> = Lazy::new(|| {
+	Arc::new(Mutex::new(LruCache::new(
+		NonZeroUsize::new(2000).expect("cache has positive capacity"),
+	)))
+});
+
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
+
 impl AmplitudeProxy {
-	pub fn new(
-		conf: Config,
-		addr: std::net::SocketAddr,
-		sni: Option<String>,
-		cache_capacity: usize,
-	) -> AmplitudeProxy {
-		let cache_size =
-			NonZeroUsize::new(cache_capacity).expect("Cache capacity must be greater than 0");
-
-		AmplitudeProxy {
-			conf,
-			addr,
-			sni,
-			cache: Arc::new(Mutex::new(LruCache::new(cache_size))),
-		}
-	}
-
-	pub fn insert_app_info(&self, app_name: String, app_info: cache::AppInfo) {
-		let mut cache = self.cache.lock().unwrap();
-		cache.put(app_name, app_info);
-	}
-
-	pub fn get_app_info(&self, app_name: &str) -> Option<cache::AppInfo> {
-		let mut cache = self.cache.lock().unwrap();
-		cache.get(app_name).cloned()
-	}
-	pub fn cache_size(&self) -> usize {
-		let cache = self.cache.lock().unwrap();
-		cache.len()
-	}
-	pub fn pop_top_item(&self) -> Option<(String, cache::AppInfo)> {
-		let mut cache = self.cache.lock().unwrap();
-		cache.pop_lru()
+	pub fn new(conf: Config, addr: std::net::SocketAddr, sni: Option<String>) -> AmplitudeProxy {
+		AmplitudeProxy { conf, addr, sni }
 	}
 }
 
@@ -89,6 +68,16 @@ impl ProxyHttp for AmplitudeProxy {
 		Self::CTX: Send + Sync,
 	{
 		INCOMING_REQUESTS.inc();
+		if !INITIALIZED.load(Ordering::Relaxed) {
+			if let Ok(_) =
+				INITIALIZED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
+			{
+				tokio::spawn(async {
+					let _ = k8s::populate_cache().await;
+					let _ = k8s::run_watcher().await;
+				});
+			}
+		}
 
 		// We short circuit here because I dont want no traffic to go to upstream without
 		// more unit-tests and nix tests on the redact stuff
@@ -170,16 +159,6 @@ impl ProxyHttp for AmplitudeProxy {
 					.map_or(String::new(), std::borrow::ToOwned::to_owned)
 			});
 
-		self.insert_app_info(
-			"city".into(),
-			cache::AppInfo {
-				app: "foo".into(),
-				namespace: "foo".into(),
-				ingress: "foo".into(),
-				creation_timestamp: "foo".into(),
-			},
-		);
-
 		let country = session
 			.downstream_session
 			.get_header("x-client-region")
@@ -206,7 +185,6 @@ impl ProxyHttp for AmplitudeProxy {
 					serde_json::from_slice(&ctx.request_body_buffer);
 
 				let Ok(mut v) = json_result else {
-					self.pop_top_item();
 					return Err(Error::explain(
 						pingora::ErrorType::Custom("invalid request-json"),
 						"Failed to parse request body",
@@ -329,8 +307,7 @@ impl ProxyHttp for AmplitudeProxy {
 			HANDLED_REQUESTS.inc();
 			return;
 		};
-		let f = self.get_app_info("Hamar".into());
-		info!("cache: {:?} - {:?} items", f, self.cache_size());
+		info!("cache size: {}", CACHE.lock().unwrap().len());
 
 		// Some error happened
 		ERRORS_WHILE_PROXY.inc();

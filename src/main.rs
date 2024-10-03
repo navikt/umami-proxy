@@ -69,7 +69,6 @@ fn main() {
 		.next()
 		.unwrap(),
 		conf.upstream_amplitude.sni.to_owned(),
-		2000, // There's about ~1000 ingresses as of Wed Oct  2 16:23:24 CEST 2024
 	);
 
 	let mut probe_instance =
