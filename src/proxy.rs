@@ -21,7 +21,7 @@ use pingora::{
 use serde_json::Value;
 use std::net::ToSocketAddrs;
 use std::sync::{Arc, Mutex};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 mod redact;
 
 pub struct AmplitudeProxy {
@@ -73,8 +73,9 @@ impl ProxyHttp for AmplitudeProxy {
 				INITIALIZED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
 			{
 				tokio::spawn(async {
-					let _ = k8s::populate_cache().await;
-					let _ = k8s::run_watcher().await;
+					let e1 = k8s::populate_cache();
+					warn!("populating cache: {:?}", e1.await);
+					let e2 = k8s::run_watcher().await;
 				});
 			}
 		}

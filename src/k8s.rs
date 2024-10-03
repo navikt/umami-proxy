@@ -1,16 +1,12 @@
 use crate::cache::AppInfo;
-use futures::TryStreamExt;
-// use futures::{StreamExt, TryStreamExt};
 use crate::proxy::CACHE;
-use k8s_openapi::api::core::v1::Pod;
+use futures::TryStreamExt;
 use k8s_openapi::api::networking::v1::Ingress;
 use kube::{
 	api::{Api, ListParams, ResourceExt},
 	runtime::{watcher, WatchStreamExt},
 	Client,
 };
-use lru::LruCache;
-use std::sync::{Arc, Mutex};
 use tracing::{info, warn};
 
 pub async fn populate_cache() -> Result<(), Box<dyn std::error::Error>> {
