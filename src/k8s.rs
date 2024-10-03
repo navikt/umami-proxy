@@ -50,7 +50,6 @@ pub async fn run_watcher() -> Result<(), Box<dyn std::error::Error>> {
 		})
 		.await?;
 
-	// Idk what are StreamExts what are Wathcers wtf is an event type???
 	Ok(())
 }
 fn ingress_to_app_info(ingress: &Ingress) -> Option<AppInfo> {

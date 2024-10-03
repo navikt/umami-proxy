@@ -39,6 +39,8 @@ pub static CACHE: Lazy<Arc<Mutex<LruCache<String, AppInfo>>>> = Lazy::new(|| {
 	)))
 });
 
+// This keeps tracks of if the k8s exfiltration thread has spawned
+// AtomicBool uses atomic operations provided by the CPU to ensure that reads and writes to the boolean value are indivisible (atomic). This means that no thread can see a partially-updated value. Its pretty neat. imho
 static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 impl AmplitudeProxy {
@@ -69,9 +71,17 @@ impl ProxyHttp for AmplitudeProxy {
 	{
 		INCOMING_REQUESTS.inc();
 		if !INITIALIZED.load(Ordering::Relaxed) {
+			// We only ever want to spawn this thread once. It reads all ingresses once and then sits
+			// around watching changes to ingresses
 			if let Ok(_) =
-				INITIALIZED.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
-			{
+				// This is double checked locking, if you squint.
+				INITIALIZED.compare_exchange(
+					false,
+					true,
+					Ordering::SeqCst, // sequenctially consistent
+					Ordering::Relaxed,
+				) {
+				// This should have a gauge to show that we only ever have one (or zero ) of these
 				tokio::spawn(async {
 					let e1 = k8s::populate_cache();
 					warn!("populating cache: {:?}", e1.await);
