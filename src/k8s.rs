@@ -10,7 +10,7 @@ use kube::{
 };
 use lru::LruCache;
 use std::sync::{Arc, Mutex};
-use tracing::info;
+use tracing::{info, warn};
 
 pub struct K8sWatcher {
 	pub cache: Arc<Mutex<LruCache<String, AppInfo>>>,
@@ -22,6 +22,7 @@ impl K8sWatcher {
 	}
 
 	pub async fn populate_cache(&self) -> Result<(), Box<dyn std::error::Error>> {
+		info!("populating cache");
 		let client = Client::try_default().await?;
 		let ingress_api: Api<Ingress> = Api::all(client.clone());
 		let lp = ListParams::default();
@@ -29,6 +30,7 @@ impl K8sWatcher {
 		let mut cache = self.cache.lock().unwrap();
 		for ingress in ingress_list {
 			if let Some(app_info) = self.ingress_to_app_info(&ingress) {
+				warn!("added an ingress: {:?}", app_info);
 				cache.put(app_info.ingress.clone(), app_info);
 			}
 		}
