@@ -41,9 +41,9 @@ pub async fn run_watcher() -> Result<(), Box<dyn std::error::Error>> {
 		.applied_objects()
 		.default_backoff()
 		.try_for_each(move |ingress| async move {
-			let ing = ingress_to_app_info(&ingress);
 			let mut cache = CACHE.lock().unwrap();
 			if let Some(app_info) = ingress_to_app_info(&ingress) {
+				info!("New Ingress found, {}", app_info.app);
 				cache.put(app_info.ingress.clone(), app_info);
 			}
 			Ok(())
