@@ -72,6 +72,7 @@ fn main() {
 	);
 	let c = k8s::K8sWatcher::new(Arc::clone(&proxy.cache));
 	let _ = c.populate_cache();
+	let _ = c.run_watcher();
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});

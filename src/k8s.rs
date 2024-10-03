@@ -1,9 +1,11 @@
 use crate::cache::AppInfo;
-use futures::{StreamExt, TryStreamExt};
+use futures::TryStreamExt;
+// use futures::{StreamExt, TryStreamExt};
+use k8s_openapi::api::core::v1::Pod;
 use k8s_openapi::api::networking::v1::Ingress;
-use kube::runtime::watcher::{self, Event};
 use kube::{
-	api::{Api, ListParams},
+	api::{Api, ListParams, ResourceExt},
+	runtime::{watcher, WatchStreamExt},
 	Client,
 };
 use lru::LruCache;
@@ -42,6 +44,20 @@ impl K8sWatcher {
 		let client = Client::try_default().await?;
 		let ingress_api: Api<Ingress> = Api::all(client.clone());
 		let lp = ListParams::default();
+		let wc = watcher::Config::default().labels("app,team");
+
+		watcher(ingress_api, wc)
+			.applied_objects()
+			.default_backoff()
+			.try_for_each(move |ingress| async move {
+				let ing = self.ingress_to_app_info(&ingress);
+				let mut cache = self.cache.lock().unwrap();
+				if let Some(app_info) = self.ingress_to_app_info(&ingress) {
+					cache.put(app_info.ingress.clone(), app_info);
+				}
+				Ok(())
+			})
+			.await?;
 
 		// Idk what are StreamExts what are Wathcers wtf is an event type???
 		Ok(())
