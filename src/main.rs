@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use std::sync::{Arc, Mutex};
 
+use k8s_openapi::k8s_match;
 use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 use tracing::info;
@@ -52,6 +53,7 @@ fn main() {
 		conf: None,
 	}))
 	.unwrap();
+
 	amplitrude_proxy.bootstrap();
 
 	let proxy = proxy::AmplitudeProxy::new(
@@ -68,6 +70,8 @@ fn main() {
 		conf.upstream_amplitude.sni.to_owned(),
 		2000, // There's about ~1000 ingresses as of Wed Oct  2 16:23:24 CEST 2024
 	);
+	let c = k8s::K8sWatcher::new(Arc::clone(&proxy.cache));
+	let _ = c.populate_cache();
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, health::Probes {});

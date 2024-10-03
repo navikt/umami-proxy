@@ -28,7 +28,7 @@ pub struct AmplitudeProxy {
 	pub conf: Config,
 	pub addr: std::net::SocketAddr,
 	pub sni: Option<String>,
-	pub cache: Arc<Mutex<LruCache<String, cache::IppAnfo>>>,
+	pub cache: Arc<Mutex<LruCache<String, cache::AppInfo>>>,
 }
 
 impl AmplitudeProxy {
@@ -49,12 +49,12 @@ impl AmplitudeProxy {
 		}
 	}
 
-	pub fn insert_app_info(&self, app_name: String, app_info: cache::IppAnfo) {
+	pub fn insert_app_info(&self, app_name: String, app_info: cache::AppInfo) {
 		let mut cache = self.cache.lock().unwrap();
 		cache.put(app_name, app_info);
 	}
 
-	pub fn get_app_info(&self, app_name: &str) -> Option<cache::IppAnfo> {
+	pub fn get_app_info(&self, app_name: &str) -> Option<cache::AppInfo> {
 		let mut cache = self.cache.lock().unwrap();
 		cache.get(app_name).cloned()
 	}
@@ -62,7 +62,7 @@ impl AmplitudeProxy {
 		let cache = self.cache.lock().unwrap();
 		cache.len()
 	}
-	pub fn pop_top_item(&self) -> Option<(String, cache::IppAnfo)> {
+	pub fn pop_top_item(&self) -> Option<(String, cache::AppInfo)> {
 		let mut cache = self.cache.lock().unwrap();
 		cache.pop_lru()
 	}
@@ -182,12 +182,6 @@ impl ProxyHttp for AmplitudeProxy {
 				},
 			);
 
-		self.insert_app_info(
-			city.clone(),
-			cache::IppAnfo {
-				app: country.clone(),
-			},
-		);
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
