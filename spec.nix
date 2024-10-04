@@ -37,7 +37,7 @@
       };
       replicas = {
         min = 1;
-        max = 2;
+        max = 1;
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
@@ -49,7 +49,7 @@
       resources = {
         limits.memory = "512Mi";
         requests = {
-          cpu = "1000m";
+          cpu = "1500m";
           memory = "256Mi";
         };
       };
