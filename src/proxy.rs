@@ -172,6 +172,17 @@ impl ProxyHttp for AmplitudeProxy {
 				},
 			);
 
+		let content_type = session
+			.downstream_session
+			.get_header("content-type")
+			.map_or_else(
+				|| String::from("no content type header"),
+				|x| {
+					x.to_str()
+						.map_or(String::from(""), std::borrow::ToOwned::to_owned)
+				},
+			);
+
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
@@ -187,7 +198,7 @@ impl ProxyHttp for AmplitudeProxy {
 				let Ok(mut v) = json_result else {
 					return {
 						let s = String::from_utf8_lossy(&ctx.request_body_buffer);
-						dbg!("BUFFER {:?}", s);
+						dbg!("BUFFER {:?}, CT {:?}", s, content_type);
 						Err(Error::explain(
 							pingora::ErrorType::Custom("invalid request-json"),
 							"Failed to parse request body",
