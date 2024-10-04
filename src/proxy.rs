@@ -18,7 +18,7 @@ use pingora::{
 use serde_json::Value;
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 mod redact;
 
 use std::sync::atomic::Ordering;
@@ -293,7 +293,7 @@ impl ProxyHttp for AmplitudeProxy {
 			.expect("Needs correct Host header");
 
 		let h = &session.req_header().headers;
-		info!(?h);
+		debug!(?h);
 		let path = upstream_request.uri.path();
 		if path.starts_with("/umami") {
 			upstream_request
