@@ -16,11 +16,14 @@ use pingora::{
 	Result,
 };
 use serde_json::Value;
+use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use tracing::{error, info, warn};
 mod redact;
 
 use std::sync::atomic::Ordering;
+
+use serde_urlencoded;
 
 pub struct AmplitudeProxy {
 	pub conf: Config,
@@ -192,10 +195,16 @@ impl ProxyHttp for AmplitudeProxy {
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
 			if !ctx.request_body_buffer.is_empty() {
-				let json_result: Result<Value, serde_json::Error> =
-					serde_json::from_slice(&ctx.request_body_buffer);
-
-				let Ok(mut v) = json_result else {
+				// We should do proper content negotiation, apparently
+				let json: Result<serde_json::Value, _>;
+				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
+					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
+					dbg!("{}", &json);
+				} else {
+					json = serde_json::from_slice(&ctx.request_body_buffer);
+				}
+				// this erros on "use of a moved value"
+				let Ok(mut v) = json else {
 					return {
 						let s = String::from_utf8_lossy(&ctx.request_body_buffer);
 						dbg!("BUFFER {:?}, CT {:?}", s, content_type);
@@ -347,4 +356,9 @@ impl ProxyHttp for AmplitudeProxy {
 			_ => {},
 		}
 	}
+}
+
+fn parse_url_encoded(data: &str) -> Result<Value, serde_json::Error> {
+	let parsed: HashMap<String, String> = serde_urlencoded::from_str(data).unwrap();
+	serde_json::to_value(parsed)
 }
