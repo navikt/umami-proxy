@@ -267,6 +267,8 @@ impl ProxyHttp for AmplitudeProxy {
 				|s| s.unwrap_or("ONKNOWN-COONTRO-VOLOO").to_string(),
 			);
 
+		let h = session.cache.cache_meta().headers();
+		info!(?h);
 		// It's hard to know how big the body is before we start touching it
 		// We work around that by removing content length and setting the
 		// transfer encoding as chunked. The source code in pingora core looks like it would
@@ -292,8 +294,6 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Host", "api.eu.amplitude.com")
 			.expect("Needs correct Host header");
 
-		let mut cache = cache::CACHE.lock().unwrap();
-		info!("cache {:?}", cache.pop_lru());
 		let path = upstream_request.uri.path();
 		info!("{}", &path);
 		if path.starts_with("/umami") {
