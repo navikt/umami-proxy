@@ -17,7 +17,7 @@ kube = { version = "0.95.0", default-features = false, features = ["client", "op
 lazy_static = "1.5.0"
 lru = "0.12.4"
 once_cell = "1.20.1"
-pingora = { version = "0.3.0", features = ["proxy"] }
+pingora = { version = "0.3.0", features = ["proxy", "cache"] }
 prometheus = "0.13.4"
 regex = "1.10.6"
 serde = { version = "1.0.209", features = ["derive"] }
