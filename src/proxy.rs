@@ -267,8 +267,6 @@ impl ProxyHttp for AmplitudeProxy {
 				|s| s.unwrap_or("ONKNOWN-COONTRO-VOLOO").to_string(),
 			);
 
-		let h = session.cache.cache_meta().headers();
-		info!(?h);
 		// It's hard to know how big the body is before we start touching it
 		// We work around that by removing content length and setting the
 		// transfer encoding as chunked. The source code in pingora core looks like it would
