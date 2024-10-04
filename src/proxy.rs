@@ -292,8 +292,9 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Host", "api.eu.amplitude.com")
 			.expect("Needs correct Host header");
 
+		let h = &session.req_header().headers;
+		info!(?h);
 		let path = upstream_request.uri.path();
-		info!("{}", &path);
 		if path.starts_with("/umami") {
 			upstream_request
 			    .insert_header("Host", "umami.nav.no") // This is egress but could be by service discovery too, but i dont want to think about tls right now.
