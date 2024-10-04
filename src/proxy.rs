@@ -76,8 +76,6 @@ impl ProxyHttp for AmplitudeProxy {
 			}
 		}
 
-		// We short circuit here because I dont want no traffic to go to upstream without
-		// more unit-tests and nix tests on the redact stuff
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		match user_agent {
 			Some(ua) => match ua.to_str() {
@@ -151,21 +149,26 @@ impl ProxyHttp for AmplitudeProxy {
 		let city = session
 			.downstream_session
 			.get_header("x-client-city")
-			.map_or_else(String::new, |x| {
-				x.to_str()
-					.map_or(String::new(), std::borrow::ToOwned::to_owned)
-			});
+			.map_or_else(
+				|| {
+					String::from("Missing city header, this should not happen, the GCP loadbalancer adds these",)
+				},
+				|x| {
+					x.to_str()
+						.map_or(String::new(), std::borrow::ToOwned::to_owned)
+				},
+			);
 
 		let country = session
 			.downstream_session
 			.get_header("x-client-region")
 			.map_or_else(
-				|| String::from("ONKNOWN-COONTRO-VOLOO"),
+				|| {
+					String::from("Missing country header, this should not happen the GCP loadbalancer adds these")
+				},
 				|x| {
-					x.to_str().map_or(
-						String::from("UNKNOWN-COUNTRY-VALUE"),
-						std::borrow::ToOwned::to_owned,
-					)
+					x.to_str()
+						.map_or(String::from(""), std::borrow::ToOwned::to_owned)
 				},
 			);
 
@@ -182,10 +185,13 @@ impl ProxyHttp for AmplitudeProxy {
 					serde_json::from_slice(&ctx.request_body_buffer);
 
 				let Ok(mut v) = json_result else {
-					return Err(Error::explain(
-						pingora::ErrorType::Custom("invalid request-json"),
-						"Failed to parse request body",
-					));
+					return {
+						dbg!("BUFFER {:?}", &ctx.request_body_buffer);
+						Err(Error::explain(
+							pingora::ErrorType::Custom("invalid request-json"),
+							"Failed to parse request body",
+						))
+					};
 				};
 
 				redact::traverse_and_redact(&mut v);
