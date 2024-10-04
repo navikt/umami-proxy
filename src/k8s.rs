@@ -1,5 +1,5 @@
 use crate::cache::AppInfo;
-use crate::proxy::CACHE;
+use crate::cache::CACHE;
 use futures::TryStreamExt;
 use k8s_openapi::api::networking::v1::Ingress;
 use kube::{

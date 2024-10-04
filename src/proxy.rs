@@ -1,13 +1,10 @@
+use crate::cache::{self, INITIALIZED};
 use crate::config::Config;
 use crate::{
 	annotate, k8s, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS,
 	SSL_ERROR, UPSTREAM_CONNECTION_FAILURES,
 };
 
-use lru::LruCache;
-use std::num::NonZeroUsize;
-
-use crate::cache::{self, AppInfo};
 use async_trait::async_trait;
 use bytes::Bytes;
 use pingora::Error;
@@ -20,28 +17,16 @@ use pingora::{
 };
 use serde_json::Value;
 use std::net::ToSocketAddrs;
-use std::sync::{Arc, Mutex};
 use tracing::{error, info, warn};
 mod redact;
+
+use std::sync::atomic::Ordering;
 
 pub struct AmplitudeProxy {
 	pub conf: Config,
 	pub addr: std::net::SocketAddr,
 	pub sni: Option<String>,
 }
-
-use once_cell::sync::Lazy;
-use std::sync::atomic::{AtomicBool, Ordering};
-
-pub static CACHE: Lazy<Arc<Mutex<LruCache<String, AppInfo>>>> = Lazy::new(|| {
-	Arc::new(Mutex::new(LruCache::new(
-		NonZeroUsize::new(2000).expect("cache has positive capacity"),
-	)))
-});
-
-// This keeps tracks of if the k8s exfiltration thread has spawned
-// AtomicBool uses atomic operations provided by the CPU to ensure that reads and writes to the boolean value are indivisible (i.e atomic!). This means that no thread can see a partially-updated value. Its pretty neat. imho
-static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 impl AmplitudeProxy {
 	pub fn new(conf: Config, addr: std::net::SocketAddr, sni: Option<String>) -> AmplitudeProxy {
@@ -236,10 +221,6 @@ impl ProxyHttp for AmplitudeProxy {
 		upstream_request: &mut RequestHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()> {
-		// It's hard to know how big the body is before we start touching it
-		// We work around that by removing content length and setting the
-		// transfer encoding as chunked. The source code in pingora core looks like it would
-		// do it automatically, but I don't see it happening, hence the explicit bits here
 		info!("upstream_requst_filter");
 		let city = session
 			.downstream_session
@@ -256,6 +237,10 @@ impl ProxyHttp for AmplitudeProxy {
 				|s| s.unwrap_or("ONKNOWN-COONTRO-VOLOO").to_string(),
 			);
 
+		// It's hard to know how big the body is before we start touching it
+		// We work around that by removing content length and setting the
+		// transfer encoding as chunked. The source code in pingora core looks like it would
+		// do it automatically, but I don't see it happening, hence the explicit bits here
 		upstream_request.remove_header("Content-Length");
 		upstream_request
 			.insert_header("Transfer-Encoding", "Chunked")
@@ -319,7 +304,7 @@ impl ProxyHttp for AmplitudeProxy {
 			HANDLED_REQUESTS.inc();
 			return;
 		};
-		info!("cache size: {}", CACHE.lock().unwrap().len());
+		info!("cache size: {}", cache::CACHE.lock().unwrap().len());
 
 		// Some error happened
 		ERRORS_WHILE_PROXY.inc();
@@ -336,7 +321,7 @@ impl ProxyHttp for AmplitudeProxy {
 			| ErrType::ConnectError
 			| ErrType::BindError
 			| ErrType::AcceptError
-			| ErrType::SocketError => CONNECTION_ERRORS.inc(), // This guy is used twice.
+			| ErrType::SocketError => CONNECTION_ERRORS.inc(),
 
 			ErrType::ConnectProxyFailure => UPSTREAM_CONNECTION_FAILURES.inc(),
 
