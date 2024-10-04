@@ -19,6 +19,7 @@ use once_cell::sync::Lazy;
 use prometheus::{register_int_counter, IntCounter};
 use tokio;
 use tracing_subscriber::util::SubscriberInitExt;
+
 static INCOMING_REQUESTS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("incoming_requests_total", "incoming requests").unwrap());
 
@@ -33,6 +34,17 @@ static CONNECTION_ERRORS: Lazy<IntCounter> =
 
 static SSL_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("ssl_errors_total", "ssl errors").unwrap());
+
+static BODY_PARSE_ERROR: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("body_parse_error_total", "body parse errors").unwrap());
+
+static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
+	register_int_counter!(
+		"redacted_body_coparse_error_total",
+		"redact body coparse errors"
+	)
+	.unwrap()
+});
 
 static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
 	register_int_counter!(

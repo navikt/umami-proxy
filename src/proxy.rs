@@ -1,8 +1,8 @@
 use crate::cache::{self, INITIALIZED};
 use crate::config::Config;
 use crate::{
-	annotate, k8s, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS,
-	SSL_ERROR, UPSTREAM_CONNECTION_FAILURES,
+	annotate, k8s, BODY_PARSE_ERROR, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS,
+	INCOMING_REQUESTS, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UPSTREAM_CONNECTION_FAILURES,
 };
 
 use async_trait::async_trait;
@@ -205,7 +205,7 @@ impl ProxyHttp for AmplitudeProxy {
 				// this erros on "use of a moved value"
 				let Ok(mut v) = json else {
 					return {
-						let s = String::from_utf8_lossy(&ctx.request_body_buffer);
+						BODY_PARSE_ERROR.inc();
 						Err(Error::explain(
 							pingora::ErrorType::Custom("invalid request-json"),
 							"Failed to parse request body",
@@ -219,6 +219,7 @@ impl ProxyHttp for AmplitudeProxy {
 				// This uses exactly "event_properties, which maybe only amplitude has"
 				annotate::annotate_with_location(&mut v, &city, &country);
 
+				// Surely there is a correct-by-conctruction Value type that can be turned into a string without fail
 				let json_body_result = serde_json::to_string(&v);
 
 				match json_body_result {
@@ -226,6 +227,10 @@ impl ProxyHttp for AmplitudeProxy {
 						*body = Some(Bytes::from(json_body));
 					},
 					Err(_) => {
+						// Technically, we do a bunch of mut Value, so there is
+						// A gurantee from the type system that this never happens
+						// however, we cant produce a witness to this so here we are.
+						REDACTED_BODY_COPARSE_ERROR.inc();
 						return Err(Error::explain(
 							pingora::ErrorType::Custom("invalid json after redacting"),
 							"Failed to co-parse redacted request body",
