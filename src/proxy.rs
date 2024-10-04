@@ -292,6 +292,8 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Host", "api.eu.amplitude.com")
 			.expect("Needs correct Host header");
 
+		let mut cache = cache::CACHE.lock().unwrap();
+		info!("cache {:?}", cache.pop_lru());
 		let path = upstream_request.uri.path();
 		info!("{}", &path);
 		if path.starts_with("/umami") {
