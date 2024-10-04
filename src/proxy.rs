@@ -199,7 +199,6 @@ impl ProxyHttp for AmplitudeProxy {
 				let json: Result<serde_json::Value, _>;
 				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
 					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
-					dbg!("{}", &json);
 				} else {
 					json = serde_json::from_slice(&ctx.request_body_buffer);
 				}
@@ -207,7 +206,6 @@ impl ProxyHttp for AmplitudeProxy {
 				let Ok(mut v) = json else {
 					return {
 						let s = String::from_utf8_lossy(&ctx.request_body_buffer);
-						dbg!("BUFFER {:?}, CT {:?}", s, content_type);
 						Err(Error::explain(
 							pingora::ErrorType::Custom("invalid request-json"),
 							"Failed to parse request body",
