@@ -186,7 +186,8 @@ impl ProxyHttp for AmplitudeProxy {
 
 				let Ok(mut v) = json_result else {
 					return {
-						dbg!("BUFFER {:?}", &ctx.request_body_buffer);
+						let s = String::from_utf8_lossy(&ctx.request_body_buffer);
+						dbg!("BUFFER {:?}", s);
 						Err(Error::explain(
 							pingora::ErrorType::Custom("invalid request-json"),
 							"Failed to parse request body",
