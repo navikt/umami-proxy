@@ -1,4 +1,4 @@
-use crate::metrics::{INGRESS_COUNT, NEW_INGRESS};
+use crate::metrics::INGRESS_COUNT;
 use futures::TryStreamExt;
 use k8s_openapi::api::networking::v1::Ingress;
 use kube::{

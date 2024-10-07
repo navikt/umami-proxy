@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::k8s::cache::{self, INITIALIZED};
+use crate::k8s::cache::INITIALIZED;
 use crate::metrics::{
 	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS,
 	INCOMING_REQUESTS, INVALID_PEER, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
@@ -41,9 +41,16 @@ impl AmplitudeProxy {
 }
 
 #[derive(Debug)]
+pub struct Location {
+	city: String,
+	country: String,
+}
+
+#[derive(Debug)]
 pub struct Ctx {
 	request_body_buffer: Vec<u8>,
 	route: route::Route,
+	location: Option<Location>,
 }
 
 #[async_trait]
@@ -53,6 +60,7 @@ impl ProxyHttp for AmplitudeProxy {
 		Ctx {
 			request_body_buffer: Vec::new(),
 			route: route::Route::Other("".into()),
+			location: None,
 		}
 	}
 
@@ -83,6 +91,34 @@ impl ProxyHttp for AmplitudeProxy {
 				});
 			}
 		}
+
+		let city = session
+			.downstream_session
+			.get_header("x-client-city")
+			.map_or_else(
+				|| {
+					String::from("Missing city header, this should not happen, the GCP loadbalancer adds these",)
+				},
+				|x| {
+					x.to_str()
+						.map_or(String::new(), std::borrow::ToOwned::to_owned)
+				},
+			);
+
+		let country = session
+			.downstream_session
+			.get_header("x-client-region")
+			.map_or_else(
+				|| {
+					String::from("Missing country header, this should not happen the GCP loadbalancer adds these")
+				},
+				|x| {
+					x.to_str()
+						.map_or(String::from(""), std::borrow::ToOwned::to_owned)
+				},
+			);
+
+		ctx.location = Some(Location { city, country });
 
 		let owned_parts = session.downstream_session.req_header().as_owned_parts();
 		let path = owned_parts.uri.path();
@@ -180,32 +216,6 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		let city = session
-			.downstream_session
-			.get_header("x-client-city")
-			.map_or_else(
-				|| {
-					String::from("Missing city header, this should not happen, the GCP loadbalancer adds these",)
-				},
-				|x| {
-					x.to_str()
-						.map_or(String::new(), std::borrow::ToOwned::to_owned)
-				},
-			);
-
-		let country = session
-			.downstream_session
-			.get_header("x-client-region")
-			.map_or_else(
-				|| {
-					String::from("Missing country header, this should not happen the GCP loadbalancer adds these")
-				},
-				|x| {
-					x.to_str()
-						.map_or(String::from(""), std::borrow::ToOwned::to_owned)
-				},
-			);
-
 		let content_type = session
 			.downstream_session
 			.get_header("content-type")
@@ -248,7 +258,9 @@ impl ProxyHttp for AmplitudeProxy {
 				annotate::annotate_with_proxy_version(&mut v, "amplitrude-1.0.0");
 
 				// This uses exactly "event_properties, which maybe only amplitude has"
-				annotate::annotate_with_location(&mut v, &city, &country);
+				if let Some(loc) = &ctx.location {
+					annotate::annotate_with_location(&mut v, &loc.city, &loc.country);
+				}
 
 				// Surely there is a correct-by-conctruction Value type that can be turned into a string without fail
 				let json_body_result = serde_json::to_string(&v);
@@ -280,24 +292,8 @@ impl ProxyHttp for AmplitudeProxy {
 		&self,
 		session: &mut Session,
 		upstream_request: &mut RequestHeader,
-		_ctx: &mut Self::CTX,
+		ctx: &mut Self::CTX,
 	) -> Result<()> {
-		info!("upstream_requst_filter");
-		let city = session
-			.downstream_session
-			.get_header("x-client-city")
-			.map(|x| x.to_str())
-			.map_or_else(String::new, |s| s.unwrap_or("").to_string());
-
-		let region = session
-			.downstream_session
-			.get_header("x-client-region")
-			.map(|x| x.to_str())
-			.map_or_else(
-				|| String::from("UNKNOWN-COUNTRY-VALUE"),
-				|s| s.unwrap_or("ONKNOWN-COONTRO-VOLOO").to_string(),
-			);
-
 		// It's hard to know how big the body is before we start touching it
 		// We work around that by removing content length and setting the
 		// transfer encoding as chunked. The source code in pingora core looks like it would
@@ -307,7 +303,7 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Transfer-Encoding", "Chunked")
 			.unwrap();
 
-		match &_ctx.route {
+		match &ctx.route {
 			route::Route::Umami(_) => {
 				upstream_request
 					.insert_header("Host", "umami.nav.no")
@@ -329,14 +325,15 @@ impl ProxyHttp for AmplitudeProxy {
 				// and they are not configurable. We already have this info in the request
 				// as x-client-city, x-client-country but umami does not support those names.
 				// (umami also supports Cloudflare headers, which we aren't (but could be) using )
-				upstream_request
-					.insert_header("X-Vercel-IP-Country", region)
-					.unwrap();
+				if let Some(loc) = &ctx.location {
+					upstream_request
+						.insert_header("X-Vercel-IP-Country", &loc.country)
+						.unwrap();
 
-				upstream_request
-					.insert_header("X-Vercel-City", city)
-					.unwrap();
-
+					upstream_request
+						.insert_header("X-Vercel-City", &loc.city)
+						.unwrap();
+				}
 				upstream_request
 					.insert_header("Host", "api.eu.amplitude.com")
 					.expect("Needs correct Host header");
@@ -370,7 +367,6 @@ impl ProxyHttp for AmplitudeProxy {
 			HANDLED_REQUESTS.inc();
 			return;
 		};
-		info!("cache size: {}", cache::CACHE.lock().unwrap().len());
 
 		// Some error happened
 		ERRORS_WHILE_PROXY.inc();
