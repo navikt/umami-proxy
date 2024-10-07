@@ -5,10 +5,10 @@
 *** DONE potential phone IDs removed
 *** DONE decide if `device_id` should be redacted
 ** DONE Path Segments and Query Param
-** TODO Add GeoData
+** DONE Add GeoData
 ** DONE IP-address removal
 ** DONE Is-Bot ;;
-** TODO that kafka-ingress stuff they do
+** DONE that kafka-ingress stuff they do
 
 ** DONE Forward headers for umami
 
@@ -31,7 +31,7 @@ This one should have
 
 ** DONE log levels
 
-** TODO Structure the code to allow for severeal upstreams :(
+** DONE Structure the code to allow for severeal upstreams :(
 Currently we just branch willy-nilly. Perhaps the upstream choice
 should get decided in request_filter and put into the context and
 then we branch on that. (What are pingora modules? can we use that?)
