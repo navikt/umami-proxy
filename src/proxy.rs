@@ -342,13 +342,14 @@ impl ProxyHttp for AmplitudeProxy {
 		Ok(())
 	}
 
-	async fn logging(&self, _session: &mut Session, e: Option<&Error>, _ctx: &mut Self::CTX)
+	async fn logging(&self, session: &mut Session, e: Option<&Error>, _ctx: &mut Self::CTX)
 	where
 		Self::CTX: Send + Sync,
 	{
 		let Some(err) = e else {
 			// happy path
 			HANDLED_REQUESTS.inc();
+			info!("Handled request: {}", session.request_summary());
 			return;
 		};
 
