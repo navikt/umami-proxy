@@ -47,7 +47,7 @@
         # rules = [{inherit namespace; "application" = "reops-umami-beta";}];
       };
       resources = {
-        limits.memory = "512Mi";
+        limits.memory = "1024Mi";
         requests = {
           cpu = "1500m";
           memory = "256Mi";
