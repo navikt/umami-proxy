@@ -1,4 +1,4 @@
-use crate::metrics::NEW_INGRESS;
+use crate::metrics::{INGRESS_COUNT, NEW_INGRESS};
 use futures::TryStreamExt;
 use k8s_openapi::api::networking::v1::Ingress;
 use kube::{
@@ -23,7 +23,9 @@ pub async fn populate_cache() -> Result<(), Box<dyn std::error::Error>> {
 		}
 	}
 
-	// this should be a gauge.
+	let cache_length = cache.len();
+	INGRESS_COUNT.set(cache_length as f64);
+
 	info!(
 		"Cache initially populated with {} ingress entries",
 		cache.len()
@@ -43,9 +45,8 @@ pub async fn run_watcher() -> Result<(), Box<dyn std::error::Error>> {
 		.try_for_each(move |ingress| async move {
 			let mut cache = cache::CACHE.lock().unwrap();
 			if let Some(app_info) = ingress_to_app_info(&ingress) {
-				// this should be a gauge + 1
 				info!("New Ingress found, {}", app_info.app);
-				NEW_INGRESS.inc(); // We epxect this to eventually be not zero
+				INGRESS_COUNT.inc();
 				cache.put(app_info.ingress.clone(), app_info);
 			}
 			Ok(())

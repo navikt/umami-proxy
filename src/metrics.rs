@@ -1,4 +1,6 @@
 use once_cell::sync::Lazy;
+
+use prometheus::{register_gauge, Gauge};
 use prometheus::{register_int_counter, IntCounter};
 
 pub static INCOMING_REQUESTS: Lazy<IntCounter> =
@@ -28,9 +30,6 @@ pub static AMPLITUDE_PEER: Lazy<IntCounter> =
 pub static UMAMI_PEER: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("UMAMI_PEER_TOTAL", "umami peer").unwrap());
 
-pub static NEW_INGRESS: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("NEW_INGRESSES_TOTAL", "added ingresses").unwrap());
-
 // co-parsing is serializing
 pub static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
 	register_int_counter!(
@@ -47,3 +46,6 @@ pub static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
 	)
 	.unwrap()
 });
+
+pub static INGRESS_COUNT: Lazy<Gauge> =
+	Lazy::new(|| register_gauge!("ingress_count", "Number of ingresses in the cache").unwrap());
