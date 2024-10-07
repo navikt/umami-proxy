@@ -50,7 +50,7 @@
         limits.memory = "1024Mi";
         requests = {
           cpu = "1500m";
-          memory = "256Mi";
+          memory = "512Mi";
         };
       };
       env = lib.attrsToList rec {
