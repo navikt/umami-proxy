@@ -13,46 +13,13 @@ mod cache;
 mod config;
 mod health;
 mod k8s;
+mod metrics;
 mod proxy;
 mod trace;
 use once_cell::sync::Lazy;
 use prometheus::{register_int_counter, IntCounter};
 use tokio;
 use tracing_subscriber::util::SubscriberInitExt;
-
-static INCOMING_REQUESTS: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("incoming_requests_total", "incoming requests").unwrap());
-
-static HANDLED_REQUESTS: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("handled_requests_total", "handled requests").unwrap());
-
-static ERRORS_WHILE_PROXY: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("error_while_proxy_total", "error while proxy").unwrap());
-
-static CONNECTION_ERRORS: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("connection_errors_total", "connection errors").unwrap());
-
-static SSL_ERROR: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("ssl_errors_total", "ssl errors").unwrap());
-
-static BODY_PARSE_ERROR: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("body_parse_error_total", "body parse errors").unwrap());
-
-static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
-	register_int_counter!(
-		"redacted_body_coparse_error_total",
-		"redact body coparse errors"
-	)
-	.unwrap()
-});
-
-static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
-	register_int_counter!(
-		"upstream_connection_failures_total",
-		"upstream connection failure"
-	)
-	.unwrap()
-});
 
 fn main() {
 	let conf = config::Config::new();
