@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+n#[derive(Debug, PartialEq)]
 pub enum Route {
 	Umami(String),
 	Amplitude(String),
