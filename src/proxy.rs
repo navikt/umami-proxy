@@ -309,21 +309,9 @@ impl ProxyHttp for AmplitudeProxy {
 					.insert_header("Host", "umami.nav.no")
 					.expect("Needs correct Host header");
 
-				// unwrap safely the client address from the session
-				let client_addr = session
-					.downstream_session
-					.client_addr()
-					.unwrap()
-					.to_socket_addrs()
-					.unwrap()
-					.next()
-					.unwrap()
-					.ip()
-					.to_string();
-
 				// We are using vercel headers here because Umami supports them
 				// and they are not configurable. We already have this info in the request
-				// as x-client-city, x-client-country but umami does not support those names.
+				// as x-client-city, x-client-countrlly but umami does not support those names.
 				// (umami also supports Cloudflare headers, which we aren't (but could be) using )
 				if let Some(loc) = &ctx.location {
 					upstream_request
@@ -337,11 +325,6 @@ impl ProxyHttp for AmplitudeProxy {
 				upstream_request
 					.insert_header("Host", "api.eu.amplitude.com")
 					.expect("Needs correct Host header");
-
-				// Insert the X-Forwarded-For header for Umami
-				upstream_request
-					.insert_header("X-Forwarded-For", client_addr)
-					.unwrap();
 			},
 			route::Route::Amplitude(_) => {
 				upstream_request
