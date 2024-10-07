@@ -19,6 +19,7 @@ pub static SSL_ERROR: Lazy<IntCounter> =
 pub static BODY_PARSE_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("body_parse_error_total", "body parse errors").unwrap());
 
+// co-parsing is serializing
 pub static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
 	register_int_counter!(
 		"redacted_body_coparse_error_total",

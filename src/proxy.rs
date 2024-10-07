@@ -38,9 +38,27 @@ impl AmplitudeProxy {
 	}
 }
 
+#[derive(Debug, PartialEq)]
+enum Route {
+	Umami(String),
+	Amplitude(String),
+	Other(String), //Someone did a goof
+}
+
+fn match_route(path: String) -> Route {
+	if path.starts_with("/umami") {
+		Route::Umami(path.to_string())
+	} else if path.starts_with("/collect") {
+		Route::Amplitude(path.to_string())
+	} else {
+		Route::Other(path)
+	}
+}
+
 #[derive(Debug)]
 pub struct Ctx {
 	request_body_buffer: Vec<u8>,
+	route: Route,
 }
 
 #[async_trait]
@@ -49,12 +67,13 @@ impl ProxyHttp for AmplitudeProxy {
 	fn new_ctx(&self) -> Self::CTX {
 		Ctx {
 			request_body_buffer: Vec::new(),
+			route: Route::Other("".into()),
 		}
 	}
 
 	/// Request_filter runs before anything else. We can for example set the peer here, through ctx
 	/// Block user-agent strings that match known bots
-	async fn request_filter(&self, session: &mut Session, _ctx: &mut Self::CTX) -> Result<bool>
+	async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool>
 	where
 		Self::CTX: Send + Sync,
 	{
@@ -75,10 +94,14 @@ impl ProxyHttp for AmplitudeProxy {
 				tokio::spawn(async {
 					let e1 = k8s::populate_cache();
 					warn!("populating cache: {:?}", e1.await);
-					let e2 = k8s::run_watcher().await;
+					k8s::run_watcher().await;
 				});
 			}
 		}
+
+		let owned_parts = session.downstream_session.req_header().as_owned_parts();
+		let path = owned_parts.uri.path();
+		ctx.route = match_route(path.into());
 
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		match user_agent {
@@ -107,13 +130,10 @@ impl ProxyHttp for AmplitudeProxy {
 	async fn upstream_peer(
 		&self,
 		session: &mut Session,
-		_ctx: &mut Self::CTX,
+		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		let owned_parts = session.downstream_session.req_header().as_owned_parts();
-		let path = owned_parts.uri.path();
-
-		let peer = if path.starts_with("/umami") {
-			Box::new(HttpPeer::new(
+		match ctx.route {
+			Route::Umami(_) => Ok(Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
 					self.conf.upstream_umami.host, self.conf.upstream_umami.port
@@ -121,23 +141,40 @@ impl ProxyHttp for AmplitudeProxy {
 				.to_socket_addrs()
 				.expect("Umami specified `host` & `port` should give valid `std::net::SocketAddr`")
 				.next()
-				.expect(" SocketAddr should resolve to at minimum 1x IP addr"),
+				.expect("SocketAddr should resolve to at least 1 IP address"),
 				self.conf.upstream_umami.sni.is_some(),
 				self.conf
 					.upstream_umami
 					.sni
 					.clone()
 					.unwrap_or_else(|| "".into()),
-			))
-		} else {
-			Box::new(HttpPeer::new(
-				self.addr,
-				self.sni.is_some(),
-				self.sni.clone().unwrap_or_else(|| "".into()),
-			))
-		};
-		info!("peer:{}", peer);
-		Ok(peer)
+			))),
+			Route::Amplitude(_) => Ok(Box::new(HttpPeer::new(
+				format!(
+					"{}:{}",
+					self.conf.upstream_amplitude.host, self.conf.upstream_amplitude.port
+				)
+				.to_socket_addrs()
+				.expect(
+					"Amplitude specified `host` & `port` should give valid `std::net::SocketAddr`",
+				)
+				.next()
+				.expect("SocketAddr should resolve to at least 1 IP address"),
+				self.conf.upstream_amplitude.sni.is_some(),
+				self.conf
+					.upstream_amplitude
+					.sni
+					.clone()
+					.unwrap_or_else(|| "".into()),
+			))),
+			Route::Other(_) => {
+				// TODO: ADD UNKNOWN_ROUTE metric
+				Err(Error::explain(
+					pingora::ErrorType::Custom("no matching peer for path"),
+					"creating peer",
+				))
+			},
+		}
 	}
 
 	async fn request_body_filter(
@@ -277,53 +314,59 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Transfer-Encoding", "Chunked")
 			.unwrap();
 
-		// We are using vercel headers here because Umami supports them
-		// and they are not configurable. We already have this info in the request
-		// as x-client-city, x-client-country but umami does not support those names.
-		// (umami also supports Cloudflare headers, which we aren't (but could be) using )
-		upstream_request
-			.insert_header("X-Vercel-IP-Country", region)
-			.unwrap();
+		match &_ctx.route {
+			Route::Umami(_) => {
+				upstream_request
+					.insert_header("Host", "umami.nav.no")
+					.expect("Needs correct Host header");
 
-		upstream_request
-			.insert_header("X-Vercel-City", city)
-			.unwrap();
+				// unwrap safely the client address from the session
+				let client_addr = session
+					.downstream_session
+					.client_addr()
+					.unwrap()
+					.to_socket_addrs()
+					.unwrap()
+					.next()
+					.unwrap()
+					.ip()
+					.to_string();
 
-		upstream_request
-			.insert_header("Host", "api.eu.amplitude.com")
-			.expect("Needs correct Host header");
+				// We are using vercel headers here because Umami supports them
+				// and they are not configurable. We already have this info in the request
+				// as x-client-city, x-client-country but umami does not support those names.
+				// (umami also supports Cloudflare headers, which we aren't (but could be) using )
+				upstream_request
+					.insert_header("X-Vercel-IP-Country", region)
+					.unwrap();
 
-		let h = &session.req_header().headers;
-		debug!(?h);
-		let path = upstream_request.uri.path();
-		if path.starts_with("/umami") {
-			upstream_request
-			    .insert_header("Host", "umami.nav.no") // This is egress but could be by service discovery too, but i dont want to think about tls right now.
-				.expect("Needs correct Host header");
+				upstream_request
+					.insert_header("X-Vercel-City", city)
+					.unwrap();
 
-			// unwrap, unwrap, unwrap. :(
-			// There's also an ip4 vs ip6 consideration to be made here
-			let client_addr = session
-				.downstream_session
-				.client_addr()
-				.unwrap()
-				.to_socket_addrs()
-				.unwrap()
-				.next()
-				.unwrap()
-				.ip()
-				.to_string();
+				upstream_request
+					.insert_header("Host", "api.eu.amplitude.com")
+					.expect("Needs correct Host header");
 
-			// The X-Forwarded-For header is added here because otherwise umami will put
-			// all our users in the datacenter, which is in Nowhere, Finland.
-			// Amplitude doesn't need this as they do geolocation client side(???)
-			upstream_request
-				.insert_header("X-Forwarded-For", client_addr)
-				.unwrap();
+				// Insert the X-Forwarded-For header for Umami
+				upstream_request
+					.insert_header("X-Forwarded-For", client_addr)
+					.unwrap();
+			},
+			Route::Amplitude(_) => {
+				upstream_request
+					.insert_header("Host", "api.eu.amplitude.com")
+					.expect("Needs correct Host header");
+			},
+			Route::Other(_) => {
+				// Handle other routes if needed (default Host header or other behavior)
+			},
 		}
 
-		// Redact the uris, path segements and query params
+		// Redact the URIs, path segments, and query params, technically, we only have /umami and /collect with no other data.
+		// This is completionist redaction.
 		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
+
 		Ok(())
 	}
 
