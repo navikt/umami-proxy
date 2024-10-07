@@ -10,9 +10,7 @@ pub fn match_route(path: String) -> Route {
 		Route::Umami(path.to_string())
 	} else if path.starts_with("/collect") {
 		Route::Amplitude(path.to_string())
-    } else if path.starts_with("/collect-auto") {
-        Route::Amplitude(path.to_string())
 	} else {
-		Route::Other(path)
+		Route::Amplitude(path)
 	}
 }
