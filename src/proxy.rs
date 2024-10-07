@@ -1,4 +1,5 @@
 use crate::config::Config;
+use http::Uri;
 use crate::k8s::cache::{self, INITIALIZED};
 use crate::metrics::{
 	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS,
@@ -195,7 +196,7 @@ impl ProxyHttp for AmplitudeProxy {
 						.unwrap_or_else(|| "".into()),
 				)))
 			},
-			route::Route::Amplitude(_) => {
+			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
 				AMPLITUDE_PEER.inc();
 				Ok(Box::new(HttpPeer::new(
 				format!(
@@ -352,7 +353,7 @@ impl ProxyHttp for AmplitudeProxy {
 					.insert_header("Host", "api.eu.amplitude.com")
 					.expect("Needs correct Host header");
 			},
-			route::Route::Amplitude(_) => {
+			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
 				upstream_request
 					.insert_header("Host", "api.eu.amplitude.com")
 					.expect("Needs correct Host header");
@@ -360,9 +361,18 @@ impl ProxyHttp for AmplitudeProxy {
 			route::Route::Other(_) => {},
 		}
 
-		// Redact the URIs, path segments, and query params, technically, we only have /umami and /collect with no other data.
-		// This is completionist redaction.
-		upstream_request.set_uri(redact::redact_uri(&upstream_request.uri));
+		match &ctx.route {
+            route::Route::Umami(_) => {
+                upstream_request.set_uri(Uri::from_static("/api/send"));
+            },
+            route::Route::Amplitude(_) => {
+                upstream_request.set_uri(Uri::from_static("/2/httpapi"));
+            },
+            route::Route::AmplitudeCollect(_) => {
+                upstream_request.set_uri(Uri::from_static("/2/httpapi"));
+            },
+            route::Route::Other(_) => {},
+        }
 
 		Ok(())
 	}

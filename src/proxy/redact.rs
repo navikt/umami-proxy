@@ -115,18 +115,7 @@ fn redact_queries(ss: &[(&str, &str)]) -> Vec<(Rule, Rule)> {
 pub fn redact_uri(old_uri: &Uri) -> Uri {
 	let redacted_paths = itertools::join(
 		redact_paths(&old_uri.path().split('/').collect::<Vec<_>>())
-			.iter()
-			.map(|x| {
-				// TODO: THIS IS HECKING HARAM AND THERE IS ACUTALLY ROUTING IN DISGUISE GOING ON HERE, AMPLITUDE SPECIDIFIC
-				// The original clients talk to /collect, we talk to /2/httpapi. Hence this
-				if *x == Rule::Original("collect".into()) {
-					"2/httpapi".into()
-				} else if *x == Rule::Original("umami".into()) {
-					"api/send".into()
-				} else {
-					x.pretty_print()
-				}
-			}),
+			.iter().map(|p| p.pretty_print()),
 		"/",
 	);
 
