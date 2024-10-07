@@ -87,6 +87,7 @@ dependencies = [
  "pingora",
  "prometheus",
  "regex",
+ "schemars",
  "serde",
  "serde_json",
  "serde_urlencoded",
