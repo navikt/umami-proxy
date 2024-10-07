@@ -11,7 +11,7 @@ pub fn match_route(path: String) -> Route {
 	} else if path.starts_with("/collect") {
 		Route::Amplitude(path.to_string())
 	} else {
-		Route::Amplitude(path)
+		Route::Other(path); // LIKE THIS
 	}
 }
 
