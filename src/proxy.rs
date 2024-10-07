@@ -367,6 +367,7 @@ impl ProxyHttp for AmplitudeProxy {
 			| ErrType::ConnectError
 			| ErrType::BindError
 			| ErrType::AcceptError
+			| ErrType::ConnectionClosed
 			| ErrType::SocketError => CONNECTION_ERRORS.inc(),
 
 			ErrType::ConnectProxyFailure => UPSTREAM_CONNECTION_FAILURES.inc(),
