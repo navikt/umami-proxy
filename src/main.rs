@@ -2,7 +2,6 @@ use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 use std::net::ToSocketAddrs;
 use tracing::info;
-mod cache;
 mod config;
 mod health;
 mod k8s;
