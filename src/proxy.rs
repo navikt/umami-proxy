@@ -65,7 +65,7 @@ impl ProxyHttp for AmplitudeProxy {
 	}
 
 	/// Request_filter runs before anything else. We can for example set the peer here, through ctx
-	/// Block user-agent strings that match known bots
+	/// also Blocks user-agent strings that match known bots
 	async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool>
 	where
 		Self::CTX: Send + Sync,
@@ -140,7 +140,7 @@ impl ProxyHttp for AmplitudeProxy {
 					Ok(false)
 				},
 				Err(e) => {
-					error!("Err :\n\t{e}");
+					error!("Err: {e}");
 					return Ok(false);
 				},
 			},
@@ -153,7 +153,7 @@ impl ProxyHttp for AmplitudeProxy {
 		_session: &mut Session,
 		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		match ctx.route {
+		match &ctx.route {
 			route::Route::Umami(_) => {
 				UMAMI_PEER.inc();
 				Ok(Box::new(HttpPeer::new(
@@ -196,11 +196,12 @@ impl ProxyHttp for AmplitudeProxy {
 					.unwrap_or_else(|| "".into()),
 			)))
 			},
-			route::Route::Other(_) => {
+			route::Route::Other(s) => {
 				INVALID_PEER.inc();
+				let error = format!("creating peer: {}", s);
 				Err(Error::explain(
 					pingora::ErrorType::Custom("no matching peer for path"),
-					"creating peer",
+					error,
 				))
 			},
 		}
@@ -290,7 +291,7 @@ impl ProxyHttp for AmplitudeProxy {
 	/// TODO: Also ensure that path fragments are redacted?
 	async fn upstream_request_filter(
 		&self,
-		session: &mut Session,
+		_session: &mut Session,
 		upstream_request: &mut RequestHeader,
 		ctx: &mut Self::CTX,
 	) -> Result<()> {
