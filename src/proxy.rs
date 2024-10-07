@@ -1,8 +1,9 @@
 use crate::cache::{self, INITIALIZED};
 use crate::config::Config;
 use crate::metrics::{
-	BODY_PARSE_ERROR, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS, INCOMING_REQUESTS,
-	REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UPSTREAM_CONNECTION_FAILURES,
+	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS,
+	INCOMING_REQUESTS, INVALID_PEER, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
+	UPSTREAM_CONNECTION_FAILURES,
 };
 
 use crate::{annotate, k8s};
@@ -133,23 +134,30 @@ impl ProxyHttp for AmplitudeProxy {
 		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
 		match ctx.route {
-			Route::Umami(_) => Ok(Box::new(HttpPeer::new(
-				format!(
-					"{}:{}",
-					self.conf.upstream_umami.host, self.conf.upstream_umami.port
-				)
-				.to_socket_addrs()
-				.expect("Umami specified `host` & `port` should give valid `std::net::SocketAddr`")
-				.next()
-				.expect("SocketAddr should resolve to at least 1 IP address"),
-				self.conf.upstream_umami.sni.is_some(),
-				self.conf
-					.upstream_umami
-					.sni
-					.clone()
-					.unwrap_or_else(|| "".into()),
-			))),
-			Route::Amplitude(_) => Ok(Box::new(HttpPeer::new(
+			Route::Umami(_) => {
+				UMAMI_PEER.inc();
+				Ok(Box::new(HttpPeer::new(
+					format!(
+						"{}:{}",
+						self.conf.upstream_umami.host, self.conf.upstream_umami.port
+					)
+					.to_socket_addrs()
+					.expect(
+						"Umami specified `host` & `port` should give valid `std::net::SocketAddr`",
+					)
+					.next()
+					.expect("SocketAddr should resolve to at least 1 IP address"),
+					self.conf.upstream_umami.sni.is_some(),
+					self.conf
+						.upstream_umami
+						.sni
+						.clone()
+						.unwrap_or_else(|| "".into()),
+				)))
+			},
+			Route::Amplitude(_) => {
+				AMPLITUDE_PEER.inc();
+				Ok(Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
 					self.conf.upstream_amplitude.host, self.conf.upstream_amplitude.port
@@ -166,9 +174,10 @@ impl ProxyHttp for AmplitudeProxy {
 					.sni
 					.clone()
 					.unwrap_or_else(|| "".into()),
-			))),
+			)))
+			},
 			Route::Other(_) => {
-				// TODO: ADD UNKNOWN_ROUTE metric
+				INVALID_PEER.inc();
 				Err(Error::explain(
 					pingora::ErrorType::Custom("no matching peer for path"),
 					"creating peer",

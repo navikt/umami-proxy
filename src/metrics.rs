@@ -19,6 +19,15 @@ pub static SSL_ERROR: Lazy<IntCounter> =
 pub static BODY_PARSE_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("body_parse_error_total", "body parse errors").unwrap());
 
+pub static INVALID_PEER: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("INVALID_PEER_TOTAL", "invalid peer").unwrap());
+
+pub static AMPLITUDE_PEER: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("AMPLITUDE_PEER_TOTAL", "amplitude peer").unwrap());
+
+pub static UMAMI_PEER: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("UMAMI_PEER_TOTAL", "umami peer").unwrap());
+
 // co-parsing is serializing
 pub static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
 	register_int_counter!(
