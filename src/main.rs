@@ -1,12 +1,6 @@
-use std::collections::HashMap;
-use std::net::ToSocketAddrs;
-use std::sync::{Arc, Mutex};
-use std::thread;
-
-use k8s_openapi::k8s_match;
-use lru::LruCache;
 use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
+use std::net::ToSocketAddrs;
 use tracing::info;
 mod annotate;
 mod cache;
@@ -16,14 +10,10 @@ mod k8s;
 mod metrics;
 mod proxy;
 mod trace;
-use once_cell::sync::Lazy;
-use prometheus::{register_int_counter, IntCounter};
-use tokio;
-use tracing_subscriber::util::SubscriberInitExt;
 
 fn main() {
 	let conf = config::Config::new();
-	trace::configure_logging().init();
+	trace::init();
 	info!("started proxy{:#?}", &conf);
 	let mut amplitrude_proxy = Server::new(Some(Opt {
 		upgrade: false,
