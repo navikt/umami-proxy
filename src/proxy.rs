@@ -1,11 +1,11 @@
 use crate::config::Config;
-use http::Uri;
 use crate::k8s::cache::{self, INITIALIZED};
 use crate::metrics::{
 	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS,
 	INCOMING_REQUESTS, INVALID_PEER, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
 	UPSTREAM_CONNECTION_FAILURES,
 };
+use http::Uri;
 
 use crate::k8s;
 use async_trait::async_trait;
@@ -362,17 +362,17 @@ impl ProxyHttp for AmplitudeProxy {
 		}
 
 		match &ctx.route {
-            route::Route::Umami(_) => {
-                upstream_request.set_uri(Uri::from_static("/api/send"));
-            },
-            route::Route::Amplitude(_) => {
-                upstream_request.set_uri(Uri::from_static("/2/httpapi"));
-            },
-            route::Route::AmplitudeCollect(_) => {
-                upstream_request.set_uri(Uri::from_static("/2/httpapi"));
-            },
-            route::Route::Other(_) => {},
-        }
+			route::Route::Umami(_) => {
+				upstream_request.set_uri(Uri::from_static("/api/send"));
+			},
+			route::Route::Amplitude(_) => {
+				upstream_request.set_uri(Uri::from_static("/2/httpapi"));
+			},
+			route::Route::AmplitudeCollect(_) => {
+				upstream_request.set_uri(Uri::from_static("/2/httpapi"));
+			},
+			route::Route::Other(_) => {},
+		}
 
 		Ok(())
 	}

@@ -115,7 +115,8 @@ fn redact_queries(ss: &[(&str, &str)]) -> Vec<(Rule, Rule)> {
 pub fn redact_uri(old_uri: &Uri) -> Uri {
 	let redacted_paths = itertools::join(
 		redact_paths(&old_uri.path().split('/').collect::<Vec<_>>())
-			.iter().map(|p| p.pretty_print()),
+			.iter()
+			.map(|p| p.pretty_print()),
 		"/",
 	);
 
