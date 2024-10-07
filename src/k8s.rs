@@ -1,5 +1,6 @@
 use crate::cache::AppInfo;
 use crate::cache::CACHE;
+use crate::metrics::NEW_INGRESS;
 use futures::TryStreamExt;
 use k8s_openapi::api::networking::v1::Ingress;
 use kube::{
@@ -44,6 +45,7 @@ pub async fn run_watcher() -> Result<(), Box<dyn std::error::Error>> {
 			let mut cache = CACHE.lock().unwrap();
 			if let Some(app_info) = ingress_to_app_info(&ingress) {
 				info!("New Ingress found, {}", app_info.app);
+				NEW_INGRESS.inc(); // We epxect this to eventually be not zero
 				cache.put(app_info.ingress.clone(), app_info);
 			}
 			Ok(())

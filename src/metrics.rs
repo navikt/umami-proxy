@@ -28,6 +28,9 @@ pub static AMPLITUDE_PEER: Lazy<IntCounter> =
 pub static UMAMI_PEER: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("UMAMI_PEER_TOTAL", "umami peer").unwrap());
 
+pub static NEW_INGRESS: Lazy<IntCounter> =
+	Lazy::new(|| register_int_counter!("NEW_INGRESSES_TOTAL", "added ingresses").unwrap());
+
 // co-parsing is serializing
 pub static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
 	register_int_counter!(
