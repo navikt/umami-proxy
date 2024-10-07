@@ -4,7 +4,7 @@ use crate::metrics::NEW_INGRESS;
 use futures::TryStreamExt;
 use k8s_openapi::api::networking::v1::Ingress;
 use kube::{
-	api::{Api, ListParams, ResourceExt},
+	api::{Api, ListParams},
 	runtime::{watcher, WatchStreamExt},
 	Client,
 };
@@ -36,7 +36,6 @@ pub async fn populate_cache() -> Result<(), Box<dyn std::error::Error>> {
 pub async fn run_watcher() -> Result<(), Box<dyn std::error::Error>> {
 	let client = Client::try_default().await?;
 	let ingress_api: Api<Ingress> = Api::all(client.clone());
-	let lp = ListParams::default();
 	let wc = watcher::Config::default().labels("app,team");
 
 	watcher(ingress_api, wc)

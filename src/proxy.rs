@@ -6,7 +6,7 @@ use crate::metrics::{
 	UPSTREAM_CONNECTION_FAILURES,
 };
 
-use crate::{annotate, k8s};
+use crate::k8s;
 use async_trait::async_trait;
 use bytes::Bytes;
 use pingora::Error;
@@ -21,6 +21,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use tracing::{error, info, warn};
+mod annotate;
 mod redact;
 mod route;
 use std::sync::atomic::Ordering;
