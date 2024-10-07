@@ -20,9 +20,9 @@ use pingora::{
 use serde_json::Value;
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 mod redact;
-
+mod route;
 use std::sync::atomic::Ordering;
 
 use serde_urlencoded;
@@ -39,27 +39,10 @@ impl AmplitudeProxy {
 	}
 }
 
-#[derive(Debug, PartialEq)]
-enum Route {
-	Umami(String),
-	Amplitude(String),
-	Other(String), //Someone did a goof
-}
-
-fn match_route(path: String) -> Route {
-	if path.starts_with("/umami") {
-		Route::Umami(path.to_string())
-	} else if path.starts_with("/collect") {
-		Route::Amplitude(path.to_string())
-	} else {
-		Route::Other(path)
-	}
-}
-
 #[derive(Debug)]
 pub struct Ctx {
 	request_body_buffer: Vec<u8>,
-	route: Route,
+	route: route::Route,
 }
 
 #[async_trait]
@@ -68,7 +51,7 @@ impl ProxyHttp for AmplitudeProxy {
 	fn new_ctx(&self) -> Self::CTX {
 		Ctx {
 			request_body_buffer: Vec::new(),
-			route: Route::Other("".into()),
+			route: route::Route::Other("".into()),
 		}
 	}
 
@@ -102,7 +85,7 @@ impl ProxyHttp for AmplitudeProxy {
 
 		let owned_parts = session.downstream_session.req_header().as_owned_parts();
 		let path = owned_parts.uri.path();
-		ctx.route = match_route(path.into());
+		ctx.route = route::match_route(path.into());
 
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		match user_agent {
@@ -134,7 +117,7 @@ impl ProxyHttp for AmplitudeProxy {
 		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
 		match ctx.route {
-			Route::Umami(_) => {
+			route::Route::Umami(_) => {
 				UMAMI_PEER.inc();
 				Ok(Box::new(HttpPeer::new(
 					format!(
@@ -155,7 +138,7 @@ impl ProxyHttp for AmplitudeProxy {
 						.unwrap_or_else(|| "".into()),
 				)))
 			},
-			Route::Amplitude(_) => {
+			route::Route::Amplitude(_) => {
 				AMPLITUDE_PEER.inc();
 				Ok(Box::new(HttpPeer::new(
 				format!(
@@ -176,7 +159,7 @@ impl ProxyHttp for AmplitudeProxy {
 					.unwrap_or_else(|| "".into()),
 			)))
 			},
-			Route::Other(_) => {
+			route::Route::Other(_) => {
 				INVALID_PEER.inc();
 				Err(Error::explain(
 					pingora::ErrorType::Custom("no matching peer for path"),
@@ -324,7 +307,7 @@ impl ProxyHttp for AmplitudeProxy {
 			.unwrap();
 
 		match &_ctx.route {
-			Route::Umami(_) => {
+			route::Route::Umami(_) => {
 				upstream_request
 					.insert_header("Host", "umami.nav.no")
 					.expect("Needs correct Host header");
@@ -362,14 +345,12 @@ impl ProxyHttp for AmplitudeProxy {
 					.insert_header("X-Forwarded-For", client_addr)
 					.unwrap();
 			},
-			Route::Amplitude(_) => {
+			route::Route::Amplitude(_) => {
 				upstream_request
 					.insert_header("Host", "api.eu.amplitude.com")
 					.expect("Needs correct Host header");
 			},
-			Route::Other(_) => {
-				// Handle other routes if needed (default Host header or other behavior)
-			},
+			route::Route::Other(_) => {},
 		}
 
 		// Redact the URIs, path segments, and query params, technically, we only have /umami and /collect with no other data.
