@@ -6,11 +6,13 @@ pub enum Route {
 }
 
 pub fn match_route(path: String) -> Route {
-    if path.starts_with("/umami") {
-        Route::Umami(path.to_string())
-    } else if path.starts_with("/collect") || path.starts_with("/collect-auto") {
+	if path.starts_with("/umami") {
+		Route::Umami(path.to_string())
+	} else if path.starts_with("/collect") {
+		Route::Amplitude(path.to_string())
+    } else if path.starts_with("/collect-auto") {
         Route::Amplitude(path.to_string())
-    } else {
-        Route::Other(path)
-    }
+	} else {
+		Route::Other(path)
+	}
 }
