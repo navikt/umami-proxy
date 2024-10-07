@@ -94,7 +94,7 @@ impl ProxyHttp for AmplitudeProxy {
 				tokio::spawn(async {
 					let e1 = k8s::populate_cache();
 					warn!("populating cache: {:?}", e1.await);
-					k8s::run_watcher().await;
+					let _e2 = k8s::run_watcher().await;
 				});
 			}
 		}
@@ -129,7 +129,7 @@ impl ProxyHttp for AmplitudeProxy {
 	// This guy should be the upstream host, all requests through the proxy gets sent th upstream_peer
 	async fn upstream_peer(
 		&self,
-		session: &mut Session,
+		_session: &mut Session,
 		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
 		match ctx.route {
