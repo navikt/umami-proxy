@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::k8s::cache::INITIALIZED;
+use crate::k8s::cache::{self, INITIALIZED};
 use crate::metrics::{
 	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS,
 	INCOMING_REQUESTS, INVALID_PEER, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
@@ -51,6 +51,7 @@ pub struct Ctx {
 	request_body_buffer: Vec<u8>,
 	route: route::Route,
 	location: Option<Location>,
+	ingress: String,
 }
 
 #[async_trait]
@@ -61,6 +62,7 @@ impl ProxyHttp for AmplitudeProxy {
 			request_body_buffer: Vec::new(),
 			route: route::Route::Other("".into()),
 			location: None,
+			ingress: "".into(),
 		}
 	}
 
@@ -92,6 +94,24 @@ impl ProxyHttp for AmplitudeProxy {
 			}
 		}
 
+		// This is the ingress but with a protocol
+
+		let origin = session.downstream_session.get_header("origin").map_or_else(
+			|| String::from("missing origin"),
+			|x| {
+				x.to_str()
+					.map_or(String::new(), std::borrow::ToOwned::to_owned)
+			},
+		);
+
+		ctx.ingress = origin
+			.split("//")
+			.collect::<Vec<_>>()
+			.last()
+			.unwrap()
+			.to_string();
+
+		info!("ingress: {} ", ctx.ingress);
 		let city = session
 			.downstream_session
 			.get_header("x-client-city")
@@ -258,6 +278,11 @@ impl ProxyHttp for AmplitudeProxy {
 				redact::traverse_and_redact(&mut v);
 				annotate::annotate_with_proxy_version(&mut v, "amplitrude-1.0.0");
 
+				let mut cache = cache::CACHE.lock().unwrap();
+				if let Some(app) = cache.get(&ctx.ingress) {
+					annotate::annotate_with_app_info(&mut v, app);
+					info!("Found app: {:?}", app);
+				}
 				// This uses exactly "event_properties, which maybe only amplitude has"
 				if let Some(loc) = &ctx.location {
 					annotate::annotate_with_location(&mut v, &loc.city, &loc.country);

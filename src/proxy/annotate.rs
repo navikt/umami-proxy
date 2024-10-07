@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use crate::k8s;
+
 pub fn annotate_with_proxy_version(event: &mut Value, proxy_version: &str) {
 	if let Value::Object(map) = event {
 		map.insert(
@@ -28,6 +30,35 @@ pub fn annotate_with_location(value: &mut Value, city: &String, country: &String
 						"[Amplitude] Country".into(),
 						Value::String(country.to_owned()),
 					);
+				}
+			}
+		},
+
+		_ => {
+			// No need to do anything for these types
+		},
+	}
+}
+
+pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo) {
+	match value {
+		Value::Array(arr) => {
+			for v in arr {
+				annotate_with_app_info(v, &app_info.clone());
+			}
+		},
+		Value::Object(obj) => {
+			for (key, v) in obj.iter_mut() {
+				if key == "event_properties" && v.is_object() {
+					v.as_object_mut()
+						.unwrap()
+						.insert("namespace".into(), app_info.namespace.clone().into());
+					v.as_object_mut()
+						.unwrap()
+						.insert("ingress".into(), app_info.ingress.clone().into());
+					v.as_object_mut()
+						.unwrap()
+						.insert("app".into(), app_info.app.clone().into());
 				}
 			}
 		},
