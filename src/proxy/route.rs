@@ -1,4 +1,4 @@
-n#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Route {
 	Umami(String),
 	Amplitude(String),
@@ -12,5 +12,16 @@ pub fn match_route(path: String) -> Route {
 		Route::Amplitude(path.to_string())
 	} else {
 		Route::Amplitude(path)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	#[test]
+	fn show_starts_with() {
+		assert_eq!(
+			"/collect".starts_with("/collect"),
+			"/collect-auto".starts_with("/collect")
+		);
 	}
 }
