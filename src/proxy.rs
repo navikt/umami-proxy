@@ -328,16 +328,17 @@ impl ProxyHttp for AmplitudeProxy {
 		&self,
 		session: &mut Session,
 		upstream_response: &mut ResponseHeader,
-		_ctx: &mut Self::CTX,
+		ctx: &mut Self::CTX,
 	) -> Result<()>
 	where
 		Self::CTX: Send + Sync,
 	{
 		info!(
-			"status: {}, reason {:?}, {}",
+			"status: {}, reason {:?}, {} - Origin: {}",
 			upstream_response.status,
 			upstream_response.get_reason_phrase(),
-			session.request_summary()
+			session.request_summary(),
+			ctx.ingress
 		);
 		Ok(())
 	}
