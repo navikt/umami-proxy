@@ -25,19 +25,30 @@ use tracing::{error, info, warn};
 mod annotate;
 mod redact;
 mod route;
-use std::sync::atomic::Ordering;
-
+use isbot::Bots;
 use serde_urlencoded;
+use std::sync::atomic::Ordering;
 
 pub struct AmplitudeProxy {
 	pub conf: Config,
 	pub addr: std::net::SocketAddr,
 	pub sni: Option<String>,
+	pub bots: Bots,
 }
 
 impl AmplitudeProxy {
-	pub fn new(conf: Config, addr: std::net::SocketAddr, sni: Option<String>) -> AmplitudeProxy {
-		AmplitudeProxy { conf, addr, sni }
+	pub fn new(
+		conf: Config,
+		addr: std::net::SocketAddr,
+		sni: Option<String>,
+		bots: Bots,
+	) -> AmplitudeProxy {
+		AmplitudeProxy {
+			conf,
+			addr,
+			sni,
+			bots,
+		}
 	}
 }
 
@@ -149,7 +160,7 @@ impl ProxyHttp for AmplitudeProxy {
 		match user_agent {
 			Some(ua) => match ua.to_str() {
 				Ok(ua) => {
-					let bot = isbot::Bots::default().is_bot(ua);
+					let bot = self.bots.is_bot(ua);
 					//  ^  This should be instanciated top-level, in the ctx
 
 					if bot {

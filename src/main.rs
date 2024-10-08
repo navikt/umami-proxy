@@ -36,6 +36,7 @@ fn main() {
 		.next()
 		.unwrap(),
 		conf.upstream_amplitude.sni.to_owned(),
+		isbot::Bots::default(),
 	);
 
 	let mut probe_instance =
