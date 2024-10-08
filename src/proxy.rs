@@ -331,7 +331,11 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		info!("status: {}", upstream_response.status);
+		info!(
+			"status: {}, reason {:?}",
+			upstream_response.status,
+			upstream_response.get_reason_phrase()
+		);
 		Ok(())
 	}
 	/// Redact path and query parameters of request
