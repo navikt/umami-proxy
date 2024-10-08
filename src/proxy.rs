@@ -6,6 +6,7 @@ use crate::metrics::{
 	UPSTREAM_CONNECTION_FAILURES,
 };
 use http::Uri;
+use pingora::http::ResponseHeader;
 
 use crate::k8s;
 use async_trait::async_trait;
@@ -321,6 +322,18 @@ impl ProxyHttp for AmplitudeProxy {
 		Ok(())
 	}
 
+	async fn response_filter(
+		&self,
+		_session: &mut Session,
+		upstream_response: &mut ResponseHeader,
+		_ctx: &mut Self::CTX,
+	) -> Result<()>
+	where
+		Self::CTX: Send + Sync,
+	{
+		info!("status: {}", upstream_response.status);
+		Ok(())
+	}
 	/// Redact path and query parameters of request
 	/// TODO: Also ensure that path fragments are redacted?
 	async fn upstream_request_filter(
@@ -428,9 +441,24 @@ fn parse_url_encoded(data: &str) -> Result<Value, serde_json::Error> {
 }
 
 fn map_e_to_amplitude(e_events: &Value) -> Value {
+	let es = string_to_json_object(e_events).unwrap();
 	json!({
-			"events": e_events
+		"events": es
 	})
+}
+
+fn string_to_json_object(input: &Value) -> Option<Value> {
+	match input {
+		Value::String(s) => {
+			let json_value: Value = serde_json::from_str(s).unwrap();
+			if json_value.is_object() {
+				Some(json_value)
+			} else {
+				None
+			}
+		},
+		_ => None,
+	}
 }
 
 #[cfg(test)]
