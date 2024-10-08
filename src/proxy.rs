@@ -268,8 +268,10 @@ impl ProxyHttp for AmplitudeProxy {
 				// We should do proper content negotiation, apparently
 				let json: Result<serde_json::Value, _>;
 				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
-					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer))
-						.map(|j: serde_json::Value| map_e_to_amplitude(j.get("e").unwrap())); // no e, no life
+					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
+					dbg!(&ctx.request_body_buffer);
+					dbg!(&json);
+				// .map(|j: serde_json::Value| map_e_to_amplitude(j.get("e").unwrap())); // no e, no life
 				} else {
 					json = serde_json::from_slice(&ctx.request_body_buffer)
 				}
@@ -431,4 +433,34 @@ fn map_e_to_amplitude(e_events: &Value) -> Value {
 	json!({
 			"events": e_events
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use serde_json::{json, Value};
+
+	#[test]
+	fn test_parse_url_encoded_simple() {
+		let data = "name=John&age=30";
+		let expected = json!({
+			"name": "John",
+			"age": "30"
+		});
+
+		let result = parse_url_encoded(data).unwrap();
+		assert_eq!(result, expected);
+	}
+
+	#[test]
+	fn test_parse_url_encoded_special_characters() {
+		let data = "name=John+Doe&email=john.doe%40example.com";
+		let expected = json!({
+			"name": "John Doe",
+			"email": "john.doe@example.com"
+		});
+
+		let result = parse_url_encoded(data).unwrap();
+		assert_eq!(result, expected);
+	}
 }
