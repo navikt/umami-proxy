@@ -324,7 +324,7 @@ impl ProxyHttp for AmplitudeProxy {
 
 	async fn response_filter(
 		&self,
-		_session: &mut Session,
+		session: &mut Session,
 		upstream_response: &mut ResponseHeader,
 		_ctx: &mut Self::CTX,
 	) -> Result<()>
@@ -332,9 +332,10 @@ impl ProxyHttp for AmplitudeProxy {
 		Self::CTX: Send + Sync,
 	{
 		info!(
-			"status: {}, reason {:?}",
+			"status: {}, reason {:?}, {}",
 			upstream_response.status,
-			upstream_response.get_reason_phrase()
+			upstream_response.get_reason_phrase(),
+			session.request_summary()
 		);
 		Ok(())
 	}
