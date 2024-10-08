@@ -161,7 +161,6 @@ impl ProxyHttp for AmplitudeProxy {
 			Some(ua) => match ua.to_str() {
 				Ok(ua) => {
 					let bot = self.bots.is_bot(ua);
-					//  ^  This should be instanciated top-level, in the ctx
 
 					if bot {
 						session.respond_error(403).await?;
