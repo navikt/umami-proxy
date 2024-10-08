@@ -106,8 +106,6 @@ impl ProxyHttp for AmplitudeProxy {
 			}
 		}
 
-		// This is the ingress but with a protocol
-
 		let origin = session.downstream_session.get_header("origin").map_or_else(
 			|| String::from("missing origin"),
 			|x| {
@@ -123,7 +121,6 @@ impl ProxyHttp for AmplitudeProxy {
 			.unwrap()
 			.to_string();
 
-		info!("ingress: {} ", ctx.ingress);
 		let city = session
 			.downstream_session
 			.get_header("x-client-city")
@@ -430,43 +427,8 @@ fn parse_url_encoded(data: &str) -> Result<Value, serde_json::Error> {
 	serde_json::to_value(parsed)
 }
 
-fn map_e_to_amplitude(e_event: &Value) -> Value {
-	let empty_object_default = json!({});
-	let library_name_default = &json!("amplitude-js");
-	let library_version_default = &json!("8.21.9");
-
-	let device_id = e_event.get("device_id").unwrap_or(&json!(null));
-	let timestamp = e_event.get("timestamp").unwrap_or(&json!(null));
-	let session_id = e_event.get("session_id").unwrap_or(&json!(null));
-	let event_id = e_event.get("event_id").unwrap_or(&json!(null)).to_string();
-	let event_type = e_event.get("event_type").unwrap_or(&json!(null));
-	let platform = e_event.get("platform").unwrap_or(&json!(null));
-	let os_name = e_event.get("os_name").unwrap_or(&json!(null));
-	let os_version = e_event.get("os_version").unwrap_or(&json!(null));
-	let language = e_event.get("language").unwrap_or(&json!(null));
-	let event_properties = e_event
-		.get("event_properties")
-		.unwrap_or(&empty_object_default);
-	let user_agent = e_event.get("user_agent").unwrap_or(&json!(null));
-	let library = e_event.get("library").unwrap_or(&empty_object_default);
-	let library_name = library.get("name").unwrap_or(&library_name_default);
-	let library_version = library.get("version").unwrap_or(&library_version_default);
-
+fn map_e_to_amplitude(e_events: &Value) -> Value {
 	json!({
-		"device_id": device_id,
-		"session_id": session_id,
-		"time": timestamp,
-		"platform": platform,
-		"os_name": os_name,
-		"os_version": os_version,
-		"language": language,
-		"insert_id": event_id,
-		"event_type": event_type,
-		"event_properties": event_properties,
-		"user_agent": user_agent,
-		"library": {
-			"name": library_name,
-			"version": library_version,
-		}
+			"events": e_events
 	})
 }
