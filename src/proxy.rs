@@ -18,7 +18,7 @@ use pingora::{
 	proxy::{ProxyHttp, Session},
 	Result,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use tracing::{error, info, warn};
@@ -271,9 +271,10 @@ impl ProxyHttp for AmplitudeProxy {
 				// We should do proper content negotiation, apparently
 				let json: Result<serde_json::Value, _>;
 				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
-					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
+					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer))
+						.map(|j: serde_json::Value| map_e_to_amplitude(j.get("e").unwrap())); // no e, no life
 				} else {
-					json = serde_json::from_slice(&ctx.request_body_buffer);
+					json = serde_json::from_slice(&ctx.request_body_buffer)
 				}
 				// this erros on "use of a moved value"
 				let Ok(mut v) = json else {
@@ -427,4 +428,45 @@ impl ProxyHttp for AmplitudeProxy {
 fn parse_url_encoded(data: &str) -> Result<Value, serde_json::Error> {
 	let parsed: HashMap<String, String> = serde_urlencoded::from_str(data).unwrap();
 	serde_json::to_value(parsed)
+}
+
+fn map_e_to_amplitude(e_event: &Value) -> Value {
+	let empty_object_default = json!({});
+	let library_name_default = &json!("amplitude-js");
+	let library_version_default = &json!("8.21.9");
+
+	let device_id = e_event.get("device_id").unwrap_or(&json!(null));
+	let timestamp = e_event.get("timestamp").unwrap_or(&json!(null));
+	let session_id = e_event.get("session_id").unwrap_or(&json!(null));
+	let event_id = e_event.get("event_id").unwrap_or(&json!(null)).to_string();
+	let event_type = e_event.get("event_type").unwrap_or(&json!(null));
+	let platform = e_event.get("platform").unwrap_or(&json!(null));
+	let os_name = e_event.get("os_name").unwrap_or(&json!(null));
+	let os_version = e_event.get("os_version").unwrap_or(&json!(null));
+	let language = e_event.get("language").unwrap_or(&json!(null));
+	let event_properties = e_event
+		.get("event_properties")
+		.unwrap_or(&empty_object_default);
+	let user_agent = e_event.get("user_agent").unwrap_or(&json!(null));
+	let library = e_event.get("library").unwrap_or(&empty_object_default);
+	let library_name = library.get("name").unwrap_or(&library_name_default);
+	let library_version = library.get("version").unwrap_or(&library_version_default);
+
+	json!({
+		"device_id": device_id,
+		"session_id": session_id,
+		"time": timestamp,
+		"platform": platform,
+		"os_name": os_name,
+		"os_version": os_version,
+		"language": language,
+		"insert_id": event_id,
+		"event_type": event_type,
+		"event_properties": event_properties,
+		"user_agent": user_agent,
+		"library": {
+			"name": library_name,
+			"version": library_version,
+		}
+	})
 }
