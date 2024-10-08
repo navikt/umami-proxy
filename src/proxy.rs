@@ -343,7 +343,7 @@ impl ProxyHttp for AmplitudeProxy {
 	}
 	fn upstream_response_body_filter(
 		&self,
-		_session: &mut Session,
+		session: &mut Session,
 		body: &mut Option<Bytes>,
 		end_of_stream: bool,
 		ctx: &mut Self::CTX,
@@ -354,7 +354,11 @@ impl ProxyHttp for AmplitudeProxy {
 			b.clear();
 		}
 		if end_of_stream {
-			info!("{}", String::from_utf8_lossy(&ctx.response_body_buffer));
+			info!(
+				"{} - {}",
+				session.request_summary(),
+				String::from_utf8_lossy(&ctx.response_body_buffer)
+			);
 		}
 	}
 
