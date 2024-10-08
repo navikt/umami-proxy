@@ -269,8 +269,6 @@ impl ProxyHttp for AmplitudeProxy {
 				let json: Result<serde_json::Value, _>;
 				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
 					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
-					dbg!(&ctx.request_body_buffer);
-					dbg!(&json);
 				// .map(|j: serde_json::Value| map_e_to_amplitude(j.get("e").unwrap())); // no e, no life
 				} else {
 					json = serde_json::from_slice(&ctx.request_body_buffer)
