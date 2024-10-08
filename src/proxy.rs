@@ -62,6 +62,7 @@ pub struct Location {
 #[derive(Debug)]
 pub struct Ctx {
 	request_body_buffer: Vec<u8>,
+	response_body_buffer: Vec<u8>,
 	route: route::Route,
 	location: Option<Location>,
 	ingress: String,
@@ -73,6 +74,7 @@ impl ProxyHttp for AmplitudeProxy {
 	fn new_ctx(&self) -> Self::CTX {
 		Ctx {
 			request_body_buffer: Vec::new(),
+			response_body_buffer: Vec::new(),
 			route: route::Route::Other("".into()),
 			location: None,
 			ingress: "".into(),
@@ -339,6 +341,23 @@ impl ProxyHttp for AmplitudeProxy {
 		);
 		Ok(())
 	}
+	fn upstream_response_body_filter(
+		&self,
+		_session: &mut Session,
+		body: &mut Option<Bytes>,
+		end_of_stream: bool,
+		ctx: &mut Self::CTX,
+	) -> () {
+		if let Some(b) = body {
+			ctx.response_body_buffer.extend(&b[..]);
+			// drop the body - we've consumed it as b
+			b.clear();
+		}
+		if end_of_stream {
+			info!("{}", String::from_utf8_lossy(&ctx.response_body_buffer));
+		}
+	}
+
 	/// Redact path and query parameters of request
 	/// TODO: Also ensure that path fragments are redacted?
 	async fn upstream_request_filter(
