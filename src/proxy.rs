@@ -2,7 +2,8 @@ use crate::config::Config;
 use crate::k8s::cache::{self, INITIALIZED};
 use crate::metrics::{
 	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, HANDLED_REQUESTS, INCOMING_REQUESTS,
-	INVALID_PEER, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER, UPSTREAM_CONNECTION_FAILURES,
+	INVALID_PEER, PROXY_ERRORS, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
+	UPSTREAM_CONNECTION_FAILURES, UPSTREAM_PEER,
 };
 use http::Uri;
 use pingora::http::ResponseHeader;
@@ -20,6 +21,7 @@ use pingora::{
 };
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter};
 use std::net::ToSocketAddrs;
 use tracing::{error, info, warn};
 mod annotate;
@@ -183,6 +185,9 @@ impl ProxyHttp for AmplitudeProxy {
 		_session: &mut Session,
 		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
+		UPSTREAM_PEER
+			.with_label_values(&[&format!("{}", &ctx.route)])
+			.inc();
 		match &ctx.route {
 			route::Route::Umami(_) => {
 				UMAMI_PEER.inc();
@@ -444,13 +449,30 @@ impl ProxyHttp for AmplitudeProxy {
 			return;
 		};
 
+		/// Collection of errors we are interested in tracking w/metrics
+		#[derive(Debug)]
+		enum ErrorDescription {
+			SslError,
+			ConnectionError,
+			UpstreamConnectionFailure,
+			UntrackedError,
+		}
+		impl Display for ErrorDescription {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				write!(f, "{:?}", self)
+			}
+		}
+
 		// Some error happened
 		error!("{}: {:?}", session.request_summary(), err);
-		match err.etype {
+		let error_description = match err.etype {
 			ErrType::TLSHandshakeFailure
 			| ErrType::TLSHandshakeTimedout
 			| ErrType::InvalidCert
-			| ErrType::HandshakeError => SSL_ERROR.inc(),
+			| ErrType::HandshakeError => {
+				SSL_ERROR.inc();
+				ErrorDescription::SslError
+			},
 
 			ErrType::ConnectTimedout
 			| ErrType::ConnectRefused
@@ -459,13 +481,22 @@ impl ProxyHttp for AmplitudeProxy {
 			| ErrType::BindError
 			| ErrType::AcceptError
 			| ErrType::ConnectionClosed
-			| ErrType::SocketError => CONNECTION_ERRORS.inc(),
+			| ErrType::SocketError => {
+				CONNECTION_ERRORS.inc();
+				ErrorDescription::ConnectionError
+			},
 
-			ErrType::ConnectProxyFailure => UPSTREAM_CONNECTION_FAILURES.inc(),
+			ErrType::ConnectProxyFailure => {
+				UPSTREAM_CONNECTION_FAILURES.inc();
+				ErrorDescription::UpstreamConnectionFailure
+			},
 
 			// All the rest are ignored for now, bring in when needed
-			_ => {},
-		}
+			_ => ErrorDescription::UntrackedError,
+		};
+		PROXY_ERRORS
+			.with_label_values(&[&error_description.to_string()])
+			.inc();
 	}
 }
 

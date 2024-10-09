@@ -12,8 +12,8 @@ pub static UPSTREAM_PEER: Lazy<IntCounterVec> =
 pub static HANDLED_REQUESTS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("handled_requests_total", "handled requests").unwrap());
 
-pub static PROXY_ERROR: Lazy<IntCounterVec> = Lazy::new(|| {
-	register_int_counter_vec!("proxy_error_total", "proxy error", &["error"]).unwrap()
+pub static PROXY_ERRORS: Lazy<IntCounterVec> = Lazy::new(|| {
+	register_int_counter_vec!("proxy_errors_total", "proxys error", &["error"]).unwrap()
 });
 
 pub static CONNECTION_ERRORS: Lazy<IntCounter> =
