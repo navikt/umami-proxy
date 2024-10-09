@@ -29,13 +29,13 @@ pub async fn populate_cache() -> Result<(), Box<dyn std::error::Error>> {
 	let app_api: Api<Application> = Api::all(client.clone());
 	let lp = ListParams::default();
 	let app_list = app_api.list(&lp).await?;
-	let mut cache = cache::CACHE.lock().unwrap();
 	for app in app_list {
 		if let Some(app_info) = application_to_app_info(&app) {
 			warn!("added an application: {:?}", app_info);
-			cache.put(app_info.ingress.clone(), app_info);
+			cache::insert_into_cache(app_info.ingress.clone(), app_info);
 		}
 	}
+	let cache = cache::CACHE.lock().unwrap();
 	let cache_length = cache.len();
 	INGRESS_COUNT.set(cache_length as f64);
 	info!(
@@ -55,11 +55,10 @@ pub async fn run_watcher() -> Result<(), Box<dyn std::error::Error>> {
 		.applied_objects()
 		.default_backoff()
 		.try_for_each(move |app| async move {
-			let mut cache = cache::CACHE.lock().unwrap();
 			if let Some(app_info) = application_to_app_info(&app) {
 				info!("New Application found, {}", app_info.app);
 				INGRESS_COUNT.inc();
-				cache.put(app_info.ingress.clone(), app_info);
+				cache::insert_into_cache(app_info.ingress.clone(), app_info);
 			}
 			Ok(())
 		})
