@@ -291,13 +291,14 @@ impl ProxyHttp for AmplitudeProxy {
 
 				let mut cache = cache::CACHE.lock().unwrap();
 				if let Some(app) = cache.get(&ctx.ingress) {
-					annotate::annotate_with_app_info(&mut v, app);
+					annotate::annotate_with_app_info(&mut v, app, &ctx.ingress);
 					info!("Found app: {:?}", app);
 				}
 				// This uses exactly "event_properties, which maybe only amplitude has"
 				if let Some(loc) = &ctx.location {
 					annotate::annotate_with_location(&mut v, &loc.city, &loc.country);
 				}
+				info!("{:?}", &v);
 
 				// Surely there is a correct-by-conctruction Value type that can be turned into a string without fail
 				let json_body_result = serde_json::to_string(&v);

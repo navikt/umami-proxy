@@ -40,11 +40,11 @@ pub fn annotate_with_location(value: &mut Value, city: &String, country: &String
 	}
 }
 
-pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo) {
+pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo, host: &String) {
 	match value {
 		Value::Array(arr) => {
 			for v in arr {
-				annotate_with_app_info(v, &app_info.clone());
+				annotate_with_app_info(v, &app_info.clone(), &host);
 			}
 		},
 		Value::Object(obj) => {
@@ -59,6 +59,9 @@ pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo)
 					v.as_object_mut()
 						.unwrap()
 						.insert("app".into(), app_info.app.clone().into());
+					v.as_object_mut()
+						.unwrap()
+						.insert("hostname".into(), host.clone().into());
 				}
 			}
 		},
