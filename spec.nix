@@ -61,6 +61,7 @@
         UMAMI_PORT = "443";
         UMAMI_SNI = UMAMI_HOST;
       };
+      envFrom = [{secret = "amplitude-keys";}];
     };
   };
 
