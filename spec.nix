@@ -49,7 +49,7 @@
       resources = {
         requests = {
           cpu = "1500m";
-          memory = "800Mi";
+          memory = "512Mi";
         };
       };
       env = lib.attrsToList rec {
