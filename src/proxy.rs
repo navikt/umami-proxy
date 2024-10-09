@@ -287,19 +287,21 @@ impl ProxyHttp for AmplitudeProxy {
 					};
 				};
 
+				let platform = get_platform(&mut v);
 				redact::traverse_and_redact(&mut v);
 				annotate::annotate_with_proxy_version(&mut v, "amplitrude-1.0.0");
 
 				let mut cache = cache::CACHE.lock().unwrap();
-				if let Some(app) = cache.get(&ctx.ingress) {
+
+				if let Some(app) = cache.get(&platform.unwrap_or("".into())) {
 					annotate::annotate_with_app_info(&mut v, app, &ctx.ingress);
 					info!("Found app: {:?}", app);
 				}
+
 				// This uses exactly "event_properties, which maybe only amplitude has"
 				if let Some(loc) = &ctx.location {
 					annotate::annotate_with_location(&mut v, &loc.city, &loc.country);
 				}
-				info!("{:?}", &v);
 
 				// Surely there is a correct-by-conctruction Value type that can be turned into a string without fail
 				let json_body_result = serde_json::to_string(&v);
@@ -491,6 +493,22 @@ fn parse_url_encoded(data: &str) -> Result<Value, serde_json::Error> {
 	};
 
 	Ok(json!({ "events": events_data, "api-key": client }))
+}
+
+fn get_platform(value: &Value) -> Option<String> {
+	if let Some(events) = value.get("events").and_then(|v| v.as_array()) {
+		events
+			.iter()
+			.filter_map(|event| {
+				event
+					.get("platform")
+					.and_then(|v| v.as_str())
+					.map(String::from)
+			})
+			.next()
+	} else {
+		None
+	}
 }
 
 #[cfg(test)]
