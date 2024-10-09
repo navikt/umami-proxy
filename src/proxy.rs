@@ -272,7 +272,6 @@ impl ProxyHttp for AmplitudeProxy {
 				let json: Result<serde_json::Value, _>;
 				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
 					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
-				// .map(|j: serde_json::Value| map_e_to_amplitude(j.get("e").unwrap())); // no e, no life
 				} else {
 					json = serde_json::from_slice(&ctx.request_body_buffer)
 				}
@@ -466,28 +465,13 @@ impl ProxyHttp for AmplitudeProxy {
 
 fn parse_url_encoded(data: &str) -> Result<Value, serde_json::Error> {
 	let parsed: HashMap<String, String> = serde_urlencoded::from_str(data).unwrap();
-	serde_json::to_value(parsed)
-}
 
-fn map_e_to_amplitude(e_events: &Value) -> Value {
-	let es = string_to_json_object(e_events).unwrap();
-	json!({
-		"events": es
-	})
-}
+	let events_data = match parsed.get("e") {
+		Some(e) => serde_json::from_str::<Value>(e).unwrap_or(json!(null)),
+		None => json!(null),
+	};
 
-fn string_to_json_object(input: &Value) -> Option<Value> {
-	match input {
-		Value::String(s) => {
-			let json_value: Value = serde_json::from_str(s).unwrap();
-			if json_value.is_object() {
-				Some(json_value)
-			} else {
-				None
-			}
-		},
-		_ => None,
-	}
+	Ok(json!({ "events": events_data }))
 }
 
 #[cfg(test)]
@@ -496,26 +480,66 @@ mod tests {
 	use serde_json::{json, Value};
 
 	#[test]
-	fn test_parse_url_encoded_simple() {
-		let data = "name=John&age=30";
-		let expected = json!({
-			"name": "John",
-			"age": "30"
+	fn test_parse_url_encoded() {
+		let input = "e=%5B%7B%22device_id%22%3A%22xPrSCZPag7CI1n6cHHrIPn%22%2C%22user_id%22%3Anull%2C%22timestamp%22%3A1728375957190%2C%22event_id%22%3A806%2C%22session_id%22%3A1728375927004%2C%22event_type%22%3A%22bes%C3%B8k%22%2C%22version_name%22%3Anull%2C%22platform%22%3A%22https%3A%2F%2Fwww.nav.no%2F%22%2C%22os_name%22%3A%22Chrome%22%2C%22os_version%22%3A%22129%22%2C%22device_model%22%3A%22Macintosh%22%2C%22device_manufacturer%22%3A%22Apple%22%2C%22language%22%3A%22en-GB%22%2C%22api_properties%22%3A%7B%7D%2C%22event_properties%22%3A%7B%22sidetittel%22%3A%22Forside%20privatperson%20-%20nav.no%22%2C%22innlogging%22%3Afalse%2C%22parametre%22%3A%7B%22context%22%3A%22privatperson%22%2C%22simple%22%3Afalse%2C%22simpleHeader%22%3Afalse%2C%22redirectToApp%22%3Afalse%2C%22level%22%3A%22Level3%22%2C%22language%22%3A%22nb%22%2C%22availableLanguages%22%3A%5B%22en%22%2C%22nb%22%5D%2C%22breadcrumbs%22%3A%5B%5D%2C%22utilsBackground%22%3A%22white%22%2C%22feedback%22%3Afalse%2C%22chatbot%22%3Atrue%2C%22chatbotVisible%22%3Afalse%2C%22shareScreen%22%3Atrue%2C%22maskHotjar%22%3Afalse%2C%22logoutWarning%22%3Atrue%2C%22BREADCRUMBS%22%3Afalse%7D%2C%22platform%22%3A%22https%3A%2F%2Fwww.nav.no%2F%22%2C%22origin%22%3A%22decorator-next%22%2C%22originVersion%22%3A%22unknown%22%2C%22viaDekoratoren%22%3Atrue%2C%22fromNext%22%3Atrue%7D%2C%22user_properties%22%3A%7B%7D%2C%22uuid%22%3A%2201056959-37fe-4021-94a4-6b08c6238913%22%2C%22library%22%3A%7B%22name%22%3A%22amplitude-js%22%2C%22version%22%3A%228.21.9%22%7D%2C%22sequence_number%22%3A862%2C%22groups%22%3A%7B%7D%2C%22group_properties%22%3A%7B%7D%2C%22user_agent%22%3A%22Mozilla%2F5.0%20%28Macintosh%3B%20Intel%20Mac%20OS%20X%2010_15_7%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F129.0.0.0%20Safari%2F537.36%22%2C%22partner_id%22%3Anull%7D%5D";
+		let expected: Value = json!({
+			"events": [{
+				"device_id": "xPrSCZPag7CI1n6cHHrIPn",
+				"user_id": null,
+				"timestamp": 1728375957190_i64,
+				"event_id": 806,
+				"session_id": 1728375927004_i64,
+				"event_type": "besøk",
+				"version_name": null,
+				"platform": "https://www.nav.no/",
+				"os_name": "Chrome",
+				"os_version": "129",
+				"device_model": "Macintosh",
+				"device_manufacturer": "Apple",
+				"language": "en-GB",
+				"api_properties": {},
+				"event_properties": {
+					"sidetittel": "Forside privatperson - nav.no",
+					"innlogging": false,
+					"parametre": {
+						"context": "privatperson",
+						"simple": false,
+						"simpleHeader": false,
+						"redirectToApp": false,
+						"level": "Level3",
+						"language": "nb",
+						"availableLanguages": ["en", "nb"],
+						"breadcrumbs": [],
+						"utilsBackground": "white",
+						"feedback": false,
+						"chatbot": true,
+						"chatbotVisible": false,
+						"shareScreen": true,
+						"maskHotjar": false,
+						"logoutWarning": true,
+						"BREADCRUMBS": false
+					},
+					"platform": "https://www.nav.no/",
+					"origin": "decorator-next",
+					"originVersion": "unknown",
+					"viaDekoratoren": true,
+					"fromNext": true
+				},
+				"user_properties": {},
+				"uuid": "01056959-37fe-4021-94a4-6b08c6238913",
+				"library": {
+					"name": "amplitude-js",
+					"version": "8.21.9"
+				},
+				"sequence_number": 862,
+				"groups": {},
+				"group_properties": {},
+				"user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+				"partner_id": null
+			}]
 		});
 
-		let result = parse_url_encoded(data).unwrap();
-		assert_eq!(result, expected);
-	}
-
-	#[test]
-	fn test_parse_url_encoded_special_characters() {
-		let data = "name=John+Doe&email=john.doe%40example.com";
-		let expected = json!({
-			"name": "John Doe",
-			"email": "john.doe@example.com"
-		});
-
-		let result = parse_url_encoded(data).unwrap();
-		assert_eq!(result, expected);
+		let parsed = parse_url_encoded(input).expect("Failed to parse");
+		assert_eq!(parsed, expected);
 	}
 }
