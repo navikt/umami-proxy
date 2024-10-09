@@ -1,6 +1,8 @@
 * Ampritude-proxy
 
 A reverse proxy in front of Amplitude and Umami. It redacts some data and annotates requests with other data.
+This tries to be, morally, a reverse proxy and not a custom ingestion service.
+As such, we try to avoid a having knowledge about upstreams and downstreams.
 
 ** Implementation Notes
 There are several green threads by Tokio running different bits of the program. They should fail at the same time. Experimentation with `panic!` in one service confirms that they do. The above also holds true when tested with `loop { ... }`.
@@ -25,7 +27,9 @@ TODO: Fix/specify how to change ports, currently hardcoded.
    socat -v tcp-l:1234,fork exec:"'$(realpath cat)'"
    #+END_SRC
 
-2. Start the program:
+   you can also use http-bin or similar.
+
+2. Start the program, you need to set umami and amplitude envs first.
    #+BEGIN_SRC sh
    cargo watch -qx 'run'  ;; or just `cargo run`
    #+END_SRC
