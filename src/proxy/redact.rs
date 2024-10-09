@@ -221,11 +221,6 @@ mod tests {
 	}
 
 	#[test]
-	fn test_redact_location_in_amplitude_event() {
-		// TODO
-	}
-
-	#[test]
 	fn redact_segments_of_url_paths() {
 		let input_url = "/some/12345678901/fnr/tests?fnr=12345678901&foo=bar";
 		let expected_url = "/some/[redacted]/fnr/tests?fnr=[redacted]&foo=bar";

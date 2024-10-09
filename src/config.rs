@@ -11,6 +11,10 @@ pub struct Upstream {
 pub struct Config {
 	pub upstream_amplitude: Upstream,
 	pub upstream_umami: Upstream,
+	pub amplitude_api_key_dev: String,
+	pub amplitude_api_key_local_systems: String,
+	pub amplitude_api_key_other_systems: String,
+	pub amplitude_api_key_prod: String,
 }
 
 impl Config {
@@ -26,6 +30,14 @@ impl Config {
 				sni: env::var("UMAMI_SNI").ok(),
 				port: env::var("UMAMI_PORT").expect("Env var 'UMAMI_PORT' needs to be set"),
 			},
+			amplitude_api_key_dev: env::var("AMPLITUDE_API_KEY_DEV")
+				.expect("Env var 'AMPLITUDE_API_KEY_DEV' needs to be set"),
+			amplitude_api_key_local_systems: env::var("AMPLITUDE_API_KEY_LOCAL_SYSTEMS")
+				.expect("Env var 'AMPLITUDE_API_KEY_LOCAL_SYSTEMS' needs to be set"),
+			amplitude_api_key_other_systems: env::var("AMPLITUDE_API_KEY_OTHER_SYSTEMS")
+				.expect("Env var 'AMPLITUDE_API_KEY_OTHER_SYSTEMS' needs to be set"),
+			amplitude_api_key_prod: env::var("AMPLITUDE_API_KEY_PROD")
+				.expect("Env var 'AMPLITUDE_API_KEY_PROD' needs to be set"),
 		}
 	}
 }
