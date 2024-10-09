@@ -1,9 +1,9 @@
 use crate::config::Config;
 use crate::k8s::cache::{self, INITIALIZED};
 use crate::metrics::{
-	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, ERRORS_WHILE_PROXY, HANDLED_REQUESTS,
-	INCOMING_REQUESTS, INVALID_PEER, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
-	UPSTREAM_CONNECTION_FAILURES,
+	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, HANDLED_REQUESTS, INCOMING_REQUESTS,
+	INVALID_PEER, PROXY_ERROR, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
+	UPSTREAM_CONNECTION_FAILURES, UPSTREAM_PEER,
 };
 use http::Uri;
 use pingora::http::ResponseHeader;
@@ -21,6 +21,7 @@ use pingora::{
 };
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::fmt::{self, Display, Formatter};
 use std::net::ToSocketAddrs;
 use tracing::{error, info, warn};
 mod annotate;
@@ -75,7 +76,7 @@ impl ProxyHttp for AmplitudeProxy {
 		Ctx {
 			request_body_buffer: Vec::new(),
 			response_body_buffer: Vec::new(),
-			route: route::Route::Other("".into()),
+			route: route::Route::Unexpected("".into()),
 			location: None,
 			ingress: "".into(),
 		}
@@ -184,9 +185,11 @@ impl ProxyHttp for AmplitudeProxy {
 		_session: &mut Session,
 		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
+		UPSTREAM_PEER
+			.with_label_values(&[&format!("{}", &ctx.route)])
+			.inc();
 		match &ctx.route {
 			route::Route::Umami(_) => {
-				UMAMI_PEER.inc();
 				Ok(Box::new(HttpPeer::new(
 					format!(
 						"{}:{}",
@@ -207,7 +210,6 @@ impl ProxyHttp for AmplitudeProxy {
 				)))
 			},
 			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
-				AMPLITUDE_PEER.inc();
 				Ok(Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
@@ -227,8 +229,7 @@ impl ProxyHttp for AmplitudeProxy {
 					.unwrap_or_else(|| "".into()),
 			)))
 			},
-			route::Route::Other(s) => {
-				INVALID_PEER.inc();
+			route::Route::Unexpected(s) => {
 				let error = format!("creating peer: {}", s);
 				Err(Error::explain(
 					pingora::ErrorType::Custom("no matching peer for path"),
@@ -408,7 +409,7 @@ impl ProxyHttp for AmplitudeProxy {
 					.insert_header("Host", "api.eu.amplitude.com")
 					.expect("Needs correct Host header");
 			},
-			route::Route::Other(_) => {},
+			route::Route::Unexpected(_) => {},
 		}
 
 		match &ctx.route {
@@ -421,7 +422,7 @@ impl ProxyHttp for AmplitudeProxy {
 			route::Route::AmplitudeCollect(_) => {
 				upstream_request.set_uri(Uri::from_static("/2/httpapi"));
 			},
-			route::Route::Other(_) => {},
+			route::Route::Unexpected(_) => {},
 		}
 
 		Ok(())
@@ -438,14 +439,27 @@ impl ProxyHttp for AmplitudeProxy {
 			return;
 		};
 
+		/// Collection of errors we are interested in tracking w/metrics
+		#[derive(Debug)]
+		enum ErrorDescription {
+			SslError,
+			ConnectionError,
+			UpstreamConnectionFailure,
+			UntrackedError,
+		}
+		impl Display for ErrorDescription {
+			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+				write!(f, "{:?}", self)
+			}
+		}
+
 		// Some error happened
-		ERRORS_WHILE_PROXY.inc();
 		error!("{}: {:?}", session.request_summary(), err);
-		match err.etype {
+		let error_description = match err.etype {
 			ErrType::TLSHandshakeFailure
 			| ErrType::TLSHandshakeTimedout
 			| ErrType::InvalidCert
-			| ErrType::HandshakeError => SSL_ERROR.inc(),
+			| ErrType::HandshakeError => ErrorDescription::SslError,
 
 			ErrType::ConnectTimedout
 			| ErrType::ConnectRefused
@@ -454,13 +468,16 @@ impl ProxyHttp for AmplitudeProxy {
 			| ErrType::BindError
 			| ErrType::AcceptError
 			| ErrType::ConnectionClosed
-			| ErrType::SocketError => CONNECTION_ERRORS.inc(),
+			| ErrType::SocketError => ErrorDescription::ConnectionError,
 
-			ErrType::ConnectProxyFailure => UPSTREAM_CONNECTION_FAILURES.inc(),
+			ErrType::ConnectProxyFailure => ErrorDescription::UpstreamConnectionFailure,
 
 			// All the rest are ignored for now, bring in when needed
-			_ => {},
-		}
+			_ => ErrorDescription::UntrackedError,
+		};
+		PROXY_ERROR
+			.with_label_values(&[&error_description.to_string()])
+			.inc();
 	}
 }
 

@@ -1,16 +1,19 @@
 use once_cell::sync::Lazy;
 
-use prometheus::{register_gauge, Gauge};
-use prometheus::{register_int_counter, IntCounter};
+use prometheus::{register_gauge, Gauge, IntCounterVec};
+use prometheus::{register_int_counter, register_int_counter_vec, IntCounter};
 
 pub static INCOMING_REQUESTS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("incoming_requests_total", "incoming requests").unwrap());
 
+pub static UPSTREAM_PEER: Lazy<IntCounterVec> =
+	Lazy::new(|| register_int_counter_vec!("upstream_peer", "upstream peer", &["peer"]).unwrap());
+
 pub static HANDLED_REQUESTS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("handled_requests_total", "handled requests").unwrap());
 
-pub static ERRORS_WHILE_PROXY: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("error_while_proxy_total", "error while proxy").unwrap());
+pub static PROXY_ERROR: Lazy<IntCounterVec> =
+	Lazy::new(|| register_int_counter_vec!("proxy_error", "proxy error", &["error"]).unwrap());
 
 pub static CONNECTION_ERRORS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("connection_errors_total", "connection errors").unwrap());
@@ -22,13 +25,13 @@ pub static BODY_PARSE_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("body_parse_error_total", "body parse errors").unwrap());
 
 pub static INVALID_PEER: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("INVALID_PEER_TOTAL", "invalid peer").unwrap());
+	Lazy::new(|| register_int_counter!("invalid_peer_total", "invalid peer").unwrap());
 
 pub static AMPLITUDE_PEER: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("AMPLITUDE_PEER_TOTAL", "amplitude peer").unwrap());
+	Lazy::new(|| register_int_counter!("amplitude_peer_total", "amplitude peer").unwrap());
 
 pub static UMAMI_PEER: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("UMAMI_PEER_TOTAL", "umami peer").unwrap());
+	Lazy::new(|| register_int_counter!("umami_peer_total", "umami peer").unwrap());
 
 // co-parsing is serializing
 pub static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {

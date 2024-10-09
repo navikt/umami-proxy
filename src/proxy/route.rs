@@ -1,9 +1,17 @@
+use std::fmt::{self, Display, Formatter};
+
 #[derive(Debug, PartialEq)]
 pub enum Route {
 	Umami(String),
 	Amplitude(String),
 	AmplitudeCollect(String),
-	Other(String), //Someone did a goof
+	Unexpected(String), //Someone did a goof
+}
+
+impl Display for Route {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		write!(f, "{:?}", self)
+	}
 }
 
 pub fn match_route(path: String) -> Route {
@@ -14,7 +22,7 @@ pub fn match_route(path: String) -> Route {
 	} else if path.starts_with("/collect") {
 		Route::Amplitude(path.to_string())
 	} else {
-		Route::Other(path) // LIKE THIS
+		Route::Unexpected(path) // LIKE THIS
 	}
 }
 
