@@ -74,7 +74,7 @@ pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo,
 
 pub(crate) fn annotate_with_prod(v: &mut Value, amplitude_api_key_prod: String) {
 	if let Value::Object(obj) = v {
-		obj.insert("api-key".to_string(), Value::String(amplitude_api_key_prod));
+		obj.insert("api_key".to_string(), Value::String(amplitude_api_key_prod));
 	}
 }
 

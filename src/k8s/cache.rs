@@ -41,7 +41,6 @@ pub fn get_app_info_with_longest_prefix(key: String) -> Option<AppInfo> {
 
 	if let Some(longest_prefix) = trie.find_longest_prefix(key.bytes()) {
 		let mut cache = CACHE.lock().expect("Failed to lock cache");
-		dbg!("is prefix!{}", longest_prefix);
 		return cache.get(&longest_prefix.clone()).cloned();
 	}
 	None
