@@ -300,7 +300,7 @@ impl ProxyHttp for AmplitudeProxy {
 				{
 					annotate::annotate_with_app_info(&mut v, &app, &ctx.ingress);
 					info!("Found app: {:?}", app);
-					annotate::annotate_with_prod(&mut v, self.conf.amplitude_api_key_prod)
+					annotate::annotate_with_prod(&mut v, self.conf.amplitude_api_key_prod.clone());
 				}
 
 				// This uses exactly "event_properties, which maybe only amplitude has"
