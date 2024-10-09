@@ -297,8 +297,10 @@ impl ProxyHttp for AmplitudeProxy {
 				let mut cache = cache::CACHE.lock().unwrap();
 
 				info!("platform: {:?}", platform);
-				if let Some(app) = cache.get(&platform.unwrap_or("".into())) {
-					annotate::annotate_with_app_info(&mut v, app, &ctx.ingress);
+				if let Some(app) =
+					cache::get_app_info_with_longest_prefix(platform.unwrap_or("".into()))
+				{
+					annotate::annotate_with_app_info(&mut v, &app, &ctx.ingress);
 					info!("Found app: {:?}", app);
 				}
 
