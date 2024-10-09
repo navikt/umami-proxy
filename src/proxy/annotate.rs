@@ -52,7 +52,7 @@ pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo)
 				if key == "event_properties" && v.is_object() {
 					v.as_object_mut()
 						.unwrap()
-						.insert("namespace".into(), app_info.namespace.clone().into());
+						.insert("team".into(), app_info.namespace.clone().into());
 					v.as_object_mut()
 						.unwrap()
 						.insert("ingress".into(), app_info.ingress.clone().into());
