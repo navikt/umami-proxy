@@ -18,21 +18,21 @@ pub static PROXY_ERRORS: Lazy<IntCounterVec> = Lazy::new(|| {
 
 #[deprecated(
 	since = "0.1.0",
-	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `PROXY_ERRORS instead`"
+	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `crate::metrics::PROXY_ERRORS` instead"
 )]
 pub static CONNECTION_ERRORS: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("connection_errors_total", "connection errors").unwrap());
 
 #[deprecated(
 	since = "0.1.0",
-	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `PROXY_ERRORS instead`"
+	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `crate::metrics::PROXY_ERRORS` instead"
 )]
 pub static SSL_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("ssl_errors_total", "ssl errors").unwrap());
 
 #[deprecated(
 	since = "0.1.0",
-	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `PROXY_ERRORS instead`"
+	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `crate::metrics::PROXY_ERRORS` instead"
 )]
 pub static BODY_PARSE_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("body_parse_error_total", "body parse errors").unwrap());
@@ -48,7 +48,7 @@ pub static UMAMI_PEER: Lazy<IntCounter> =
 
 #[deprecated(
 	since = "0.1.0",
-	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `PROXY_ERRORS instead`"
+	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `crate::metrics::PROXY_ERRORS` instead"
 )]
 // co-parsing is serializing
 pub static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
@@ -61,7 +61,7 @@ pub static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
 
 #[deprecated(
 	since = "0.1.0",
-	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `PROXY_ERRORS instead`"
+	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `crate::metrics::PROXY_ERRORS` instead"
 )]
 pub static UPSTREAM_CONNECTION_FAILURES: Lazy<IntCounter> = Lazy::new(|| {
 	register_int_counter!(
