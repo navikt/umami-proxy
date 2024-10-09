@@ -294,8 +294,6 @@ impl ProxyHttp for AmplitudeProxy {
 				redact::traverse_and_redact(&mut v);
 				annotate::annotate_with_proxy_version(&mut v, "amplitrude-1.0.0");
 
-				let mut cache = cache::CACHE.lock().unwrap();
-
 				info!("platform: {:?}", platform);
 				if let Some(app) =
 					cache::get_app_info_with_longest_prefix(platform.unwrap_or("".into()))
