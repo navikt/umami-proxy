@@ -445,7 +445,6 @@ impl ProxyHttp for AmplitudeProxy {
 		};
 
 		// Some error happened
-		ERRORS_WHILE_PROXY.inc();
 		error!("{}: {:?}", session.request_summary(), err);
 		match err.etype {
 			ErrType::TLSHandshakeFailure
