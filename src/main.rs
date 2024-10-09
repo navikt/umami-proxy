@@ -3,6 +3,7 @@ use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 use std::net::ToSocketAddrs;
 use tracing::info;
 mod config;
+mod errors;
 mod health;
 mod k8s;
 mod metrics;

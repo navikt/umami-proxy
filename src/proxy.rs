@@ -1,17 +1,12 @@
-use crate::config::Config;
-use crate::k8s::cache::{self, INITIALIZED};
-use crate::metrics::{
-	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, HANDLED_REQUESTS, INCOMING_REQUESTS,
-	INVALID_PEER, PROXY_ERRORS, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
-	UPSTREAM_CONNECTION_FAILURES, UPSTREAM_PEER,
-};
-use http::Uri;
-use pingora::http::ResponseHeader;
+use std::collections::HashMap;
+use std::net::ToSocketAddrs;
+use std::str::FromStr;
+use std::sync::atomic::Ordering;
 
-use crate::k8s;
 use async_trait::async_trait;
 use bytes::Bytes;
-use pingora::Error;
+use http::Uri;
+use pingora::http::ResponseHeader;
 use pingora::ErrorType as ErrType;
 use pingora::{
 	http::RequestHeader,
@@ -19,17 +14,26 @@ use pingora::{
 	proxy::{ProxyHttp, Session},
 	Result,
 };
+use pingora::{Error, OrErr};
 use serde_json::{json, Value};
-use std::collections::HashMap;
-use std::fmt::{self, Display, Formatter};
-use std::net::ToSocketAddrs;
 use tracing::{error, info, warn};
 mod annotate;
 mod redact;
 mod route;
 use isbot::Bots;
 use serde_urlencoded;
-use std::sync::atomic::Ordering;
+
+use crate::config::Config;
+use crate::errors::{AmplitrudeProxyError, ErrorDescription};
+use crate::k8s::{
+	self,
+	cache::{self, INITIALIZED},
+};
+use crate::metrics::{
+	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, HANDLED_REQUESTS, INCOMING_REQUESTS,
+	INVALID_PEER, PROXY_ERRORS, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
+	UPSTREAM_CONNECTION_FAILURES, UPSTREAM_PEER,
+};
 
 pub struct AmplitudeProxy {
 	pub conf: Config,
@@ -232,10 +236,9 @@ impl ProxyHttp for AmplitudeProxy {
 			)))
 			},
 			route::Route::Unexpected(s) => {
-				INVALID_PEER.inc();
 				let error = format!("creating peer: {}", s);
 				Err(Error::explain(
-					pingora::ErrorType::Custom("no matching peer for path"),
+					pingora::ErrorType::Custom(AmplitrudeProxyError::NoMatchingPeer.into()),
 					error,
 				))
 			},
@@ -284,7 +287,9 @@ impl ProxyHttp for AmplitudeProxy {
 					return {
 						BODY_PARSE_ERROR.inc();
 						Err(Error::explain(
-							pingora::ErrorType::Custom("invalid request-json"),
+							pingora::ErrorType::Custom(
+								AmplitrudeProxyError::RequestContainsInvalidJson.into(),
+							),
 							"Failed to parse request body",
 						))
 					};
@@ -309,26 +314,16 @@ impl ProxyHttp for AmplitudeProxy {
 				}
 
 				// Surely there is a correct-by-conctruction Value type that can be turned into a string without fail
-				let json_body_result = serde_json::to_string(&v);
-
-				match json_body_result {
-					Ok(json_body) => {
+				serde_json::to_string(&v)
+					.or_err(
+						pingora::ErrorType::Custom(AmplitrudeProxyError::JsonCoParseError.into()),
+						"Failed to co-parse redacted request body",
+					)
+					.map(|json_body| {
 						*body = Some(Bytes::from(json_body));
-					},
-					Err(_) => {
-						// Technically, we do a bunch of mut Value, so there is
-						// A gurantee from the type system that this never happens
-						// however, we cant produce a witness to this so here we are.
-						REDACTED_BODY_COPARSE_ERROR.inc();
-						return Err(Error::explain(
-							pingora::ErrorType::Custom("invalid json after redacting"),
-							"Failed to co-parse redacted request body",
-						));
-					},
-				}
+					})?;
 			}
 		}
-
 		Ok(())
 	}
 
@@ -446,54 +441,64 @@ impl ProxyHttp for AmplitudeProxy {
 			return;
 		};
 
-		/// Collection of errors we are interested in tracking w/metrics
-		#[derive(Debug)]
-		enum ErrorDescription {
-			SslError,
-			ConnectionError,
-			UpstreamConnectionFailure,
-			UntrackedError,
-		}
-		impl Display for ErrorDescription {
-			fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-				write!(f, "{:?}", self)
-			}
-		}
-
 		// Some error happened
 		error!("{}: {:?}", session.request_summary(), err);
-		let error_description = match err.etype {
-			ErrType::TLSHandshakeFailure
-			| ErrType::TLSHandshakeTimedout
-			| ErrType::InvalidCert
-			| ErrType::HandshakeError => {
-				SSL_ERROR.inc();
-				ErrorDescription::SslError
-			},
+		let error = if let ErrType::Custom(error_description) = err.etype {
+			// First check for error causes we've written ourselves
+			AmplitrudeProxyError::from_str(error_description)
+				.map(|amplitude_proxy_error| match amplitude_proxy_error {
+					AmplitrudeProxyError::RequestContainsInvalidJson => {
+						BODY_PARSE_ERROR.inc();
+						ErrorDescription::AmplitrudeProxyError(amplitude_proxy_error)
+					},
+					AmplitrudeProxyError::JsonCoParseError => {
+						// Technically, we do a bunch of mut Value, so there is
+						// A gurantee from the type system that this never happens
+						// however, we cant produce a witness to this so here we are.
+						REDACTED_BODY_COPARSE_ERROR.inc();
+						ErrorDescription::AmplitrudeProxyError(amplitude_proxy_error)
+					},
+					AmplitrudeProxyError::NoMatchingPeer => {
+						INVALID_PEER.inc();
+						ErrorDescription::AmplitrudeProxyError(amplitude_proxy_error)
+					},
+					// Comment in again if we track another error we don't have an explicit metric for
+					// error => ErrorDescription::AmplitrudeProxyError(error),
+				})
+				.unwrap_or(ErrorDescription::UntrackedError)
+		} else {
+			// Then check for the pingora errors we're keen to track
+			match err.etype {
+				ErrType::TLSHandshakeFailure
+				| ErrType::TLSHandshakeTimedout
+				| ErrType::InvalidCert
+				| ErrType::HandshakeError => {
+					SSL_ERROR.inc();
+					ErrorDescription::SslError
+				},
 
-			ErrType::ConnectTimedout
-			| ErrType::ConnectRefused
-			| ErrType::ConnectNoRoute
-			| ErrType::ConnectError
-			| ErrType::BindError
-			| ErrType::AcceptError
-			| ErrType::ConnectionClosed
-			| ErrType::SocketError => {
-				CONNECTION_ERRORS.inc();
-				ErrorDescription::ConnectionError
-			},
+				ErrType::ConnectTimedout
+				| ErrType::ConnectRefused
+				| ErrType::ConnectNoRoute
+				| ErrType::ConnectError
+				| ErrType::BindError
+				| ErrType::AcceptError
+				| ErrType::ConnectionClosed
+				| ErrType::SocketError => {
+					CONNECTION_ERRORS.inc();
+					ErrorDescription::ConnectionError
+				},
 
-			ErrType::ConnectProxyFailure => {
-				UPSTREAM_CONNECTION_FAILURES.inc();
-				ErrorDescription::UpstreamConnectionFailure
-			},
+				ErrType::ConnectProxyFailure => {
+					UPSTREAM_CONNECTION_FAILURES.inc();
+					ErrorDescription::UpstreamConnectionFailure
+				},
 
-			// All the rest are ignored for now, bring in when needed
-			_ => ErrorDescription::UntrackedError,
+				// All the rest are ignored for now, bring in when needed
+				_ => ErrorDescription::UntrackedError,
+			}
 		};
-		PROXY_ERRORS
-			.with_label_values(&[&error_description.to_string()])
-			.inc();
+		PROXY_ERRORS.with_label_values(&[&error.as_str()]).inc();
 	}
 }
 
