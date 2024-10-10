@@ -276,7 +276,10 @@ impl ProxyHttp for AmplitudeProxy {
 
 				// We should do content negotiation, apparently
 				// This must be a downsteam misconfiguration, surely??
-				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
+				if content_type
+					.to_lowercase()
+					.contains("application/x-www-form-urlencoded")
+				{
 					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
 				} else {
 					json = serde_json::from_slice(&ctx.request_body_buffer)
