@@ -218,7 +218,7 @@ impl ProxyHttp for AmplitudeProxy {
 						.unwrap_or_else(|| "".into()),
 				)))
 			},
-			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
+			_ => {
 				AMPLITUDE_PEER.inc();
 				Ok(Box::new(HttpPeer::new(
 				format!(
@@ -238,13 +238,6 @@ impl ProxyHttp for AmplitudeProxy {
 					.clone()
 					.unwrap_or_else(|| "".into()),
 			)))
-			},
-			route::Route::Unexpected(s) => {
-				let error = format!("creating peer: {}", s);
-				Err(Error::explain(
-					pingora::ErrorType::Custom(AmplitrudeProxyError::NoMatchingPeer.into()),
-					error,
-				))
 			},
 		}
 	}
@@ -279,8 +272,10 @@ impl ProxyHttp for AmplitudeProxy {
 						},
 					);
 
-				// We should do proper content negotiation, apparently
 				let json: Result<serde_json::Value, _>;
+
+				// We should do content negotiation, apparently
+				// This must be a downsteam misconfiguration, surely??
 				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
 					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
 				} else {
@@ -316,14 +311,14 @@ impl ProxyHttp for AmplitudeProxy {
 				}
 
 				// Surely there is a correct-by-conctruction Value type that can be turned into a string without fail
-				serde_json::to_string(&v)
-					.or_err(
-						pingora::ErrorType::Custom(AmplitrudeProxyError::JsonCoParseError.into()),
-						"Failed to co-parse redacted request body",
-					)
-					.map(|json_body| {
-						*body = Some(Bytes::from(json_body));
-					})?;
+				if let Ok(json_body) = serde_json::to_string(&v) {
+					*body = Some(Bytes::from(json_body));
+				} else {
+					return Err(Error::explain(
+						pingora::ErrorType::Custom("Serialization".into()),
+						"failed to co-parse request body",
+					));
+				}
 			}
 		}
 
@@ -373,7 +368,7 @@ impl ProxyHttp for AmplitudeProxy {
 					.expect("Needs correct Host header");
 
 				// We are using vercel headers here because Umami supports them
-				// and they are not configurable. We already have this info in the request
+				// and they are not configurable on umamis side. We already have this info in the request
 				// as x-client-city, x-client-countrlly but umami does not support those names.
 				// (umami also supports Cloudflare headers, which we aren't (but could be) using )
 				if let Some(loc) = &ctx.location {
