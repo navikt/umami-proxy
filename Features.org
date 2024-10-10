@@ -28,6 +28,15 @@ This one should have
 - requests per second
 - cpu and memory
 
+** TODO Correlation Ids
+Since the requests go through a lifecycle and very concurrent we get
+request log message aliasing. These should have a correlation id and color!
+
+** TODO collect-auto
+The point of collect-auto is to add api-keys depending on the app-team-environment.
+all of these fail without the api-key field.
+Imo, the collect-auto bit is a misfeature. (if we're doing a redaction proxy. It's a reasonable thing to have for a
+custom event ingestion pipeline )
 
 ** DONE log levels
 
