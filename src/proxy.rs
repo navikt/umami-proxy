@@ -95,6 +95,8 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
+		session.enable_retry_buffering();
+
 		INCOMING_REQUESTS.inc();
 		ctx.proxy_start = Some(time::Instant::now());
 		if !INITIALIZED.load(Ordering::Relaxed) {
