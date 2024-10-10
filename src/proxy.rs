@@ -259,17 +259,6 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		let content_type = session
-			.downstream_session
-			.get_header("content-type")
-			.map_or_else(
-				|| String::from("no content type header"),
-				|x| {
-					x.to_str()
-						.map_or(String::from(""), std::borrow::ToOwned::to_owned)
-				},
-			);
-
 		// buffer the data
 		if let Some(b) = body {
 			ctx.request_body_buffer.extend(&b[..]);
@@ -279,6 +268,17 @@ impl ProxyHttp for AmplitudeProxy {
 		if end_of_stream {
 			// This is the last chunk, we can process the data now
 			if !ctx.request_body_buffer.is_empty() {
+				let content_type = session
+					.downstream_session
+					.get_header("content-type")
+					.map_or_else(
+						|| String::from("no content type header"),
+						|x| {
+							x.to_str()
+								.map_or(String::from(""), std::borrow::ToOwned::to_owned)
+						},
+					);
+
 				// We should do proper content negotiation, apparently
 				let json: Result<serde_json::Value, _>;
 				if content_type == "application/x-www-form-urlencoded; charset=UTF-8" {
@@ -326,6 +326,7 @@ impl ProxyHttp for AmplitudeProxy {
 					})?;
 			}
 		}
+
 		Ok(())
 	}
 
@@ -346,26 +347,6 @@ impl ProxyHttp for AmplitudeProxy {
 			ctx.ingress
 		);
 		Ok(())
-	}
-	fn upstream_response_body_filter(
-		&self,
-		session: &mut Session,
-		body: &mut Option<Bytes>,
-		end_of_stream: bool,
-		ctx: &mut Self::CTX,
-	) -> () {
-		if let Some(b) = body {
-			ctx.response_body_buffer.extend(&b[..]);
-			// drop the body - we've consumed it as b
-			b.clear();
-		}
-		if end_of_stream {
-			trace!(
-				"{} - {}",
-				session.request_summary(),
-				String::from_utf8_lossy(&ctx.response_body_buffer)
-			);
-		}
 	}
 
 	/// Redact path and query parameters of request
