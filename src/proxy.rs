@@ -467,8 +467,8 @@ impl ProxyHttp for AmplitudeProxy {
 						INVALID_PEER.inc();
 						ErrorDescription::AmplitrudeProxyError(amplitude_proxy_error)
 					},
-					// Comment in again if we track another error we don't have an explicit metric for
-					// error => ErrorDescription::AmplitrudeProxyError(error),
+					// For the `::Custom` pingora errorse we track and don't have an explicit metric for
+					error => ErrorDescription::AmplitrudeProxyError(error),
 				})
 				.unwrap_or(ErrorDescription::UntrackedError)
 		} else {

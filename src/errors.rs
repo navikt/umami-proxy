@@ -7,6 +7,8 @@ pub enum AmplitrudeProxyError {
 	RequestContainsInvalidJson,
 	JsonCoParseError,
 	NoMatchingPeer,
+	// This one matches the pingora::Error::Custom(string) exactly
+	PrematureBodyEnd,
 }
 
 impl Display for AmplitrudeProxyError {
