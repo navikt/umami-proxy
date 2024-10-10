@@ -113,6 +113,7 @@
             cargo-outdated
             cargo-cyclonedx
             cargo-watch
+            cargo-shear
             cmake
             socat
             hivemind
