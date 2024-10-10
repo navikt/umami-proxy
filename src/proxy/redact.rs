@@ -37,10 +37,6 @@ impl Rule {
 	}
 }
 
-// This function should be split into two functions
-// one for           Value -> Extended_Value_With_Rule_Nodes and
-// one function for  Extended_Value_With_Rule_Nodes -> Value
-// So that
 pub fn traverse_and_redact(value: &mut Value) {
 	match value {
 		Value::String(s) => {
@@ -96,52 +92,6 @@ fn redact(s: &str) -> Rule {
 	} else {
 		Rule::Original(s.to_string())
 	}
-}
-
-fn print_query((key, value): &(Rule, Rule)) -> String {
-	format!("{}={}", key.pretty_print(), value.pretty_print())
-}
-
-fn redact_paths(ps: &[&str]) -> Vec<Rule> {
-	ps.iter().map(|p: &&str| Rule::new(p)).collect()
-}
-
-fn redact_queries(ss: &[(&str, &str)]) -> Vec<(Rule, Rule)> {
-	ss.iter()
-		.map(|q| (Rule::new(q.0), Rule::new(q.1)))
-		.collect()
-}
-
-pub fn redact_uri(old_uri: &Uri) -> Uri {
-	let redacted_paths = itertools::join(
-		redact_paths(&old_uri.path().split('/').collect::<Vec<_>>())
-			.iter()
-			.map(|p| p.pretty_print()),
-		"/",
-	);
-
-	let redacted_queries = itertools::join(
-		redact_queries(
-			&old_uri
-				.query()
-				.unwrap_or("")
-				.split('&')
-				.filter_map(|q| q.split_once('='))
-				.collect::<Vec<_>>(),
-		)
-		.iter()
-		.map(print_query),
-		"&",
-	);
-
-	let query_params = if old_uri.query().is_some_and(|q| !q.is_empty()) {
-		format!("?{redacted_queries}")
-	} else {
-		String::new()
-	};
-	format!("{redacted_paths}{query_params}")
-		.parse::<Uri>()
-		.unwrap()
 }
 
 #[cfg(test)]
