@@ -30,13 +30,6 @@ pub static CONNECTION_ERRORS: Lazy<IntCounter> =
 pub static SSL_ERROR: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("ssl_errors_total", "ssl errors").unwrap());
 
-#[deprecated(
-	since = "0.1.0",
-	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `crate::metrics::PROXY_ERRORS` instead"
-)]
-pub static BODY_PARSE_ERROR: Lazy<IntCounter> =
-	Lazy::new(|| register_int_counter!("body_parse_error_total", "body parse errors").unwrap());
-
 pub static INVALID_PEER: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("invalid_peer_total", "invalid peer").unwrap());
 
@@ -45,19 +38,6 @@ pub static AMPLITUDE_PEER: Lazy<IntCounter> =
 
 pub static UMAMI_PEER: Lazy<IntCounter> =
 	Lazy::new(|| register_int_counter!("umami_peer_total", "umami peer").unwrap());
-
-#[deprecated(
-	since = "0.1.0",
-	note = "Use `crate::errors::AmplitrudeProxyError` variants & labels put on `crate::metrics::PROXY_ERRORS` instead"
-)]
-// co-parsing is serializing
-pub static REDACTED_BODY_COPARSE_ERROR: Lazy<IntCounter> = Lazy::new(|| {
-	register_int_counter!(
-		"redacted_body_coparse_error_total",
-		"redact body coparse errors"
-	)
-	.unwrap()
-});
 
 #[deprecated(
 	since = "0.1.0",

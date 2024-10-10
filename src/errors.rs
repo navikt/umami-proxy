@@ -13,7 +13,7 @@ pub enum AmplitrudeProxyError {
 
 impl Display for AmplitrudeProxyError {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "{:?}", self)
+		write!(f, "{self:?}")
 	}
 }
 #[derive(Debug, PartialEq, Eq, IntoStaticStr)]
@@ -34,12 +34,12 @@ impl ErrorDescription {
 }
 impl Display for ErrorDescription {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "{:?}", self)
+		write!(f, "{self:?}")
 	}
 }
 
 impl From<AmplitrudeProxyError> for ErrorDescription {
-	fn from(error: AmplitrudeProxyError) -> ErrorDescription {
+	fn from(error: AmplitrudeProxyError) -> Self {
 		Self::AmplitrudeProxyError(error)
 	}
 }

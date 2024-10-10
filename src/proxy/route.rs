@@ -10,17 +10,17 @@ pub enum Route {
 
 impl Display for Route {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-		write!(f, "{:?}", self)
+		write!(f, "{self:?}")
 	}
 }
 
 pub fn match_route(path: String) -> Route {
 	if path.starts_with("/umami") {
-		Route::Umami(path.to_string())
+		Route::Umami(path)
 	} else if path.starts_with("/collect-auto") {
-		Route::AmplitudeCollect(path.to_string())
+		Route::AmplitudeCollect(path)
 	} else if path.starts_with("/collect") {
-		Route::Amplitude(path.to_string())
+		Route::Amplitude(path)
 	} else {
 		Route::Unexpected(path) // LIKE THIS
 	}

@@ -22,26 +22,35 @@ pub static INITIALIZED: AtomicBool = AtomicBool::new(false);
 // This is the appinfo struct as per the ingress-collector app
 #[derive(Clone, Debug, PartialEq)]
 pub struct AppInfo {
-	pub app: String,
+	pub app_name: String,
 	pub namespace: String,
 	pub ingress: String,
 	pub creation_timestamp: String,
 }
 
 pub fn insert_into_cache(key: String, value: AppInfo) {
-	let mut cache = CACHE.lock().expect("Failed to lock cache");
-	cache.put(key.clone(), value);
+	CACHE
+		.lock()
+		.expect("Failed to lock cache")
+		.put(key.clone(), value);
 
-	let mut trie = PREFIX_TRIE.lock().expect("Failed to lock trie");
-	trie.insert(key.clone().bytes(), key);
+	PREFIX_TRIE
+		.lock()
+		.expect("Failed to lock trie")
+		.insert(key.clone().bytes(), key);
 }
 
-pub fn get_app_info_with_longest_prefix(key: String) -> Option<AppInfo> {
-	let trie = PREFIX_TRIE.lock().expect("Failed to lock trie");
-
-	if let Some(longest_prefix) = trie.find_longest_prefix(key.bytes()) {
-		let mut cache = CACHE.lock().expect("Failed to lock cache");
-		return cache.get(&longest_prefix.clone()).cloned();
+pub fn get_app_info_with_longest_prefix(key: &str) -> Option<AppInfo> {
+	if let Some(longest_prefix) = PREFIX_TRIE
+		.lock()
+		.expect("Failed to lock trie")
+		.find_longest_prefix(key.bytes())
+	{
+		return CACHE
+			.lock()
+			.expect("Failed to lock cache")
+			.get(&longest_prefix.clone())
+			.cloned();
 	}
 	None
 }
@@ -54,7 +63,7 @@ mod tests {
 	fn test_insert_and_retrieve_from_cache() {
 		let key = "test-key".to_string();
 		let app_info = AppInfo {
-			app: "test-app".to_string(),
+			app_name: "test-app".to_string(),
 			namespace: "test-namespace".to_string(),
 			ingress: "test-ingress".to_string(),
 			creation_timestamp: "2023-01-01T00:00:00Z".to_string(),
@@ -63,7 +72,7 @@ mod tests {
 		insert_into_cache(key.clone(), app_info.clone());
 		insert_into_cache(key.clone(), app_info.clone());
 
-		let retrieved_app_info = get_app_info_with_longest_prefix(key.clone());
+		let retrieved_app_info = get_app_info_with_longest_prefix(&key.clone());
 		assert!(
 			retrieved_app_info.is_some(),
 			"AppInfo should be present in cache"
@@ -75,7 +84,7 @@ mod tests {
 		);
 
 		let prefix_key = "test-key-key-key".to_string();
-		let prefix_app_info = get_app_info_with_longest_prefix(prefix_key).unwrap();
+		let prefix_app_info = get_app_info_with_longest_prefix(&prefix_key).unwrap();
 		assert_eq!(
 			prefix_app_info, app_info,
 			"Prefix-based retrieval should match inserted AppInfo"

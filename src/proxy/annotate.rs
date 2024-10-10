@@ -23,10 +23,11 @@ pub fn annotate_with_location(value: &mut Value, city: &String, country: &String
 		Value::Object(obj) => {
 			for (key, v) in obj.iter_mut() {
 				if key == "event_properties" && v.is_object() {
-					v.as_object_mut()
-						.unwrap()
-						.insert("[Amplitude] City".into(), Value::String(city.to_owned()));
-					v.as_object_mut().unwrap().insert(
+					let inner_object = v.as_object_mut().expect(
+						"Should be possible to get a mutable reference to the inner object",
+					);
+					inner_object.insert("[Amplitude] City".into(), Value::String(city.to_owned()));
+					inner_object.insert(
 						"[Amplitude] Country".into(),
 						Value::String(country.to_owned()),
 					);
@@ -44,24 +45,19 @@ pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo,
 	match value {
 		Value::Array(arr) => {
 			for v in arr {
-				annotate_with_app_info(v, &app_info.clone(), &host);
+				annotate_with_app_info(v, &app_info.clone(), host);
 			}
 		},
 		Value::Object(obj) => {
 			for (key, v) in obj.iter_mut() {
 				if key == "event_properties" && v.is_object() {
-					v.as_object_mut()
-						.unwrap()
-						.insert("team".into(), app_info.namespace.clone().into());
-					v.as_object_mut()
-						.unwrap()
-						.insert("ingress".into(), app_info.ingress.clone().into());
-					v.as_object_mut()
-						.unwrap()
-						.insert("app".into(), app_info.app.clone().into());
-					v.as_object_mut()
-						.unwrap()
-						.insert("hostname".into(), host.clone().into());
+					let inner_object = v.as_object_mut().expect(
+						"Should be possible to get a mutable reference to the inner object",
+					);
+					inner_object.insert("team".into(), app_info.namespace.clone().into());
+					inner_object.insert("ingress".into(), app_info.ingress.clone().into());
+					inner_object.insert("app".into(), app_info.app_name.clone().into());
+					inner_object.insert("hostname".into(), host.clone().into());
 				}
 			}
 		},
@@ -72,7 +68,7 @@ pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo,
 	}
 }
 
-pub(crate) fn annotate_with_prod(v: &mut Value, amplitude_api_key_prod: String) {
+pub fn annotate_with_prod(v: &mut Value, amplitude_api_key_prod: String) {
 	if let Value::Object(obj) = v {
 		obj.insert("api_key".to_string(), Value::String(amplitude_api_key_prod));
 	}

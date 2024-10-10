@@ -12,9 +12,8 @@ use pingora::{
 	http::RequestHeader,
 	prelude::HttpPeer,
 	proxy::{ProxyHttp, Session},
-	Result,
+	Error, OrErr, Result,
 };
-use pingora::{Error, OrErr};
 use serde_json::{json, Value};
 use tokio::time;
 use tracing::{error, info, trace, warn};
@@ -22,7 +21,6 @@ mod annotate;
 mod redact;
 mod route;
 use isbot::Bots;
-use serde_urlencoded;
 
 use crate::config::Config;
 use crate::errors::{AmplitrudeProxyError, ErrorDescription};
@@ -31,9 +29,8 @@ use crate::k8s::{
 	cache::{self, INITIALIZED},
 };
 use crate::metrics::{
-	AMPLITUDE_PEER, BODY_PARSE_ERROR, CONNECTION_ERRORS, HANDLED_REQUESTS, INCOMING_REQUESTS,
-	INVALID_PEER, PROXY_ERRORS, REDACTED_BODY_COPARSE_ERROR, SSL_ERROR, UMAMI_PEER,
-	UPSTREAM_CONNECTION_FAILURES, UPSTREAM_PEER,
+	AMPLITUDE_PEER, CONNECTION_ERRORS, HANDLED_REQUESTS, INCOMING_REQUESTS, INVALID_PEER,
+	PROXY_ERRORS, SSL_ERROR, UMAMI_PEER, UPSTREAM_CONNECTION_FAILURES, UPSTREAM_PEER,
 };
 
 pub struct AmplitudeProxy {
@@ -44,13 +41,13 @@ pub struct AmplitudeProxy {
 }
 
 impl AmplitudeProxy {
-	pub fn new(
+	pub const fn new(
 		conf: Config,
 		addr: std::net::SocketAddr,
 		sni: Option<String>,
 		bots: Bots,
-	) -> AmplitudeProxy {
-		AmplitudeProxy {
+	) -> Self {
+		Self {
 			conf,
 			addr,
 			sni,
@@ -68,7 +65,6 @@ pub struct Location {
 #[derive(Debug)]
 pub struct Ctx {
 	request_body_buffer: Vec<u8>,
-	response_body_buffer: Vec<u8>,
 	route: route::Route,
 	location: Option<Location>,
 	ingress: String,
@@ -81,10 +77,9 @@ impl ProxyHttp for AmplitudeProxy {
 	fn new_ctx(&self) -> Self::CTX {
 		Ctx {
 			request_body_buffer: Vec::new(),
-			response_body_buffer: Vec::new(),
-			route: route::Route::Unexpected("".into()),
+			route: route::Route::Unexpected(String::new()),
 			location: None,
-			ingress: "".into(),
+			ingress: String::new(),
 			proxy_start: None,
 		}
 	}
@@ -102,15 +97,17 @@ impl ProxyHttp for AmplitudeProxy {
 		if !INITIALIZED.load(Ordering::Relaxed) {
 			// We only ever want to spawn this thread once. It reads all ingresses once and then sits
 			// around watching changes to ingresses
-			if let Ok(_) =
-				// This is double checked locking, if you squint.
-				// https://en.wikipedia.org/wiki/Double-checked_locking
-				INITIALIZED.compare_exchange(
+			if INITIALIZED
+				.compare_exchange(
 					false,
 					true,
 					Ordering::SeqCst, // sequenctially consistent
 					Ordering::Relaxed,
-				) {
+				)
+				.is_ok()
+			// This is double checked locking, if you squint.
+			// https://en.wikipedia.org/wiki/Double-checked_locking
+			{
 				// This should have a gauge to show that we only ever have one (or zero ) of these
 				tokio::spawn(async {
 					let e1 = k8s::populate_cache();
@@ -128,11 +125,10 @@ impl ProxyHttp for AmplitudeProxy {
 			},
 		);
 
-		ctx.ingress = origin
-			.split("//")
-			.collect::<Vec<_>>()
-			.last()
-			.unwrap()
+		ctx.ingress =
+			(*origin.split("//").collect::<Vec<_>>().last().expect(
+				"HTTP requests are expected to contain an `origin` header w/scheme specified",
+			))
 			.to_string();
 
 		let city = session
@@ -157,7 +153,7 @@ impl ProxyHttp for AmplitudeProxy {
 				},
 				|x| {
 					x.to_str()
-						.map_or(String::from(""), std::borrow::ToOwned::to_owned)
+						.map_or(String::new(), std::borrow::ToOwned::to_owned)
 				},
 			);
 
@@ -196,31 +192,23 @@ impl ProxyHttp for AmplitudeProxy {
 		UPSTREAM_PEER
 			.with_label_values(&[&format!("{}", &ctx.route)])
 			.inc();
-		match &ctx.route {
-			route::Route::Umami(_) => {
-				UMAMI_PEER.inc();
-				Ok(Box::new(HttpPeer::new(
-					format!(
-						"{}:{}",
-						self.conf.upstream_umami.host, self.conf.upstream_umami.port
-					)
-					.to_socket_addrs()
-					.expect(
-						"Umami specified `host` & `port` should give valid `std::net::SocketAddr`",
-					)
-					.next()
-					.expect("SocketAddr should resolve to at least 1 IP address"),
-					self.conf.upstream_umami.sni.is_some(),
-					self.conf
-						.upstream_umami
-						.sni
-						.clone()
-						.unwrap_or_else(|| "".into()),
-				)))
-			},
-			_ => {
-				AMPLITUDE_PEER.inc();
-				Ok(Box::new(HttpPeer::new(
+		if let route::Route::Umami(_) = &ctx.route {
+			UMAMI_PEER.inc();
+			Ok(Box::new(HttpPeer::new(
+				format!(
+					"{}:{}",
+					self.conf.upstream_umami.host, self.conf.upstream_umami.port
+				)
+				.to_socket_addrs()
+				.expect("Umami specified `host` & `port` should give valid `std::net::SocketAddr`")
+				.next()
+				.expect("SocketAddr should resolve to at least 1 IP address"),
+				self.conf.upstream_umami.sni.is_some(),
+				self.conf.upstream_umami.sni.clone().unwrap_or_default(),
+			)))
+		} else {
+			AMPLITUDE_PEER.inc();
+			Ok(Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
 					self.conf.upstream_amplitude.host, self.conf.upstream_amplitude.port
@@ -232,13 +220,8 @@ impl ProxyHttp for AmplitudeProxy {
 				.next()
 				.expect("SocketAddr should resolve to at least 1 IP address"),
 				self.conf.upstream_amplitude.sni.is_some(),
-				self.conf
-					.upstream_amplitude
-					.sni
-					.clone()
-					.unwrap_or_else(|| "".into()),
+				self.conf.upstream_amplitude.sni.clone().unwrap_or_default(),
 			)))
-			},
 		}
 	}
 
@@ -268,55 +251,57 @@ impl ProxyHttp for AmplitudeProxy {
 						|| String::from("no content type header"),
 						|x| {
 							x.to_str()
-								.map_or(String::from(""), std::borrow::ToOwned::to_owned)
+								.map_or(String::new(), std::borrow::ToOwned::to_owned)
 						},
 					);
 
-				let json: Result<serde_json::Value, _>;
-
 				// We should do content negotiation, apparently
 				// This must be a downsteam misconfiguration, surely??
-				if content_type
+				let mut json: Value = if content_type
 					.to_lowercase()
 					.contains("application/x-www-form-urlencoded")
 				{
-					json = parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer));
+					parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer))?
 				} else {
-					json = serde_json::from_slice(&ctx.request_body_buffer)
-				}
-				// this erros on "use of a moved value"
-				let Ok(mut v) = json else {
-					return {
-						BODY_PARSE_ERROR.inc();
-						Err(Error::explain(
+					serde_json::from_slice(&ctx.request_body_buffer)
+						.or_err(
 							pingora::ErrorType::Custom(
 								AmplitrudeProxyError::RequestContainsInvalidJson.into(),
 							),
 							"Failed to parse request body",
-						))
-					};
+						)
+						.map_err(|e| *e)?
 				};
 
-				let platform = get_platform(&mut v);
-				redact::traverse_and_redact(&mut v);
-				annotate::annotate_with_proxy_version(&mut v, "amplitrude-1.0.0");
+				let platform = get_platform(&json);
+				redact::traverse_and_redact(&mut json);
+				annotate::annotate_with_proxy_version(
+					&mut json,
+					&format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
+				);
 
 				if let Some(app) =
-					cache::get_app_info_with_longest_prefix(platform.unwrap_or("".into()))
+					cache::get_app_info_with_longest_prefix(&platform.unwrap_or_default())
 				{
-					annotate::annotate_with_app_info(&mut v, &app, &ctx.ingress);
-					annotate::annotate_with_prod(&mut v, self.conf.amplitude_api_key_prod.clone());
+					annotate::annotate_with_app_info(&mut json, &app, &ctx.ingress);
+					annotate::annotate_with_prod(
+						&mut json,
+						self.conf.amplitude_api_key_prod.clone(),
+					);
 				}
 
 				// This uses exactly "event_properties, which maybe only amplitude has"
 				if let Some(loc) = &ctx.location {
-					annotate::annotate_with_location(&mut v, &loc.city, &loc.country);
+					annotate::annotate_with_location(&mut json, &loc.city, &loc.country);
 				}
 
-				// Surely there is a correct-by-conctruction Value type that can be turned into a string without fail
-				if let Ok(json_body) = serde_json::to_string(&v) {
+				// Surely there is a correct-by-conctruction value type that can be turned into a string without fail
+				if let Ok(json_body) = serde_json::to_string(&json) {
 					*body = Some(Bytes::from(json_body));
 				} else {
+					// Technically, we do a bunch of mut Value, so there is
+					// A gurantee from the type system that this never happens
+					// however, we cant produce a witness to this so here we are.
 					return Err(Error::explain(
 						pingora::ErrorType::Custom(AmplitrudeProxyError::JsonCoParseError.into()),
 						"failed to co-parse request body",
@@ -324,7 +309,6 @@ impl ProxyHttp for AmplitudeProxy {
 				}
 			}
 		}
-
 		Ok(())
 	}
 
@@ -362,7 +346,7 @@ impl ProxyHttp for AmplitudeProxy {
 		upstream_request.remove_header("Content-Length");
 		upstream_request
 			.insert_header("Transfer-Encoding", "Chunked")
-			.unwrap();
+			.expect("Needs correct transfer-encoding scheme header set");
 
 		match &ctx.route {
 			route::Route::Umami(_) => {
@@ -377,11 +361,11 @@ impl ProxyHttp for AmplitudeProxy {
 				if let Some(loc) = &ctx.location {
 					upstream_request
 						.insert_header("X-Vercel-IP-Country", &loc.country)
-						.unwrap();
+						.expect("Set geo-location header (country) for umami");
 
 					upstream_request
 						.insert_header("X-Vercel-City", &loc.city)
-						.unwrap();
+						.expect("Set geo-location header (city) for umami");
 				}
 			},
 			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
@@ -396,10 +380,7 @@ impl ProxyHttp for AmplitudeProxy {
 			route::Route::Umami(_) => {
 				upstream_request.set_uri(Uri::from_static("/api/send"));
 			},
-			route::Route::Amplitude(_) => {
-				upstream_request.set_uri(Uri::from_static("/2/httpapi"));
-			},
-			route::Route::AmplitudeCollect(_) => {
+			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
 				upstream_request.set_uri(Uri::from_static("/2/httpapi"));
 			},
 			route::Route::Unexpected(_) => {},
@@ -427,17 +408,6 @@ impl ProxyHttp for AmplitudeProxy {
 			// First check for error causes we've written ourselves
 			AmplitrudeProxyError::from_str(error_description)
 				.map(|amplitude_proxy_error| match amplitude_proxy_error {
-					AmplitrudeProxyError::RequestContainsInvalidJson => {
-						BODY_PARSE_ERROR.inc();
-						ErrorDescription::AmplitrudeProxyError(amplitude_proxy_error)
-					},
-					AmplitrudeProxyError::JsonCoParseError => {
-						// Technically, we do a bunch of mut Value, so there is
-						// A gurantee from the type system that this never happens
-						// however, we cant produce a witness to this so here we are.
-						REDACTED_BODY_COPARSE_ERROR.inc();
-						ErrorDescription::AmplitrudeProxyError(amplitude_proxy_error)
-					},
 					AmplitrudeProxyError::NoMatchingPeer => {
 						INVALID_PEER.inc();
 						ErrorDescription::AmplitrudeProxyError(amplitude_proxy_error)
@@ -484,36 +454,38 @@ impl ProxyHttp for AmplitudeProxy {
 			""
 		};
 		error!("{untracked}{}: {:?}", session.request_summary(), err);
-		PROXY_ERRORS.with_label_values(&[&error.as_str()]).inc();
+		PROXY_ERRORS.with_label_values(&[(error.as_str())]).inc();
 	}
 }
 
-fn parse_url_encoded(data: &str) -> Result<Value, serde_json::Error> {
-	let parsed: HashMap<String, String> = serde_urlencoded::from_str(data).unwrap();
-	let client = parsed.get("client").cloned();
+fn parse_url_encoded(data: &str) -> Result<Value, pingora::Error> {
+	let parsed: HashMap<String, String> = serde_urlencoded::from_str(data)
+		.explain_err(
+			pingora::ErrorType::Custom(AmplitrudeProxyError::RequestContainsInvalidJson.into()),
+			|e| format!("urlencoded json malformed: {e}"),
+		)
+		.map_err(|e| *e)?;
 
-	let events_data = match parsed.get("e") {
-		Some(e) => serde_json::from_str::<Value>(e).unwrap_or(json!(null)),
-		None => json!(null),
-	};
+	let client = parsed.get("client").cloned();
+	let events_data = parsed.get("e").map_or(json!(null), |e| {
+		serde_json::from_str::<Value>(e).unwrap_or(json!(null))
+	});
 
 	Ok(json!({ "events": events_data, "api-key": client }))
 }
 
 fn get_platform(value: &Value) -> Option<String> {
-	if let Some(events) = value.get("events").and_then(|v| v.as_array()) {
-		events
-			.iter()
-			.filter_map(|event| {
+	value
+		.get("events")
+		.and_then(|v| v.as_array())
+		.and_then(|events| {
+			events.iter().find_map(|event| {
 				event
 					.get("platform")
 					.and_then(|v| v.as_str())
 					.map(String::from)
 			})
-			.next()
-	} else {
-		None
-	}
+		})
 }
 
 #[cfg(test)]

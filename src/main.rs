@@ -21,7 +21,7 @@ fn main() {
 		test: false,
 		conf: None,
 	}))
-	.unwrap();
+	.expect("Default args should work");
 
 	amplitrude_proxy.bootstrap();
 
@@ -29,14 +29,13 @@ fn main() {
 		conf.clone(),
 		format!(
 			"{}:{}",
-			conf.upstream_amplitude.host.to_owned(),
-			conf.upstream_amplitude.port.to_owned()
+			conf.upstream_amplitude.host, conf.upstream_amplitude.port,
 		)
 		.to_socket_addrs()
-		.unwrap()
+		.expect("Amplitude specified `host` & `port` should give valid `std::net::SocketAddr`")
 		.next()
-		.unwrap(),
-		conf.upstream_amplitude.sni.to_owned(),
+		.expect("SocketAddr should resolve to at least 1 IP address"),
+		conf.upstream_amplitude.sni,
 		isbot::Bots::default(),
 	);
 
