@@ -16,6 +16,7 @@
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
         "nginx.ingress.kubernetes.io/canary-weight" = "25";
+        "linkerd.io/inject" = "disabled";
       };
     };
     spec = {
