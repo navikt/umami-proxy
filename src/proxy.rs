@@ -447,7 +447,6 @@ impl ProxyHttp for AmplitudeProxy {
 		};
 
 		// Some error happened
-		error!("{}: {:?}", session.request_summary(), err);
 		let error = if let ErrType::Custom(error_description) = err.etype {
 			// First check for error causes we've written ourselves
 			AmplitrudeProxyError::from_str(error_description)
@@ -503,6 +502,12 @@ impl ProxyHttp for AmplitudeProxy {
 				_ => ErrorDescription::UntrackedError,
 			}
 		};
+		let untracked = if error == ErrorDescription::UntrackedError {
+			"Untracked error: "
+		} else {
+			""
+		};
+		error!("{untracked}{}: {:?}", session.request_summary(), err);
 		PROXY_ERRORS.with_label_values(&[&error.as_str()]).inc();
 	}
 }

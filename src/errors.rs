@@ -2,7 +2,7 @@ use std::fmt::{self, Display, Formatter};
 
 use strum::{EnumString, IntoStaticStr};
 
-#[derive(Debug, EnumString, IntoStaticStr)]
+#[derive(Debug, PartialEq, Eq, EnumString, IntoStaticStr)]
 pub enum AmplitrudeProxyError {
 	RequestContainsInvalidJson,
 	JsonCoParseError,
@@ -16,7 +16,7 @@ impl Display for AmplitrudeProxyError {
 		write!(f, "{:?}", self)
 	}
 }
-#[derive(Debug, IntoStaticStr)]
+#[derive(Debug, PartialEq, Eq, IntoStaticStr)]
 pub enum ErrorDescription {
 	SslError,
 	ConnectionError,
