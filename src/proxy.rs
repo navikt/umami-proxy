@@ -318,7 +318,7 @@ impl ProxyHttp for AmplitudeProxy {
 					*body = Some(Bytes::from(json_body));
 				} else {
 					return Err(Error::explain(
-						pingora::ErrorType::Custom("Serialization".into()),
+						pingora::ErrorType::Custom(AmplitrudeProxyError::JsonCoParseError.into()),
 						"failed to co-parse request body",
 					));
 				}
