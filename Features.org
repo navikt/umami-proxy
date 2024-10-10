@@ -37,5 +37,9 @@ should get decided in request_filter and put into the context and
 then we branch on that. (What are pingora modules? can we use that?)
 
 
-** DONE Metrics
+** TODO Metrics
 pingora has built in prometheus
+https://grafana.nav.cloud.nais.io/d/ce0c4p51e1tz4f/amplitrude-proxy
+** TODO Add metric for cache
+** TODO Finish metric for timing of proxy requests
+*** TODO Add grafana panel in dashboard for average timing
