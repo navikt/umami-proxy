@@ -15,7 +15,7 @@
       labels.team = teamName;
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
-        "nginx.ingress.kubernetes.io/canary-weight" = "25";
+        "nginx.ingress.kubernetes.io/canary-weight" = "50";
         "linkerd.io/inject" = "disabled";
       };
     };
