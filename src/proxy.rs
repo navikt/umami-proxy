@@ -16,6 +16,7 @@ use pingora::{
 };
 use pingora::{Error, OrErr};
 use serde_json::{json, Value};
+use tokio::time;
 use tracing::{error, info, trace, warn};
 mod annotate;
 mod redact;
@@ -71,6 +72,7 @@ pub struct Ctx {
 	route: route::Route,
 	location: Option<Location>,
 	ingress: String,
+	proxy_start: Option<time::Instant>,
 }
 
 #[async_trait]
@@ -83,6 +85,7 @@ impl ProxyHttp for AmplitudeProxy {
 			route: route::Route::Unexpected("".into()),
 			location: None,
 			ingress: "".into(),
+			proxy_start: None,
 		}
 	}
 
@@ -93,6 +96,7 @@ impl ProxyHttp for AmplitudeProxy {
 		Self::CTX: Send + Sync,
 	{
 		INCOMING_REQUESTS.inc();
+		ctx.proxy_start = Some(time::Instant::now());
 		if !INITIALIZED.load(Ordering::Relaxed) {
 			// We only ever want to spawn this thread once. It reads all ingresses once and then sits
 			// around watching changes to ingresses
@@ -426,10 +430,13 @@ impl ProxyHttp for AmplitudeProxy {
 		Ok(())
 	}
 
-	async fn logging(&self, session: &mut Session, e: Option<&Error>, _ctx: &mut Self::CTX)
+	async fn logging(&self, session: &mut Session, e: Option<&Error>, ctx: &mut Self::CTX)
 	where
 		Self::CTX: Send + Sync,
 	{
+		// TODO: Wrap this into a prometheus metric
+		let proxy_duration = ctx.proxy_start.map(|start_time| start_time.elapsed());
+
 		let Some(err) = e else {
 			// happy path
 			HANDLED_REQUESTS.inc();
