@@ -16,7 +16,7 @@ use pingora::{
 };
 use pingora::{Error, OrErr};
 use serde_json::{json, Value};
-use tracing::{error, info, warn};
+use tracing::{error, info, trace, warn};
 mod annotate;
 mod redact;
 mod route;
@@ -169,8 +169,6 @@ impl ProxyHttp for AmplitudeProxy {
 
 					if bot {
 						session.respond_error(403).await?;
-						// ^ This respond_error bit is silly, surely we can just respond?
-						info!("This request's UA matches a known bot:\n\t{ua}");
 						return Ok(bot);
 					}
 					Ok(false)
@@ -299,12 +297,10 @@ impl ProxyHttp for AmplitudeProxy {
 				redact::traverse_and_redact(&mut v);
 				annotate::annotate_with_proxy_version(&mut v, "amplitrude-1.0.0");
 
-				info!("platform: {:?}", platform);
 				if let Some(app) =
 					cache::get_app_info_with_longest_prefix(platform.unwrap_or("".into()))
 				{
 					annotate::annotate_with_app_info(&mut v, &app, &ctx.ingress);
-					info!("Found app: {:?}", app);
 					annotate::annotate_with_prod(&mut v, self.conf.amplitude_api_key_prod.clone());
 				}
 
@@ -336,7 +332,7 @@ impl ProxyHttp for AmplitudeProxy {
 	where
 		Self::CTX: Send + Sync,
 	{
-		info!(
+		trace!(
 			"status: {}, reason {:?}, {} - Origin: {}",
 			upstream_response.status,
 			upstream_response.get_reason_phrase(),
@@ -358,7 +354,7 @@ impl ProxyHttp for AmplitudeProxy {
 			b.clear();
 		}
 		if end_of_stream {
-			info!(
+			trace!(
 				"{} - {}",
 				session.request_summary(),
 				String::from_utf8_lossy(&ctx.response_body_buffer)

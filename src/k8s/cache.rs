@@ -15,7 +15,7 @@ pub static CACHE: Lazy<Arc<Mutex<LruCache<String, AppInfo>>>> = Lazy::new(|| {
 pub static PREFIX_TRIE: Lazy<Arc<Mutex<Trie<u8, String>>>> =
 	Lazy::new(|| Arc::new(Mutex::new(Trie::new())));
 
-// Thiskeeps tracks of if the k8s exfiltration thread has spawned
+// This keeps tracks of if the k8s exfiltration thread has spawned
 // AtomicBool uses atomic operations provided by the CPU to ensure that reads and writes to the boolean value are indivisible (i.e atomic!). This means that no thread can see a partially-updated value. Its pretty neat. imho
 pub static INITIALIZED: AtomicBool = AtomicBool::new(false);
 

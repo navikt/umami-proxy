@@ -62,6 +62,7 @@ pub fn traverse_and_redact(value: &mut Value) {
 				.collect();
 
 			for key in keys_to_remove {
+				dbg!(&key);
 				obj.remove(&key);
 			}
 
