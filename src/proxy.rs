@@ -383,9 +383,6 @@ impl ProxyHttp for AmplitudeProxy {
 						.insert_header("X-Vercel-City", &loc.city)
 						.unwrap();
 				}
-				upstream_request
-					.insert_header("Host", "api.eu.amplitude.com")
-					.expect("Needs correct Host header");
 			},
 			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
 				upstream_request
