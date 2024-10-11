@@ -189,9 +189,13 @@ impl ProxyHttp for AmplitudeProxy {
 		_session: &mut Session,
 		ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		UPSTREAM_PEER
-			.with_label_values(&[&format!("{}", &ctx.route)])
-			.inc();
+		let path = match &ctx.route {
+			route::Route::Umami(s)
+			| route::Route::Amplitude(s)
+			| route::Route::AmplitudeCollect(s)
+			| route::Route::Unexpected(s) => s,
+		};
+		UPSTREAM_PEER.with_label_values(&[path]).inc();
 		if let route::Route::Umami(_) = &ctx.route {
 			UMAMI_PEER.inc();
 			Ok(Box::new(HttpPeer::new(
