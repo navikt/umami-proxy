@@ -131,6 +131,16 @@
           rust = cargo-package;
           sbom = cargo-sbom;
           image = docker;
+          config = pkgs.stdenv.mkDerivation rec {
+            name = "config";
+            version = "1.0.0";
+            src = ./conf.yaml;
+            phases = [ "installPhase" ];
+            installPhase = ''
+              mkdir -p $out/conf
+              cp -r ${src} $out/conf
+            '';
+          };
           spec = let
             toJson = attrSet: builtins.toJSON attrSet;
             yamlContent = builtins.concatStringsSep ''
@@ -142,7 +152,11 @@
           docker = pkgs.dockerTools.buildImage {
             name = pname;
             tag = imageTag;
-            copyToRoot = { "conf.yaml" = ./conf.yaml; };
+            copyToRoot = (pkgs.buildEnv {
+              name = "config";
+              paths = [ config ];
+              pathsToLink = [ "/conf" ];
+            });
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
           };
         };
