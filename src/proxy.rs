@@ -196,6 +196,7 @@ impl ProxyHttp for AmplitudeProxy {
 			| route::Route::Unexpected(s) => s,
 		};
 		UPSTREAM_PEER.with_label_values(&[path]).inc();
+
 		if let route::Route::Umami(_) = &ctx.route {
 			UMAMI_PEER.inc();
 			Ok(Box::new(HttpPeer::new(
