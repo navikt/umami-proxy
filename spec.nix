@@ -16,7 +16,10 @@
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
         "nginx.ingress.kubernetes.io/canary-weight" = "100";
-        "linkerd.io/inject" = "disabled";
+         # V I am not sure these get propagated
+        "config.linkerd.io/proxy-cpu-request" = "1000m";     # CPU request for linkerd-proxy
+        "config.linkerd.io/proxy-memory-request" = "512Mi";  # Memory request for linkerd-proxy
+        "config.linkerd.io/proxy-memory-limit" = "512Mi";   # Memory limit for linkerd-proxy
       };
     };
     spec = {
@@ -38,7 +41,7 @@
       };
       replicas = {
         min = 1;
-        max = 2;
+        max = 4;
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
@@ -50,7 +53,7 @@
       resources = {
         limits.memory = "1024Mi";
         requests = {
-          cpu = "1500m";
+          cpu = "1000m";
           memory = "512Mi";
         };
       };
