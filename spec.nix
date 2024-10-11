@@ -11,7 +11,6 @@ let
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
         "nginx.ingress.kubernetes.io/canary-weight" = "50";
-        # V I am not sure these get propagated
         "config.linkerd.io/proxy-cpu-limit" = "4"; # Ridic number
         "config.linkerd.io/proxy-cpu-request" = "1000m";
         "config.linkerd.io/proxy-memory-request" = "512Mi";
@@ -40,7 +39,7 @@ let
       };
       replicas = {
         min = 2;
-        max = 4;
+        max = 6;
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
@@ -56,8 +55,8 @@ let
       resources = {
         limits.memory = "1024Mi";
         requests = {
-          cpu = "1000m";
-          memory = "512Mi";
+          cpu = "250m";
+          memory = "128Mi";
         };
       };
       env = lib.attrsToList rec {
