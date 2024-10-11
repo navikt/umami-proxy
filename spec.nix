@@ -21,9 +21,6 @@
         "config.linkerd.io/proxy-cpu-request" = "1000m";
         "config.linkerd.io/proxy-memory-request" = "512Mi";
         "config.linkerd.io/proxy-memory-limit" = "512Mi";
-        "linkerd.io/proxy-read-timeout" = "500ms";
-        "linkerd.io/proxy-write-timeout" = "500ms";
-        "linkerd.io/proxy-idle-timeout" = "500ms";
       };
     };
     spec = {
