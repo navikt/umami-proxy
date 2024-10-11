@@ -1,3 +1,4 @@
+use pingora::server::configuration::ServerConf;
 use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
 use std::net::ToSocketAddrs;
@@ -19,7 +20,7 @@ fn main() {
 		daemon: false,
 		nocapture: false,
 		test: false,
-		conf: None,
+		conf: Some("conf.yaml".into()),
 	}))
 	.expect("Default args should work");
 

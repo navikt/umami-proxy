@@ -142,6 +142,7 @@
           docker = pkgs.dockerTools.buildImage {
             name = pname;
             tag = imageTag;
+            copyToRoot = { "conf.yaml" = ./conf.yaml; };
             config.Entrypoint = [ "${cargo-package}/bin/${pname}" ];
           };
         };
