@@ -39,7 +39,7 @@ let
         port = "9090";
       };
       replicas = {
-        min = 1;
+        min = 2;
         max = 4;
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
