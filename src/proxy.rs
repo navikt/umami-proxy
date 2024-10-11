@@ -199,7 +199,7 @@ impl ProxyHttp for AmplitudeProxy {
 
 		if let route::Route::Umami(_) = &ctx.route {
 			UMAMI_PEER.inc();
-			Ok(Box::new(HttpPeer::new(
+			let peer = (Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
 					self.conf.upstream_umami.host, self.conf.upstream_umami.port
@@ -210,10 +210,12 @@ impl ProxyHttp for AmplitudeProxy {
 				.expect("SocketAddr should resolve to at least 1 IP address"),
 				self.conf.upstream_umami.sni.is_some(),
 				self.conf.upstream_umami.sni.clone().unwrap_or_default(),
-			)))
+			)));
+
+			Ok(peer)
 		} else {
 			AMPLITUDE_PEER.inc();
-			Ok(Box::new(HttpPeer::new(
+			let mut peer = (Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
 					self.conf.upstream_amplitude.host, self.conf.upstream_amplitude.port
@@ -226,7 +228,16 @@ impl ProxyHttp for AmplitudeProxy {
 				.expect("SocketAddr should resolve to at least 1 IP address"),
 				self.conf.upstream_amplitude.sni.is_some(),
 				self.conf.upstream_amplitude.sni.clone().unwrap_or_default(),
-			)))
+			)));
+
+			// Are these reasonable keepalive values?
+			peer.options.tcp_keepalive = Some(pingora::protocols::TcpKeepalive {
+				idle: std::time::Duration::from_secs(120),
+				interval: std::time::Duration::from_secs(5),
+				count: 3,
+			});
+
+			Ok(peer)
 		}
 	}
 
