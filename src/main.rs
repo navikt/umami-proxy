@@ -20,7 +20,7 @@ fn main() {
 		daemon: false,
 		nocapture: false,
 		test: false,
-		conf: Some("conf.yaml".into()),
+		conf: Some("./conf/conf.yaml".into()),
 	}))
 	.expect("Default args should work");
 
