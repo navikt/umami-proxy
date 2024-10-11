@@ -290,12 +290,10 @@ impl ProxyHttp for AmplitudeProxy {
 					cache::get_app_info_with_longest_prefix(&platform.unwrap_or_default())
 				{
 					annotate::annotate_with_app_info(&mut json, &app, &ctx.ingress);
-					if get_platform(&json) == Some("default".into()) {
-						annotate::annotate_with_prod(
-							&mut json,
-							self.conf.amplitude_api_key_prod.clone(),
-						);
-					}
+					annotate::annotate_with_prod(
+						&mut json,
+						self.conf.amplitude_api_key_prod.clone(),
+					);
 				}
 
 				// This uses exactly "event_properties, which maybe only amplitude has"
