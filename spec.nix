@@ -85,33 +85,4 @@ let
     };
   };
 
-  httpRoute = {
-    apiVersion = "gateway.networking.k8s.io/v1beta1";
-    kind = "HTTPRoute";
-    metadata = {
-      name = name;
-      namespace = namespace;
-      annotations = {
-        "timeout.linkerd.io/request" = "500ms";
-        "timeout.linkerd.io/response" = "500ms";
-      };
-    };
-    spec = {
-      parentRefs = [{
-        name = "amplitrude-proxy";
-        group = "core";
-        kind = "Service";
-        port = 80;
-      }];
-      rules = [{
-        matches = [{
-          path = {
-            type = "Wildcard";
-            value = "/*";
-          };
-        }];
-      }];
-    };
-  };
-
-in [ naisApp allowAllEgress httpRoute ]
+in [ naisApp allowAllEgress ]
