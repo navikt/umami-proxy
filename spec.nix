@@ -38,7 +38,7 @@
       };
       replicas = {
         min = 1;
-        max = 1;
+        max = 2;
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
