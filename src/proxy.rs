@@ -273,7 +273,13 @@ impl ProxyHttp for AmplitudeProxy {
 						.map_err(|e| *e)?
 				};
 
-				let platform = get_platform(&json);
+				let platform = get_platform(&json); // events[0].platform
+				if platform.is_none() {
+					annotate::annotate_with_prod(
+						&mut json,
+						self.conf.amplitude_api_key_prod.clone(),
+					);
+				}
 				redact::traverse_and_redact(&mut json);
 				annotate::annotate_with_proxy_version(
 					&mut json,
@@ -284,10 +290,12 @@ impl ProxyHttp for AmplitudeProxy {
 					cache::get_app_info_with_longest_prefix(&platform.unwrap_or_default())
 				{
 					annotate::annotate_with_app_info(&mut json, &app, &ctx.ingress);
-					annotate::annotate_with_prod(
-						&mut json,
-						self.conf.amplitude_api_key_prod.clone(),
-					);
+					if get_platform(&json) == Some("default".into()) {
+						annotate::annotate_with_prod(
+							&mut json,
+							self.conf.amplitude_api_key_prod.clone(),
+						);
+					}
 				}
 
 				// This uses exactly "event_properties, which maybe only amplitude has"
