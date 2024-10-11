@@ -91,7 +91,7 @@ mod tests {
 		);
 
 		let empty_key = "".to_string();
-		let prefix_app_info = get_app_info_with_longest_prefix(empty_key);
+		let prefix_app_info = get_app_info_with_longest_prefix(&empty_key);
 		assert_eq!(
 			prefix_app_info, None,
 			"Prefix-based retrieval should match inserted AppInfo"
