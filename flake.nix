@@ -138,7 +138,7 @@
             phases = [ "installPhase" ];
             installPhase = ''
               mkdir -p $out/conf
-              cp -r ${src} $out/conf
+              cp  ${src} $out/conf/conf.yaml
             '';
           };
           spec = let
