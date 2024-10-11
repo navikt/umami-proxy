@@ -119,6 +119,7 @@
               lldb
               rust-analyzer
               k6
+              hivemind
             ] ++ lib.optionals stdenv.isDarwin [
 
               darwin.apple_sdk.frameworks.Security
@@ -134,7 +135,7 @@
           config = pkgs.stdenv.mkDerivation rec {
             name = "config";
             version = "1.0.0";
-            src = ./conf.yaml;
+            src = ./conf/conf.yaml;
             phases = [ "installPhase" ];
             installPhase = ''
               mkdir -p $out/conf
