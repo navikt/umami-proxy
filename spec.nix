@@ -10,7 +10,7 @@ let
       labels.team = teamName;
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
-        "nginx.ingress.kubernetes.io/canary-weight" = "100";
+        "nginx.ingress.kubernetes.io/canary-weight" = "50";
         # V I am not sure these get propagated
         "config.linkerd.io/proxy-cpu-limit" = "4"; # Ridic number
         "config.linkerd.io/proxy-cpu-request" = "1000m";
