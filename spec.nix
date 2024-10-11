@@ -1,10 +1,5 @@
-{
-  lib,
-  teamName,
-  pname,
-  imageName,
-  ...
-}: let
+{ lib, teamName, pname, imageName, ... }:
+let
   name = pname;
   namespace = teamName;
   naisApp = {
@@ -16,16 +11,17 @@
       annotations = {
         "nginx.ingress.kubernetes.io/canary" = "true";
         "nginx.ingress.kubernetes.io/canary-weight" = "100";
-         # V I am not sure these get propagated
-        "config.linkerd.io/proxy-cpu-limit" = "4";  # Ridic number
+        # V I am not sure these get propagated
+        "config.linkerd.io/proxy-cpu-limit" = "4"; # Ridic number
         "config.linkerd.io/proxy-cpu-request" = "1000m";
         "config.linkerd.io/proxy-memory-request" = "512Mi";
         "config.linkerd.io/proxy-memory-limit" = "512Mi";
       };
     };
     spec = {
-      ingresses = ["https://amplitude.nav.no"];
-      image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
+      ingresses = [ "https://amplitude.nav.no" ];
+      image =
+        "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
       liveness = {
         failureThreshold = 10;
@@ -47,7 +43,11 @@
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
       accessPolicy.outbound = {
-        external = [{host = "api.eu.amplitude.com";} {host = "cdn.amplitude.com";} {host = "umami.nav.no";}];
+        external = [
+          { host = "api.eu.amplitude.com"; }
+          { host = "cdn.amplitude.com"; }
+          { host = "umami.nav.no"; }
+        ];
         # # TODO: Is it worth re-programming umami proxy not to go out onto internet and back?
         # rules = [{inherit namespace; "application" = "reops-umami-beta";}];
       };
@@ -67,7 +67,7 @@
         UMAMI_PORT = "443";
         UMAMI_SNI = UMAMI_HOST;
       };
-      envFrom = [{secret = "amplitude-keys";}];
+      envFrom = [{ secret = "amplitude-keys"; }];
     };
   };
 
@@ -79,42 +79,39 @@
       inherit namespace;
     };
     spec = {
-      egress = [{to = [{ipBlock.cidr = "0.0.0.0/0";}];}];
+      egress = [{ to = [{ ipBlock.cidr = "0.0.0.0/0"; }]; }];
       podSelector.matchLabels.app = pname;
-      policyTypes = ["Egress"];
+      policyTypes = [ "Egress" ];
     };
   };
 
-httpRoute = {
-  apiVersion = "gateway.networking.k8s.io/v1beta1";
-  kind = "HTTPRoute";
-  metadata = {
-    name = name;
-    namespace = namespace
+  httpRoute = {
+    apiVersion = "gateway.networking.k8s.io/v1beta1";
+    kind = "HTTPRoute";
+    metadata = {
+      name = name;
+      namespace = namespace;
       annotations = {
-            "timeout.linkerd.io/request" = "500ms";
-            "timeout.linkerd.io/response" = "500ms";
-                };
-  };
-  spec = {
-    parentRefs = [{
-      name = "amplitrude-proxy";
-      group = "core";
-      kind = "Service";
-      port = 80;
-    }];
-    rules = [{
-      matches = [{
-        path = {
-          type = "Wildcard";
-          value = "/*";
-        };
-          }];
-    }];
+        "timeout.linkerd.io/request" = "500ms";
+        "timeout.linkerd.io/response" = "500ms";
+      };
+    };
+    spec = {
+      parentRefs = [{
+        name = "amplitrude-proxy";
+        group = "core";
+        kind = "Service";
+        port = 80;
+      }];
+      rules = [{
+        matches = [{
+          path = {
+            type = "Wildcard";
+            value = "/*";
+          };
+        }];
+      }];
+    };
   };
 
-in [
-  naisApp
-  allowAllEgress
-  httpRoute
-]
+in [ naisApp allowAllEgress httpRoute ]
