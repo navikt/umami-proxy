@@ -218,7 +218,7 @@ Content-Type: application/json; charset=utf-8
 
 
 * smaller request - no error                                           :verb:
-post http://localhost:6191/dump/request
+post https://amplitude.nav.no/collect
 Accept: application/json
 Content-Type: application/json; charset=utf-8
 

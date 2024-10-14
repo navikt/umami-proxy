@@ -421,7 +421,7 @@ impl ProxyHttp for AmplitudeProxy {
 		let Some(err) = e else {
 			// happy path
 			HANDLED_REQUESTS.inc();
-			info!("Handled request: {}", session.request_summary());
+			trace!("Handled request: {}", session.request_summary());
 			return;
 		};
 
