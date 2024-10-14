@@ -29,10 +29,8 @@ use crate::k8s::{
 	cache::{self, INITIALIZED},
 };
 use crate::metrics::{
-	AMPLITUDE_PEER, HANDLED_REQUESTS, INCOMING_REQUESTS, INVALID_PEER, PROXY_ERRORS, UMAMI_PEER,
-	UPSTREAM_PEER,
+	HANDLED_REQUESTS, INCOMING_REQUESTS, INVALID_PEER, PROXY_ERRORS, UPSTREAM_PEER,
 };
-
 pub struct AmplitudeProxy {
 	pub conf: Config,
 	pub addr: std::net::SocketAddr,
