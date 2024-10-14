@@ -16,7 +16,7 @@ use pingora::{
 };
 use serde_json::{json, Value};
 use tokio::time;
-use tracing::{error, info, trace, warn};
+use tracing::{error, trace, warn};
 mod annotate;
 mod redact;
 mod route;
@@ -29,8 +29,8 @@ use crate::k8s::{
 	cache::{self, INITIALIZED},
 };
 use crate::metrics::{
-	AMPLITUDE_PEER, CONNECTION_ERRORS, HANDLED_REQUESTS, INCOMING_REQUESTS, INVALID_PEER,
-	PROXY_ERRORS, SSL_ERROR, UMAMI_PEER, UPSTREAM_CONNECTION_FAILURES, UPSTREAM_PEER,
+	AMPLITUDE_PEER, HANDLED_REQUESTS, INCOMING_REQUESTS, INVALID_PEER, PROXY_ERRORS, UMAMI_PEER,
+	UPSTREAM_PEER,
 };
 
 pub struct AmplitudeProxy {
@@ -198,8 +198,7 @@ impl ProxyHttp for AmplitudeProxy {
 		UPSTREAM_PEER.with_label_values(&[path]).inc();
 
 		if let route::Route::Umami(_) = &ctx.route {
-			UMAMI_PEER.inc();
-			let peer = (Box::new(HttpPeer::new(
+			let peer = Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
 					self.conf.upstream_umami.host, self.conf.upstream_umami.port
@@ -210,12 +209,11 @@ impl ProxyHttp for AmplitudeProxy {
 				.expect("SocketAddr should resolve to at least 1 IP address"),
 				self.conf.upstream_umami.sni.is_some(),
 				self.conf.upstream_umami.sni.clone().unwrap_or_default(),
-			)));
+			));
 
 			Ok(peer)
 		} else {
-			AMPLITUDE_PEER.inc();
-			let mut peer = (Box::new(HttpPeer::new(
+			let mut peer = Box::new(HttpPeer::new(
 				format!(
 					"{}:{}",
 					self.conf.upstream_amplitude.host, self.conf.upstream_amplitude.port
@@ -228,7 +226,7 @@ impl ProxyHttp for AmplitudeProxy {
 				.expect("SocketAddr should resolve to at least 1 IP address"),
 				self.conf.upstream_amplitude.sni.is_some(),
 				self.conf.upstream_amplitude.sni.clone().unwrap_or_default(),
-			)));
+			));
 
 			// Are these reasonable keepalive values?
 			peer.options.tcp_keepalive = Some(pingora::protocols::TcpKeepalive {
@@ -444,10 +442,7 @@ impl ProxyHttp for AmplitudeProxy {
 				ErrType::TLSHandshakeFailure
 				| ErrType::TLSHandshakeTimedout
 				| ErrType::InvalidCert
-				| ErrType::HandshakeError => {
-					SSL_ERROR.inc();
-					ErrorDescription::SslError
-				},
+				| ErrType::HandshakeError => ErrorDescription::SslError,
 
 				ErrType::ConnectTimedout
 				| ErrType::ConnectRefused
@@ -455,16 +450,10 @@ impl ProxyHttp for AmplitudeProxy {
 				| ErrType::ConnectError
 				| ErrType::BindError
 				| ErrType::AcceptError
-				| ErrType::ConnectionClosed
-				| ErrType::SocketError => {
-					CONNECTION_ERRORS.inc();
-					ErrorDescription::ConnectionError
-				},
+				| ErrType::SocketError => ErrorDescription::ConnectionError,
 
-				ErrType::ConnectProxyFailure => {
-					UPSTREAM_CONNECTION_FAILURES.inc();
-					ErrorDescription::UpstreamConnectionFailure
-				},
+				ErrType::ConnectionClosed => ErrorDescription::ClientDisconnectedError,
+				ErrType::ConnectProxyFailure => ErrorDescription::UpstreamConnectionFailure,
 
 				// All the rest are ignored for now, bring in when needed
 				_ => ErrorDescription::UntrackedError,

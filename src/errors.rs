@@ -22,6 +22,7 @@ pub enum ErrorDescription {
 	ConnectionError,
 	UpstreamConnectionFailure,
 	UntrackedError,
+	ClientDisconnectedError,
 	AmplitrudeProxyError(AmplitrudeProxyError),
 }
 impl ErrorDescription {
