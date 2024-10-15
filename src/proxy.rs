@@ -16,7 +16,7 @@ use pingora::{
 };
 use serde_json::{json, Value};
 use tokio::time;
-use tracing::{error, trace, warn};
+use tracing::{error, info, trace, warn};
 mod annotate;
 mod redact;
 mod route;
