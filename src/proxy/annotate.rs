@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::k8s;
 
-pub fn annotate_with_proxy_version(event: &mut Value, proxy_version: &str) {
+pub fn with_proxy_version(event: &mut Value, proxy_version: &str) {
 	if let Value::Object(map) = event {
 		map.insert(
 			"proxyVersion".to_string(),
@@ -13,11 +13,11 @@ pub fn annotate_with_proxy_version(event: &mut Value, proxy_version: &str) {
 
 // some of these
 // [Amplitude] City, [Amplitude] DMA, [Amplitude] Region, and [Amplitude] Country
-pub fn annotate_with_location(value: &mut Value, city: &String, country: &String) {
+pub fn with_location(value: &mut Value, city: &String, country: &String) {
 	match value {
 		Value::Array(arr) => {
 			for v in arr {
-				annotate_with_location(v, city, country);
+				with_location(v, city, country);
 			}
 		},
 		Value::Object(obj) => {
@@ -41,11 +41,11 @@ pub fn annotate_with_location(value: &mut Value, city: &String, country: &String
 	}
 }
 
-pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo, host: &String) {
+pub fn with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo, host: &String) {
 	match value {
 		Value::Array(arr) => {
 			for v in arr {
-				annotate_with_app_info(v, &app_info.clone(), host);
+				with_app_info(v, &app_info.clone(), host);
 			}
 		},
 		Value::Object(obj) => {
@@ -68,7 +68,7 @@ pub fn annotate_with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo,
 	}
 }
 
-pub fn annotate_with_prod(v: &mut Value, amplitude_api_key_prod: String) {
+pub fn with_prod(v: &mut Value, amplitude_api_key_prod: String) {
 	if let Value::Object(obj) = v {
 		obj.insert("api_key".to_string(), Value::String(amplitude_api_key_prod));
 	}
@@ -92,7 +92,7 @@ mod tests {
 			"session_id": 16789
 		});
 
-		annotate_with_location(&mut event, &"New York".to_string(), &"USA".to_string());
+		with_location(&mut event, &"New York".to_string(), &"USA".to_string());
 
 		let expected_event = json!({
 			"user_id": "12345",
@@ -122,7 +122,7 @@ mod tests {
 			}
 		});
 
-		annotate_with_location(&mut event, &"New York".to_string(), &"USA".to_string());
+		with_location(&mut event, &"New York".to_string(), &"USA".to_string());
 
 		let expected_event = json!({
 			"user_id": "12345",
@@ -149,7 +149,7 @@ mod tests {
 			"session_id": 16789
 		});
 
-		annotate_with_proxy_version(&mut event, "1.2.3");
+		with_proxy_version(&mut event, "1.2.3");
 
 		let expected_event = json!({
 			"user_id": "12345",
@@ -173,7 +173,7 @@ mod tests {
 			"proxyVersion": "1.0.0"
 		});
 
-		annotate_with_proxy_version(&mut event, "2.0.0");
+		with_proxy_version(&mut event, "2.0.0");
 
 		let expected_event = json!({
 			"user_id": "12345",

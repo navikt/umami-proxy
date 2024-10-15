@@ -285,15 +285,13 @@ impl ProxyHttp for AmplitudeProxy {
 						.map_err(|e| *e)?
 				};
 
-				let platform = get_platform(&json); // events[0].platform
+				let platform = get_platform(&json);
 				if platform.is_none() {
-					annotate::annotate_with_prod(
-						&mut json,
-						self.conf.amplitude_api_key_prod.clone(),
-					);
+					annotate::with_prod(&mut json, self.conf.amplitude_api_key_prod.clone());
 				}
+
 				redact::traverse_and_redact(&mut json);
-				annotate::annotate_with_proxy_version(
+				annotate::with_proxy_version(
 					&mut json,
 					&format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
 				);
@@ -301,16 +299,13 @@ impl ProxyHttp for AmplitudeProxy {
 				if let Some(app) =
 					cache::get_app_info_with_longest_prefix(&platform.unwrap_or_default())
 				{
-					annotate::annotate_with_app_info(&mut json, &app, &ctx.ingress);
-					annotate::annotate_with_prod(
-						&mut json,
-						self.conf.amplitude_api_key_prod.clone(),
-					);
+					annotate::with_app_info(&mut json, &app, &ctx.ingress);
+					annotate::with_prod(&mut json, self.conf.amplitude_api_key_prod.clone());
 				}
 
 				// This uses exactly "event_properties, which maybe only amplitude has"
 				if let Some(loc) = &ctx.location {
-					annotate::annotate_with_location(&mut json, &loc.city, &loc.country);
+					annotate::with_location(&mut json, &loc.city, &loc.country);
 				}
 
 				// Surely there is a correct-by-conctruction value type that can be turned into a string without fail
