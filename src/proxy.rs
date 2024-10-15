@@ -492,10 +492,52 @@ fn get_platform(value: &Value) -> Option<String> {
 		})
 }
 
+fn categorize_other_environment(host: String, environments: &[String]) -> String {
+	if environments.iter().any(|env| host.ends_with(env)) {
+		"dev".into()
+	} else if host.contains("localhost") {
+		"localhost".into()
+	} else {
+		"other".into()
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use serde_json::{json, Value};
+
+	#[test]
+	fn test_categorize_environment_dev() {
+		let environments = ["dev", "staging", "prod"].map(|e| e.into());
+		assert_eq!(
+			categorize_other_environment("example.dev".into(), &environments),
+			"dev"
+		);
+	}
+
+	#[test]
+	fn test_categorize_environment_localhost() {
+		let environments = ["dev", "staging", "prod"].map(|e| e.into());
+		assert_eq!(
+			categorize_other_environment("localhost".into(), &environments),
+			"localhost"
+		);
+		assert_eq!(
+			categorize_other_environment("mylocalhost.com".into(), &environments),
+			"localhost"
+		);
+	}
+
+	#[test]
+	fn test_categorize_environment_other() {
+		let environments = ["dev", "staging", "prod"].map(|e| e.into());
+
+		assert_eq!(
+			categorize_other_environment("example.com".into(), &environments),
+			"other"
+		);
+	}
 
 	#[test]
 	fn test_parse_url_encoded() {
