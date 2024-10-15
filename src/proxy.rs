@@ -287,7 +287,7 @@ impl ProxyHttp for AmplitudeProxy {
 
 				let platform = get_platform(&json);
 				if platform.is_none() {
-					annotate::with_prod(&mut json, self.conf.amplitude_api_key_prod.clone());
+					annotate::with_key(&mut json, self.conf.amplitude_api_key_prod.clone());
 				}
 
 				redact::traverse_and_redact(&mut json);
@@ -300,7 +300,30 @@ impl ProxyHttp for AmplitudeProxy {
 					cache::get_app_info_with_longest_prefix(&platform.unwrap_or_default())
 				{
 					annotate::with_app_info(&mut json, &app, &ctx.ingress);
-					annotate::with_prod(&mut json, self.conf.amplitude_api_key_prod.clone());
+					annotate::with_key(&mut json, self.conf.amplitude_api_key_prod.clone());
+				} else {
+					let env = categorize_other_environment(
+						ctx.ingress.clone(),
+						&["dev.nav.no".into(), "localhost".into()],
+					);
+					// This is a a hack, really
+					match env.as_ref() {
+						"localhost" => {
+							annotate::with_key(
+								&mut json,
+								self.conf.amplitude_api_key_local_systems.clone(),
+							);
+						},
+						"dev" => {
+							annotate::with_key(&mut json, self.conf.amplitude_api_key_dev.clone());
+						},
+						_ => {
+							annotate::with_key(
+								&mut json,
+								self.conf.amplitude_api_key_other_systems.clone(),
+							);
+						},
+					}
 				}
 
 				// This uses exactly "event_properties, which maybe only amplitude has"
@@ -509,16 +532,16 @@ mod tests {
 
 	#[test]
 	fn test_categorize_environment_dev() {
-		let environments = ["dev", "staging", "prod"].map(|e| e.into());
+		let environments = ["dev.nav.no", "fooo"].map(|e| e.into());
 		assert_eq!(
-			categorize_other_environment("example.dev".into(), &environments),
+			categorize_other_environment("example.dev.nav.no".into(), &environments),
 			"dev"
 		);
 	}
 
 	#[test]
 	fn test_categorize_environment_localhost() {
-		let environments = ["dev", "staging", "prod"].map(|e| e.into());
+		let environments = ["dev", "staging"].map(|e| e.into());
 		assert_eq!(
 			categorize_other_environment("localhost".into(), &environments),
 			"localhost"
@@ -531,7 +554,7 @@ mod tests {
 
 	#[test]
 	fn test_categorize_environment_other() {
-		let environments = ["dev", "staging", "prod"].map(|e| e.into());
+		let environments = ["dev", "staging"].map(|e| e.into());
 
 		assert_eq!(
 			categorize_other_environment("example.com".into(), &environments),
