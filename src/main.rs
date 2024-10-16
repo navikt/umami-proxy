@@ -44,6 +44,7 @@ fn main() {
 	let mut proxy_instance =
 		pingora_proxy::http_proxy_service(&amplitrude_proxy.configuration, proxy);
 
+	// All services get allocated threads: from the config. Someone should upstream more granularity on that
 	let mut prome_service_http = Service::prometheus_http_service();
 	prome_service_http.add_tcp("0.0.0.0:9090");
 	probe_instance.add_tcp("0.0.0.0:6969");
