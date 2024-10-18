@@ -3,8 +3,6 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Debug, PartialEq)]
 pub enum Route {
 	Umami(String),
-	Amplitude(String),
-	AmplitudeCollect(String),
 	Unexpected(String), //Someone did a goof
 }
 
@@ -17,10 +15,6 @@ impl Display for Route {
 pub fn match_route(path: String) -> Route {
 	if path.starts_with("/umami") {
 		Route::Umami(path)
-	} else if path.starts_with("/collect-auto") {
-		Route::AmplitudeCollect(path)
-	} else if path.starts_with("/collect") {
-		Route::Amplitude(path)
 	} else {
 		Route::Unexpected(path) // LIKE THIS
 	}

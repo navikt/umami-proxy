@@ -31,14 +31,14 @@ use crate::k8s::{
 use crate::metrics::{
 	HANDLED_REQUESTS, INCOMING_REQUESTS, INVALID_PEER, PROXY_ERRORS, UPSTREAM_PEER,
 };
-pub struct AmplitudeProxy {
+pub struct Umami {
 	pub conf: Config,
 	pub addr: std::net::SocketAddr,
 	pub sni: Option<String>,
 	pub bots: Bots,
 }
 
-impl AmplitudeProxy {
+impl Umami {
 	pub const fn new(
 		conf: Config,
 		addr: std::net::SocketAddr,
@@ -70,7 +70,7 @@ pub struct Ctx {
 }
 
 #[async_trait]
-impl ProxyHttp for AmplitudeProxy {
+impl ProxyHttp for Umami {
 	type CTX = Ctx;
 	fn new_ctx(&self) -> Self::CTX {
 		Ctx {
@@ -154,7 +154,6 @@ impl ProxyHttp for AmplitudeProxy {
 						.map_or(String::new(), std::borrow::ToOwned::to_owned)
 				},
 			);
-
 		ctx.location = Some(Location { city, country });
 
 		let owned_parts = session.downstream_session.req_header().as_owned_parts();
@@ -184,57 +183,34 @@ impl ProxyHttp for AmplitudeProxy {
 	// This guy should be the upstream host, all requests through the proxy gets sent th upstream_peer
 	async fn upstream_peer(
 		&self,
-		_session: &mut Session,
-		ctx: &mut Self::CTX,
+		session: &mut Session,
+		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		let path = match &ctx.route {
-			route::Route::Umami(s)
-			| route::Route::Amplitude(s)
-			| route::Route::AmplitudeCollect(s)
-			| route::Route::Unexpected(s) => s,
+		let path = match route::match_route(
+			session
+				.downstream_session
+				.req_header()
+				.as_owned_parts()
+				.uri
+				.path()
+				.to_string(),
+		) {
+			route::Route::Umami(s) | route::Route::Unexpected(s) => s,
 		};
-		UPSTREAM_PEER.with_label_values(&[path]).inc();
+		UPSTREAM_PEER.with_label_values(&[&path]).inc();
 
-		if let route::Route::Umami(_) = &ctx.route {
-			let peer = Box::new(HttpPeer::new(
-				format!(
-					"{}:{}",
-					self.conf.upstream_umami.host, self.conf.upstream_umami.port
-				)
+		// if let route::Route::Umami(_) != path {
+		// }
+		let peer = Box::new(HttpPeer::new(
+			format!("{}:{}", self.conf.host, self.conf.port)
 				.to_socket_addrs()
 				.expect("Umami specified `host` & `port` should give valid `std::net::SocketAddr`")
 				.next()
 				.expect("SocketAddr should resolve to at least 1 IP address"),
-				self.conf.upstream_umami.sni.is_some(),
-				self.conf.upstream_umami.sni.clone().unwrap_or_default(),
-			));
-
-			Ok(peer)
-		} else {
-			let mut peer = Box::new(HttpPeer::new(
-				format!(
-					"{}:{}",
-					self.conf.upstream_amplitude.host, self.conf.upstream_amplitude.port
-				)
-				.to_socket_addrs()
-				.expect(
-					"Amplitude specified `host` & `port` should give valid `std::net::SocketAddr`",
-				)
-				.next()
-				.expect("SocketAddr should resolve to at least 1 IP address"),
-				self.conf.upstream_amplitude.sni.is_some(),
-				self.conf.upstream_amplitude.sni.clone().unwrap_or_default(),
-			));
-
-			// Are these reasonable keepalive values?
-			peer.options.tcp_keepalive = Some(pingora::protocols::TcpKeepalive {
-				idle: std::time::Duration::from_secs(120),
-				interval: std::time::Duration::from_secs(5),
-				count: 3,
-			});
-
-			Ok(peer)
-		}
+			self.conf.sni.is_some(),
+			self.conf.sni.clone().unwrap_or_default(),
+		));
+		Ok(peer)
 	}
 
 	async fn request_body_filter(
@@ -285,50 +261,16 @@ impl ProxyHttp for AmplitudeProxy {
 						.map_err(|e| *e)?
 				};
 
-				let platform = get_platform(&json);
-				if platform.is_none() {
-					annotate::with_key(&mut json, self.conf.amplitude_api_key_prod.clone());
-				}
-
 				redact::traverse_and_redact(&mut json);
 				annotate::with_proxy_version(
 					&mut json,
 					&format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
 				);
 
-				if let Some(app) =
-					cache::get_app_info_with_longest_prefix(&platform.unwrap_or_default())
-				{
+				if let Some(app) = cache::get_app_info_with_longest_prefix(
+					&get_website_url(&json).unwrap_or_default(),
+				) {
 					annotate::with_app_info(&mut json, &app, &ctx.ingress);
-					annotate::with_key(&mut json, self.conf.amplitude_api_key_prod.clone());
-				} else {
-					let env = categorize_other_environment(
-						ctx.ingress.clone(),
-						&["dev.nav.no".into(), "localhost".into()],
-					);
-					// This is a a hack, really
-					match env.as_ref() {
-						"localhost" => {
-							annotate::with_key(
-								&mut json,
-								self.conf.amplitude_api_key_local_systems.clone(),
-							);
-						},
-						"dev" => {
-							annotate::with_key(&mut json, self.conf.amplitude_api_key_dev.clone());
-						},
-						_ => {
-							annotate::with_key(
-								&mut json,
-								self.conf.amplitude_api_key_other_systems.clone(),
-							);
-						},
-					}
-				}
-
-				// This uses exactly "event_properties, which maybe only amplitude has"
-				if let Some(loc) = &ctx.location {
-					annotate::with_location(&mut json, &loc.city, &loc.country);
 				}
 
 				// Surely there is a correct-by-conctruction value type that can be turned into a string without fail
@@ -384,42 +326,28 @@ impl ProxyHttp for AmplitudeProxy {
 			.insert_header("Transfer-Encoding", "Chunked")
 			.expect("Needs correct transfer-encoding scheme header set");
 
-		match &ctx.route {
-			route::Route::Umami(_) => {
-				upstream_request
-					.insert_header("Host", "umami.nav.no")
-					.expect("Needs correct Host header");
+		if let route::Route::Umami(_) = &ctx.route {
+			upstream_request
+				.insert_header("Host", "umami.nav.no")
+				.expect("Needs correct Host header");
 
-				// We are using vercel headers here because Umami supports them
-				// and they are not configurable on umamis side. We already have this info in the request
-				// as x-client-city, x-client-countrlly but umami does not support those names.
-				// (umami also supports Cloudflare headers, which we aren't (but could be) using )
-				if let Some(loc) = &ctx.location {
-					upstream_request
-						.insert_header("X-Vercel-IP-Country", &loc.country)
-						.expect("Set geo-location header (country) for umami");
-
-					upstream_request
-						.insert_header("X-Vercel-City", &loc.city)
-						.expect("Set geo-location header (city) for umami");
-				}
-			},
-			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
+			// We are using vercel headers here because Umami supports them
+			// and they are not configurable on umamis side. We already have this info in the request
+			// as x-client-city, x-client-countrlly but umami does not support those names.
+			// (umami also supports Cloudflare headers, which we aren't (but could be) using )
+			if let Some(loc) = &ctx.location {
 				upstream_request
-					.insert_header("Host", "api.eu.amplitude.com")
-					.expect("Needs correct Host header");
-			},
-			route::Route::Unexpected(_) => {},
+					.insert_header("X-Vercel-IP-Country", &loc.country)
+					.expect("Set geo-location header (country) for umami");
+
+				upstream_request
+					.insert_header("X-Vercel-City", &loc.city)
+					.expect("Set geo-location header (city) for umami");
+			}
 		}
 
-		match &ctx.route {
-			route::Route::Umami(_) => {
-				upstream_request.set_uri(Uri::from_static("/api/send"));
-			},
-			route::Route::Amplitude(_) | route::Route::AmplitudeCollect(_) => {
-				upstream_request.set_uri(Uri::from_static("/2/httpapi"));
-			},
-			route::Route::Unexpected(_) => {},
+		if let route::Route::Umami(_) = &ctx.route {
+			upstream_request.set_uri(Uri::from_static("/api/send"));
 		}
 
 		Ok(())
@@ -501,18 +429,13 @@ fn parse_url_encoded(data: &str) -> Result<Value, pingora::Error> {
 	Ok(json!({ "events": events_data, "api-key": client }))
 }
 
-fn get_platform(value: &Value) -> Option<String> {
+/// Umami JSON payload specific structure expectations
+fn get_website_url(value: &Value) -> Option<String> {
 	value
-		.get("events")
-		.and_then(|v| v.as_array())
-		.and_then(|events| {
-			events.iter().find_map(|event| {
-				event
-					.get("platform")
-					.and_then(|v| v.as_str())
-					.map(String::from)
-			})
-		})
+		.get("payload")
+		.and_then(|p| p.get("hostname"))
+		.and_then(|v| v.as_str())
+		.map(String::from)
 }
 
 fn categorize_other_environment(host: String, environments: &[String]) -> String {
