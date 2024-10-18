@@ -7,6 +7,7 @@
 }: let
   name = pname;
   namespace = teamName;
+  upstreamUmamiFQDN = "reops-umami-beta";
   naisApp = {
     apiVersion = "nais.io/v1alpha1";
     kind = "Application";
@@ -46,7 +47,7 @@
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
-      accessPolicy.outbound.rules = [{application = "reops-umami-beta";}];
+      accessPolicy.outbound.rules = [{application = upstreamUmamiFQDN;}];
       resources = {
         requests = {
           cpu = "250m";
@@ -55,8 +56,8 @@
       };
       env = lib.attrsToList rec {
         RUST_LOG = "INFO";
-        UMAMI_HOST = "umami.nav.no";
-        UMAMI_PORT = "443";
+        UMAMI_HOST = "${upstreamUmamiFQDN}.${teamName}.svc.cluster.local";
+        UMAMI_PORT = "80";
         UMAMI_SNI = UMAMI_HOST;
       };
     };
