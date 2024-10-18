@@ -118,7 +118,7 @@ mod tests {
 	#[test]
 	fn test_redact_uuid_in_amplitude_event() {
 		// Hardcoded UUID string
-		let uuid = "123e4567-e89b-12d3-a456-426614174000";
+		let uuid = "23031510135";
 
 		// Create a JSON structure similar to an Amplitude event, with the UUID in the "insert_id" field
 		let mut json_data = json!({
