@@ -24,11 +24,7 @@
       };
     };
     spec = {
-      ingresses = [
-        "https://umami.nav.no"
-        "https://umami.ansatt.nav.no"
-        "https://umami.intern.nav.no"
-      ];
+      ingresses = ["https://umami.nav.no"];
       image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
       liveness = {
