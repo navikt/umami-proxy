@@ -13,25 +13,15 @@ pub enum Rule {
 	Obfuscate(String), // Remove client IP, replace w/ours
 }
 
-// Matches strings like "nav123456" or "test654321"
 static KEEP_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
- Regex::new(r"((nav|test)[0-9]{6})").expect("Hard-coded regex expression should be valid")
+	Regex::new(r"((nav|test)[0-9]{6})").expect("Hard-coded regex expression should be valid")
 });
-
-// Matches hexadecimal strings like "abcdef123456" or "a1b2c3d4e5"
 static HEX_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
- Regex::new(r"[a-f0-9\-]{6,}").expect("Hard-coded regex expression should be valid")
+	Regex::new(r"[a-f0-9\-]{6,}").expect("Hard-coded regex expression should be valid")
 });
-
-// Matches Norwegian FNR strings like "12345612345"
 static ID_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
-    Regex::new(r"\b\d{6}\d{5}\b").expect("Hard-coded regex expression should be valid")
+	Regex::new(r"\d[oiA-Z0-9]{8,}").expect("Hard-coded regex expression should be valid")
 });
-
-// Matches UUID strings like "123e4567-e89b-12d3-a456-426614174000"
-// static ID_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
-// Regex::new(r"\d[oiA-Z0-9]{8,}").expect("Hard-coded regex expression should be valid")
-// });
 
 impl Rule {
 	pub fn pretty_print(&self) -> String {
@@ -118,7 +108,7 @@ mod tests {
 	#[test]
 	fn test_redact_uuid_in_amplitude_event() {
 		// Hardcoded UUID string
-		let uuid = "23031510135";
+		let uuid = "123e4567-e89b-12d3-a456-426614174000";
 
 		// Create a JSON structure similar to an Amplitude event, with the UUID in the "insert_id" field
 		let mut json_data = json!({
