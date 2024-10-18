@@ -54,11 +54,10 @@
           memory = "128Mi";
         };
       };
-      env = lib.attrsToList rec {
+      env = lib.attrsToList {
         RUST_LOG = "INFO";
         UMAMI_HOST = "${upstreamUmamiFQDN}.${teamName}.svc.cluster.local";
         UMAMI_PORT = "80";
-        UMAMI_SNI = UMAMI_HOST;
       };
     };
   };
