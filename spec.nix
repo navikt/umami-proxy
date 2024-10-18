@@ -66,17 +66,4 @@
     };
   };
 
-  allowAllEgress = {
-    apiVersion = "networking.k8s.io/v1";
-    kind = "NetworkPolicy";
-    metadata = {
-      name = "amplitrude-proxy-eu-networkpolicy";
-      inherit namespace;
-    };
-    spec = {
-      egress = [{to = [{ipBlock.cidr = "0.0.0.0/0";}];}];
-      podSelector.matchLabels.app = pname;
-      policyTypes = ["Egress"];
-    };
-  };
-in [naisApp allowAllEgress]
+in [naisApp]
