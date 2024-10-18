@@ -50,6 +50,7 @@ pub fn with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo, host: &S
 		},
 		Value::Object(obj) => {
 			for (key, v) in obj.iter_mut() {
+				// TODO: Umami json doesn't have `event_properties` (see `payload` instead)
 				if key == "event_properties" && v.is_object() {
 					let inner_object = v.as_object_mut().expect(
 						"Should be possible to get a mutable reference to the inner object",
