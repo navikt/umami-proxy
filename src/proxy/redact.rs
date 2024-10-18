@@ -16,10 +16,7 @@ pub enum Rule {
 static KEEP_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
 	Regex::new(r"((nav|test)[0-9]{6})").expect("Hard-coded regex expression should be valid")
 });
-static HEX_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
-	Regex::new(r"[a-f0-9\-]{6,}").expect("Hard-coded regex expression should be valid")
-});
-static ID_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
+static FNR_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
 	Regex::new(r"\b\d{6}\d{5}\b").expect("Hard-coded regex expression should be valid")
 });
 
@@ -29,8 +26,7 @@ impl Rule {
 		match self {
 			Self::RedactSsns(s) => {
 				let mut new = s.to_string();
-				new = HEX_REGEX.replace_all(&new, redacted).to_string();
-				new = ID_REGEX.replace_all(&new, redacted).to_string();
+				new = FNR_REGEX.replace_all(&new, redacted).to_string();
 				new
 			},
 			Self::Keep(s) | Self::Original(s) | Self::Obfuscate(s) => s.to_string(),
@@ -92,7 +88,7 @@ pub fn traverse_and_redact(value: &mut Value) {
 fn redact(s: &str) -> Rule {
 	if KEEP_REGEX.is_match(s) {
 		Rule::Keep(s.to_string())
-	} else if HEX_REGEX.is_match(s) || ID_REGEX.is_match(s) {
+	} else if FNR_REGEX.is_match(s) {
 		Rule::RedactSsns(s.to_string())
 	} else {
 		Rule::Original(s.to_string())
@@ -187,16 +183,7 @@ mod tests {
 
 	#[test]
 	fn test_redact_regex() {
-		let input = "abcdef123456";
-		let result = redact(input).pretty_print();
-		assert_eq!(result, Rule::RedactSsns(input.to_string()).pretty_print());
-		let input = "1ABCD23456789";
-		let result = redact(input).pretty_print();
-		assert_eq!(result, Rule::RedactSsns(input.to_string()).pretty_print());
-		let input = "123456";
-		let result = redact(input).pretty_print();
-		assert_eq!(result, Rule::RedactSsns(input.to_string()).pretty_print());
-		let input = "a1b2c3d4e5";
+		let input = "23031510135";
 		let result = redact(input).pretty_print();
 		assert_eq!(result, Rule::RedactSsns(input.to_string()).pretty_print());
 	}
