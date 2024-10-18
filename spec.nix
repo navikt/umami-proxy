@@ -13,7 +13,10 @@
     kind = "Application";
     metadata = {
       inherit name namespace;
-      labels.team = teamName;
+      labels = {
+        team = teamName;
+        apiserver-access = "enabled";
+      };
       annotations = {
         # V These can be tuned, for sure
         "config.linkerd.io/proxy-cpu-limit" = "4"; # Ridic number
@@ -61,5 +64,4 @@
       };
     };
   };
-
 in [naisApp]
