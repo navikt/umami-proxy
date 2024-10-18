@@ -1,5 +1,10 @@
-{ lib, teamName, pname, imageName, ... }:
-let
+{
+  lib,
+  teamName,
+  pname,
+  imageName,
+  ...
+}: let
   name = pname;
   namespace = teamName;
   naisApp = {
@@ -9,8 +14,6 @@ let
       inherit name namespace;
       labels.team = teamName;
       annotations = {
-        "nginx.ingress.kubernetes.io/canary" = "true";
-        "nginx.ingress.kubernetes.io/canary-weight" = "10";
         # V These can be tuned, for sure
         "config.linkerd.io/proxy-cpu-limit" = "4"; # Ridic number
         "config.linkerd.io/proxy-cpu-request" = "1000m";
@@ -21,9 +24,8 @@ let
       };
     };
     spec = {
-      ingresses = [ "https://amplitude.nav.no" ];
-      image =
-        "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
+      ingresses = ["https://umamiproxy.nav.no"];
+      image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
       liveness = {
         failureThreshold = 10;
@@ -45,16 +47,9 @@ let
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
       accessPolicy.outbound = {
-        external = [
-          { host = "api.eu.amplitude.com"; }
-          { host = "cdn.amplitude.com"; }
-          { host = "umami.nav.no"; }
-        ];
-        # # TODO: Is it worth re-programming umami proxy not to go out onto internet and back?
-        # rules = [{inherit namespace; "application" = "reops-umami-beta";}];
+        external = [{host = "umami.nav.no";}];
       };
       resources = {
-        limits.memory = "1024Mi";
         requests = {
           cpu = "250m";
           memory = "128Mi";
@@ -62,14 +57,10 @@ let
       };
       env = lib.attrsToList rec {
         RUST_LOG = "INFO";
-        AMPLITUDE_HOST = "api.eu.amplitude.com";
-        AMPLITUDE_PORT = "443";
-        AMPLITUDE_SNI = AMPLITUDE_HOST;
         UMAMI_HOST = "umami.nav.no";
         UMAMI_PORT = "443";
         UMAMI_SNI = UMAMI_HOST;
       };
-      envFrom = [{ secret = "amplitude-keys"; }];
     };
   };
 
@@ -81,10 +72,9 @@ let
       inherit namespace;
     };
     spec = {
-      egress = [{ to = [{ ipBlock.cidr = "0.0.0.0/0"; }]; }];
+      egress = [{to = [{ipBlock.cidr = "0.0.0.0/0";}];}];
       podSelector.matchLabels.app = pname;
-      policyTypes = [ "Egress" ];
+      policyTypes = ["Egress"];
     };
   };
-
-in [ naisApp allowAllEgress ]
+in [naisApp allowAllEgress]

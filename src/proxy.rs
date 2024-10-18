@@ -5,7 +5,6 @@ use std::sync::atomic::Ordering;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use http::Uri;
 use pingora::http::ResponseHeader;
 use pingora::ErrorType as ErrType;
 use pingora::{
@@ -19,7 +18,6 @@ use tokio::time;
 use tracing::{error, info, trace, warn};
 mod annotate;
 mod redact;
-mod route;
 use isbot::Bots;
 
 use crate::config::Config;
@@ -63,7 +61,6 @@ pub struct Location {
 #[derive(Debug)]
 pub struct Ctx {
 	request_body_buffer: Vec<u8>,
-	route: route::Route,
 	location: Option<Location>,
 	ingress: String,
 	proxy_start: Option<time::Instant>,
@@ -75,7 +72,6 @@ impl ProxyHttp for Umami {
 	fn new_ctx(&self) -> Self::CTX {
 		Ctx {
 			request_body_buffer: Vec::new(),
-			route: route::Route::Unexpected(String::new()),
 			location: None,
 			ingress: String::new(),
 			proxy_start: None,
@@ -156,10 +152,6 @@ impl ProxyHttp for Umami {
 			);
 		ctx.location = Some(Location { city, country });
 
-		let owned_parts = session.downstream_session.req_header().as_owned_parts();
-		let path = owned_parts.uri.path();
-		ctx.route = route::match_route(path.into());
-
 		let user_agent = session.downstream_session.get_header("USER-AGENT").cloned();
 		match user_agent {
 			Some(ua) => match ua.to_str() {
@@ -186,21 +178,9 @@ impl ProxyHttp for Umami {
 		session: &mut Session,
 		_ctx: &mut Self::CTX,
 	) -> Result<Box<HttpPeer>> {
-		let path = match route::match_route(
-			session
-				.downstream_session
-				.req_header()
-				.as_owned_parts()
-				.uri
-				.path()
-				.to_string(),
-		) {
-			route::Route::Umami(s) | route::Route::Unexpected(s) => s,
-		};
-		UPSTREAM_PEER.with_label_values(&[&path]).inc();
+		let uri = session.downstream_session.req_header().as_owned_parts().uri;
+		UPSTREAM_PEER.with_label_values(&[uri.path()]).inc();
 
-		// if let route::Route::Umami(_) != path {
-		// }
 		let peer = Box::new(HttpPeer::new(
 			format!("{}:{}", self.conf.host, self.conf.port)
 				.to_socket_addrs()
@@ -325,29 +305,22 @@ impl ProxyHttp for Umami {
 		upstream_request
 			.insert_header("Transfer-Encoding", "Chunked")
 			.expect("Needs correct transfer-encoding scheme header set");
+		upstream_request
+			.insert_header("Host", &self.conf.host)
+			.expect("Needs correct Host header");
 
-		if let route::Route::Umami(_) = &ctx.route {
+		// We are using vercel headers here because Umami supports them
+		// and they are not configurable on umamis side. We already have this info in the request
+		// as x-client-city, x-client-countrlly but umami does not support those names.
+		// (umami also supports Cloudflare headers, which we aren't (but could be) using )
+		if let Some(loc) = &ctx.location {
 			upstream_request
-				.insert_header("Host", "umami.nav.no")
-				.expect("Needs correct Host header");
+				.insert_header("X-Vercel-IP-Country", &loc.country)
+				.expect("Set geo-location header (country) for umami");
 
-			// We are using vercel headers here because Umami supports them
-			// and they are not configurable on umamis side. We already have this info in the request
-			// as x-client-city, x-client-countrlly but umami does not support those names.
-			// (umami also supports Cloudflare headers, which we aren't (but could be) using )
-			if let Some(loc) = &ctx.location {
-				upstream_request
-					.insert_header("X-Vercel-IP-Country", &loc.country)
-					.expect("Set geo-location header (country) for umami");
-
-				upstream_request
-					.insert_header("X-Vercel-City", &loc.city)
-					.expect("Set geo-location header (city) for umami");
-			}
-		}
-
-		if let route::Route::Umami(_) = &ctx.route {
-			upstream_request.set_uri(Uri::from_static("/api/send"));
+			upstream_request
+				.insert_header("X-Vercel-City", &loc.city)
+				.expect("Set geo-location header (city) for umami");
 		}
 
 		Ok(())
