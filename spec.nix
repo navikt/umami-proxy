@@ -24,7 +24,11 @@
       };
     };
     spec = {
-      ingresses = ["https://umamiproxy.nav.no"];
+      ingresses = [
+        "https://umami.nav.no"
+        "https://umami.ansatt.nav.no"
+        "https://umami.intern.nav.no"
+      ];
       image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
       liveness = {
@@ -46,9 +50,7 @@
         cpuThresholdPercentage = 50;
         scalingStrategy.cpu.thresholdPercentage = 50;
       };
-      accessPolicy.outbound = {
-        external = [{host = "umami.nav.no";}];
-      };
+      accessPolicy.outbound.rules = [{application = "reops-umami-beta";}];
       resources = {
         requests = {
           cpu = "250m";
