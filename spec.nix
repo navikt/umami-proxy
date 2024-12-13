@@ -20,7 +20,7 @@
       annotations = {
         # V These can be tuned, for sure
         "config.linkerd.io/proxy-cpu-limit" = "4"; # Ridic number
-        "config.linkerd.io/proxy-cpu-request" = "1000m";
+        "config.linkerd.io/proxy-cpu-request" = "500m";
         "config.linkerd.io/proxy-memory-request" = "512Mi";
         "config.linkerd.io/proxy-memory-limit" = "512Mi";
         "config.linkerd.io/proxy-inbound-connect-timeout" = "500ms";
