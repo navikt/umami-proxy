@@ -22,7 +22,7 @@
         "config.linkerd.io/proxy-cpu-limit" = "4"; # Ridic number
         "config.linkerd.io/proxy-cpu-request" = "500m";
         "config.linkerd.io/proxy-memory-request" = "512Mi";
-        "config.linkerd.io/proxy-memory-limit" = "512Mi";
+        "config.linkerd.io/proxy-memory-limit" = "1024Mi";
         "config.linkerd.io/proxy-inbound-connect-timeout" = "500ms";
         "config.linkerd.io/proxy-outbound-connect-timeout" = "500ms";
       };
@@ -54,7 +54,7 @@
       resources = {
         requests = {
           cpu = "100m";
-          memory = "128Mi";
+          memory = "256Mi";
         };
       };
       env = lib.attrsToList {
