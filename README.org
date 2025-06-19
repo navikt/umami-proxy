@@ -9,8 +9,8 @@ There are several green threads by Tokio running different bits of the program. 
 
 ** Development
 Configured development environment requires:
-1. Nix (flake supported)
-2. Rust configured IDE of choice
+1. Nix (flake supported).
+2. Rust configured IDE of choice.
 
 *** How to Run Locally
 TODO: Fix/specify how to change ports, currently hardcoded.
