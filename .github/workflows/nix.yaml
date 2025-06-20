@@ -20,7 +20,7 @@ jobs:
         with:
           team: team-researchops
           identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
-          project_id: ${{ vars.NAIS_MANAGEMENT_PROJECT_ID }}
+          project_id: nais-management-233d
           debug: true
 
     outputs:
