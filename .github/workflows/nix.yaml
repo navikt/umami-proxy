@@ -19,7 +19,7 @@ jobs:
         id: nix-build
         with:
           team: team-researchops
-          identity_provider: ${{ secrets.NAIS_WORKLOAD_IDENTITY_PROVIDER }}
+          identity_provider: projects/898056957967/locations/global/workloadIdentityPools/nav-identity-pool/providers/github-oidc-provider
           project_id: nais-management-233d
           debug: true
 
