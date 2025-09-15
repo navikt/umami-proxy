@@ -279,13 +279,16 @@ impl ProxyHttp for Umami {
 	where
 		Self::CTX: Send + Sync,
 	{
-		info!(
-			"status: {}, reason {:?}, {} - Origin: {}",
-			upstream_response.status,
-			upstream_response.get_reason_phrase(),
-			session.request_summary(),
-			ctx.ingress
-		);
+		let status = upstream_response.status;
+		if !status.is_success() {
+			info!(
+				"status: {}, reason {:?}, {} - Origin: {}",
+				status,
+				upstream_response.get_reason_phrase(),
+				session.request_summary(),
+				ctx.ingress
+			);
+		}
 		Ok(())
 	}
 
