@@ -88,7 +88,7 @@ impl ProxyHttp for Umami {
 
 		INCOMING_REQUESTS.inc();
 		ctx.proxy_start = Some(time::Instant::now());
-		if !INITIALIZED.load(Ordering::Relaxed) {
+		if !self.conf.disable_k8s && !INITIALIZED.load(Ordering::Relaxed) {
 			// We only ever want to spawn this thread once. It reads all ingresses once and then sits
 			// around watching changes to ingresses
 			if INITIALIZED

@@ -2,3 +2,11 @@
 /.direnv/
 .idea
 /result
+
+# Environment variable files (loaded by .envrc)
+.env
+.env.*
+!.env.example
+
+# macOS cruft
+.DS_Store
