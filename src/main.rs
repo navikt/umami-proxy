@@ -42,9 +42,9 @@ fn main() {
 
 	// All services get allocated threads: from the config. Someone should upstream more granularity on that
 	let mut prome_service_http = Service::prometheus_http_service();
-	prome_service_http.add_tcp("0.0.0.0:9090");
-	probe_instance.add_tcp("0.0.0.0:6969");
-	proxy_instance.add_tcp("0.0.0.0:6191");
+	prome_service_http.add_tcp(format!("0.0.0.0:{}", conf.metrics_listen_port).as_str());
+	probe_instance.add_tcp(format!("0.0.0.0:{}", conf.probe_listen_port).as_str());
+	proxy_instance.add_tcp(format!("0.0.0.0:{}", conf.proxy_listen_port).as_str());
 	umami_proxy.add_service(probe_instance);
 	umami_proxy.add_service(proxy_instance);
 	umami_proxy.add_service(prome_service_http);
