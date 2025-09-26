@@ -1,15 +1,10 @@
-name: build and deploy
+name: build and deploy (dev)
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - "**/*.md"
-      - ".env*"
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build
+    name: Build (Dev)
     runs-on: ubuntu-24.04
     permissions:
       packages: "write"
@@ -29,7 +24,7 @@ jobs:
       image: ${{ steps.nix-build.outputs.image }}
 
   deploy:
-    name: deploy
+    name: deploy-dev
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -43,7 +38,7 @@ jobs:
         with:
           name: spec.yaml
 
-      - name: Deploy-prod
+      - name: Deploy-dev
         uses: nais/deploy/actions/deploy@v2
         env:
           IMAGE: ${{ steps.build.outputs.image }}
