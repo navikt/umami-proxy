@@ -50,6 +50,7 @@
       imageName = "${pname}:${imageTag}";
       teamName = "team-researchops";
       my-spec = import ./spec.nix {inherit lib teamName pname imageName;};
+      my-spec-dev = import ./spec-dev.nix {inherit lib teamName pname imageName;};
 
       # Compile (and cache) cargo dependencies _only_
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -150,6 +151,15 @@
           '' (map toJson my-spec);
         in
           pkgs.writeText "spec.yaml" yamlContent;
+
+        spec-dev = let
+          toJson = attrSet: builtins.toJSON attrSet;
+          yamlContent = builtins.concatStringsSep ''
+
+            ---
+          '' (map toJson my-spec-dev);
+        in
+          pkgs.writeText "spec-dev.yaml" yamlContent;
 
         docker = pkgs.dockerTools.buildImage {
           name = pname;

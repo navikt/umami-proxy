@@ -36,11 +36,11 @@ jobs:
       - name: Download spec
         uses: actions/download-artifact@v4
         with:
-          name: spec.yaml
+          name: spec-dev.yaml
 
       - name: Deploy-dev
         uses: nais/deploy/actions/deploy@v2
         env:
-          IMAGE: ${{ steps.build.outputs.image }}
+          IMAGE: ${{ needs.build.outputs.image }}
           CLUSTER: prod-gcp
-          RESOURCE: spec.yaml
+          RESOURCE: spec-dev.yaml
