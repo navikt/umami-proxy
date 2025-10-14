@@ -34,6 +34,18 @@ jobs:
           project_id: nais-management-233d
           debug: true
 
+      - name: Upload spec-dev.yaml
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-dev.yaml
+          path: spec-dev.yaml
+
+      - name: Upload spec.yaml
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec.yaml
+          path: spec.yaml
+
     outputs:
       image: ${{ steps.nix-build.outputs.image }}
 
