@@ -34,17 +34,14 @@ jobs:
           project_id: nais-management-233d
           debug: true
 
+      - name: Build spec-dev
+        run: nix build .#spec-dev --out-link spec-dev.yaml
+
       - name: Upload spec-dev.yaml
         uses: actions/upload-artifact@v4
         with:
           name: spec-dev.yaml
           path: spec-dev.yaml
-
-      - name: Upload spec.yaml
-        uses: actions/upload-artifact@v4
-        with:
-          name: spec.yaml
-          path: spec.yaml
 
     outputs:
       image: ${{ steps.nix-build.outputs.image }}
@@ -60,7 +57,7 @@ jobs:
       id-token: "write"
     steps:
       - uses: actions/checkout@v4
-      - name: Download spec
+      - name: Download spec-dev
         uses: actions/download-artifact@v4
         with:
           name: spec-dev.yaml
