@@ -1,4 +1,4 @@
-name: build
+name: build and deploy
 on:
   push:
     branches:
@@ -6,6 +6,15 @@ on:
     paths-ignore:
       - "**/*.md"
       - ".env*"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
 
 jobs:
   build:
@@ -28,9 +37,33 @@ jobs:
     outputs:
       image: ${{ steps.nix-build.outputs.image }}
 
-  deploy:
-    name: deploy
+  deploy-dev:
+    name: deploy-dev
     needs: build
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    runs-on: ubuntu-latest
+    permissions:
+      packages: "write"
+      contents: "read"
+      id-token: "write"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download spec
+        uses: actions/download-artifact@v4
+        with:
+          name: spec-dev.yaml
+
+      - name: Deploy-dev
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+          CLUSTER: prod-gcp
+          RESOURCE: spec-dev.yaml
+
+  deploy-prod:
+    name: deploy-prod
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
     runs-on: ubuntu-latest
     permissions:
       packages: "write"
@@ -46,6 +79,6 @@ jobs:
       - name: Deploy-prod
         uses: nais/deploy/actions/deploy@v2
         env:
-          IMAGE: ${{ steps.build.outputs.image }}
+          IMAGE: ${{ needs.build.outputs.image }}
           CLUSTER: prod-gcp
           RESOURCE: spec.yaml
