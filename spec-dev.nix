@@ -7,7 +7,7 @@
 }: let
   name = pname;
   namespace = teamName;
-  upstreamUmamiFQDN = "reops-umami-beta";
+  upstreamUmamiFQDN = "umami-dev";
   naisApp = {
     apiVersion = "nais.io/v1alpha1";
     kind = "Application";
