@@ -12,8 +12,37 @@ Configured development environment requires:
 1. Nix (flake supported).
 2. Rust configured IDE of choice.
 
-*** How to Run Locally
-TODO: Fix/specify how to change ports, currently hardcoded.
+*** Quick start (development mode)
+1. Install direnv if not present and run `direnv allow` in this directory (loads `.envrc`).
+2. Copy `.env.example` to `.env` (git-ignored) and adjust values if you need non-default ports or upstream.
+3. Start a mock upstream (simple echo) listening on `UMAMI_PORT` (default 1234):
+   #+BEGIN_SRC sh
+   socat -v -d -d tcp-l:1234,crlf,reuseaddr,fork system:"echo HTTP/1.1 200 OK; echo Content-Type: application/json; echo; echo '{"ok":true}'"
+   #+END_SRC
+4. Run the proxy:
+   #+BEGIN_SRC sh
+   cargo run
+   #+END_SRC
+5. Test endpoints (adjust if you changed ports):
+   #+BEGIN_SRC sh
+   curl -v localhost:6969/is_alive
+   curl -v -H 'content-type: application/json' -H 'origin: https://example.dev.nav.no' \
+     -d '{"payload":{"hostname":"example.dev.nav.no"},"event_properties":{"foo":"bar"},"ip":"1.2.3.4"}' \
+     localhost:6191/
+   curl -s localhost:9090/metrics | head
+   #+END_SRC
+
+Environment variables (see `.env.example`):
+- UMAMI_HOST / UMAMI_PORT: Upstream target (defaults to localhost:1234 for dev)
+- UMAMI_SNI: Optional SNI when upstream is TLS
+- DISABLE_K8S=1: Skip Kubernetes cache/watch (no cluster required locally)
+- PROXY_LISTEN_PORT / PROBE_LISTEN_PORT / METRICS_LISTEN_PORT: Bind ports (defaults 6191/6969/9090)
+- RUST_LOG: Log verbosity (e.g. trace, debug, info)
+
+`.envrc` automatically loads every `.env*` file (except itself) using the `dotenv` command then enters the Nix flake dev shell. Secrets and local-only overrides belong in `.env`.
+
+*** How to Run Locally (legacy notes)
+Ports are now configurable by env vars. The previous hardcoded values remain defaults.
 
 1. Start an echo server:
    #+BEGIN_SRC sh
@@ -29,7 +58,7 @@ TODO: Fix/specify how to change ports, currently hardcoded.
 
    you can also use http-bin or similar.
 
-2. Start the program, you need to set umami and amplitude envs first.
+2. Start the program (env vars auto-loaded from `.env`).
    #+BEGIN_SRC sh
    cargo watch -qx 'run'  ;; or just `cargo run`
    #+END_SRC
