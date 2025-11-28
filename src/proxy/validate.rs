@@ -137,14 +137,14 @@ pub fn format_error_message(violations: &[FieldViolation]) -> String {
 		violations.len(),
 		MAX_FIELD_LENGTH
 	);
-	
+
 	for violation in violations {
 		message.push_str(&format!(
 			"  - '{}': {} characters\n",
 			violation.path, violation.length
 		));
 	}
-	
+
 	message
 }
 
@@ -354,12 +354,12 @@ mod tests {
 		});
 
 		let (filtered, violations) = validate_and_filter(&data);
-		
+
 		// Should have one violation
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "long_field");
 		assert_eq!(violations[0].length, 510);
-		
+
 		// Filtered data should only have the short field
 		assert_eq!(filtered["short_field"], "valid");
 		assert!(filtered.get("long_field").is_none());
@@ -376,10 +376,10 @@ mod tests {
 		});
 
 		let (filtered, violations) = validate_and_filter(&data);
-		
+
 		// No violations
 		assert!(violations.is_empty());
-		
+
 		// All fields preserved
 		assert_eq!(filtered, data);
 	}
@@ -396,11 +396,11 @@ mod tests {
 		});
 
 		let (filtered, violations) = validate_and_filter(&data);
-		
+
 		// Should have one violation
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "user.bio");
-		
+
 		// Filtered should have user object without bio
 		assert_eq!(filtered["user"]["name"], "John");
 		assert_eq!(filtered["user"]["email"], "john@example.com");
@@ -419,11 +419,11 @@ mod tests {
 		});
 
 		let (filtered, violations) = validate_and_filter(&data);
-		
+
 		// Should have one violation
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "items[1]");
-		
+
 		// Array should still have 3 items (long one becomes null)
 		assert_eq!(filtered["items"].as_array().unwrap().len(), 3);
 		assert_eq!(filtered["items"][0], "valid item 1");
@@ -445,12 +445,12 @@ mod tests {
 		});
 
 		let (filtered, violations) = validate_and_filter(&data);
-		
+
 		// Should have two violations
 		assert_eq!(violations.len(), 2);
 		assert!(violations.iter().any(|v| v.path == "field1"));
 		assert!(violations.iter().any(|v| v.path == "nested.field2"));
-		
+
 		// Filtered should only have valid fields
 		assert!(filtered.get("field1").is_none());
 		assert_eq!(filtered["valid"], "good");
@@ -476,14 +476,20 @@ mod tests {
 		});
 
 		let (filtered, violations) = validate_and_filter(&data);
-		
+
 		// Should have one violation
 		assert_eq!(violations.len(), 1);
-		assert_eq!(violations[0].path, "payload.events[0].event_properties.description");
-		
+		assert_eq!(
+			violations[0].path,
+			"payload.events[0].event_properties.description"
+		);
+
 		// Structure preserved but description removed
 		assert_eq!(filtered["payload"]["events"][0]["event_type"], "click");
-		assert_eq!(filtered["payload"]["events"][0]["event_properties"]["page"], "home");
+		assert_eq!(
+			filtered["payload"]["events"][0]["event_properties"]["page"],
+			"home"
+		);
 		assert!(filtered["payload"]["events"][0]["event_properties"]
 			.get("description")
 			.is_none());
@@ -497,7 +503,7 @@ mod tests {
 		});
 
 		let (filtered, violations) = validate_and_filter(&data);
-		
+
 		// No violations - exactly 500 is allowed
 		assert!(violations.is_empty());
 		assert_eq!(filtered["field"], exactly_500);
