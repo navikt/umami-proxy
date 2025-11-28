@@ -64,6 +64,72 @@ fn traverse_and_validate(
 	}
 }
 
+/// Validates and filters out fields that exceed the maximum length.
+/// Returns a tuple of (filtered_value, violations).
+/// The filtered value has all offending fields removed.
+pub fn validate_and_filter(value: &Value) -> (Value, Vec<FieldViolation>) {
+	let mut violations = Vec::new();
+	let filtered = filter_long_fields(value, String::new(), &mut violations);
+	(filtered, violations)
+}
+
+/// Recursively filters out string fields that exceed the maximum length.
+/// Collects violations along the way.
+fn filter_long_fields(
+	value: &Value,
+	current_path: String,
+	violations: &mut Vec<FieldViolation>,
+) -> Value {
+	match value {
+		Value::String(s) => {
+			if s.len() > MAX_FIELD_LENGTH {
+				violations.push(FieldViolation::new(current_path, s.len()));
+				// Return null for fields that are too long (they will be removed from objects)
+				Value::Null
+			} else {
+				value.clone()
+			}
+		},
+		Value::Array(arr) => {
+			let filtered_array: Vec<Value> = arr
+				.iter()
+				.enumerate()
+				.map(|(index, v)| {
+					let path = if current_path.is_empty() {
+						format!("[{}]", index)
+					} else {
+						format!("{}[{}]", current_path, index)
+					};
+					filter_long_fields(v, path, violations)
+				})
+				.filter(|v| !v.is_null() || matches!(value, Value::Array(_)))
+				.collect();
+			Value::Array(filtered_array)
+		},
+		Value::Object(obj) => {
+			let filtered_object: serde_json::Map<String, Value> = obj
+				.iter()
+				.filter_map(|(key, v)| {
+					let path = if current_path.is_empty() {
+						key.clone()
+					} else {
+						format!("{}.{}", current_path, key)
+					};
+					let filtered_value = filter_long_fields(v, path, violations);
+					// Remove fields that became null due to being too long
+					if filtered_value.is_null() && v.is_string() {
+						None
+					} else {
+						Some((key.clone(), filtered_value))
+					}
+				})
+				.collect();
+			Value::Object(filtered_object)
+		},
+		Value::Number(_) | Value::Bool(_) | Value::Null => value.clone(),
+	}
+}
+
 /// Formats violations into a human-readable error message
 pub fn format_error_message(violations: &[FieldViolation]) -> String {
 	let mut message = format!(
@@ -71,14 +137,14 @@ pub fn format_error_message(violations: &[FieldViolation]) -> String {
 		violations.len(),
 		MAX_FIELD_LENGTH
 	);
-
+	
 	for violation in violations {
 		message.push_str(&format!(
 			"  - '{}': {} characters\n",
 			violation.path, violation.length
 		));
 	}
-
+	
 	message
 }
 
@@ -276,5 +342,164 @@ mod tests {
 			"payload.events[0].event_properties.description"
 		);
 		assert_eq!(violations[0].length, 505);
+	}
+
+	// Tests for filtering behavior
+	#[test]
+	fn test_filter_removes_long_field() {
+		let over_500 = "a".repeat(510);
+		let data = json!({
+			"short_field": "valid",
+			"long_field": over_500.clone()
+		});
+
+		let (filtered, violations) = validate_and_filter(&data);
+		
+		// Should have one violation
+		assert_eq!(violations.len(), 1);
+		assert_eq!(violations[0].path, "long_field");
+		assert_eq!(violations[0].length, 510);
+		
+		// Filtered data should only have the short field
+		assert_eq!(filtered["short_field"], "valid");
+		assert!(filtered.get("long_field").is_none());
+	}
+
+	#[test]
+	fn test_filter_preserves_valid_fields() {
+		let data = json!({
+			"field1": "short",
+			"field2": "another short one",
+			"nested": {
+				"field3": "also valid"
+			}
+		});
+
+		let (filtered, violations) = validate_and_filter(&data);
+		
+		// No violations
+		assert!(violations.is_empty());
+		
+		// All fields preserved
+		assert_eq!(filtered, data);
+	}
+
+	#[test]
+	fn test_filter_nested_objects() {
+		let over_500 = "b".repeat(520);
+		let data = json!({
+			"user": {
+				"name": "John",
+				"bio": over_500.clone(),
+				"email": "john@example.com"
+			}
+		});
+
+		let (filtered, violations) = validate_and_filter(&data);
+		
+		// Should have one violation
+		assert_eq!(violations.len(), 1);
+		assert_eq!(violations[0].path, "user.bio");
+		
+		// Filtered should have user object without bio
+		assert_eq!(filtered["user"]["name"], "John");
+		assert_eq!(filtered["user"]["email"], "john@example.com");
+		assert!(filtered["user"].get("bio").is_none());
+	}
+
+	#[test]
+	fn test_filter_arrays() {
+		let over_500 = "c".repeat(530);
+		let data = json!({
+			"items": [
+				"valid item 1",
+				over_500.clone(),
+				"valid item 2"
+			]
+		});
+
+		let (filtered, violations) = validate_and_filter(&data);
+		
+		// Should have one violation
+		assert_eq!(violations.len(), 1);
+		assert_eq!(violations[0].path, "items[1]");
+		
+		// Array should still have 3 items (long one becomes null)
+		assert_eq!(filtered["items"].as_array().unwrap().len(), 3);
+		assert_eq!(filtered["items"][0], "valid item 1");
+		assert!(filtered["items"][1].is_null());
+		assert_eq!(filtered["items"][2], "valid item 2");
+	}
+
+	#[test]
+	fn test_filter_multiple_violations() {
+		let over_500_1 = "d".repeat(510);
+		let over_500_2 = "e".repeat(540);
+		let data = json!({
+			"field1": over_500_1.clone(),
+			"valid": "good",
+			"nested": {
+				"field2": over_500_2.clone(),
+				"also_valid": "fine"
+			}
+		});
+
+		let (filtered, violations) = validate_and_filter(&data);
+		
+		// Should have two violations
+		assert_eq!(violations.len(), 2);
+		assert!(violations.iter().any(|v| v.path == "field1"));
+		assert!(violations.iter().any(|v| v.path == "nested.field2"));
+		
+		// Filtered should only have valid fields
+		assert!(filtered.get("field1").is_none());
+		assert_eq!(filtered["valid"], "good");
+		assert!(filtered["nested"].get("field2").is_none());
+		assert_eq!(filtered["nested"]["also_valid"], "fine");
+	}
+
+	#[test]
+	fn test_filter_complex_nested_structure() {
+		let over_500 = "x".repeat(505);
+		let data = json!({
+			"payload": {
+				"events": [
+					{
+						"event_type": "click",
+						"event_properties": {
+							"description": over_500.clone(),
+							"page": "home"
+						}
+					}
+				]
+			}
+		});
+
+		let (filtered, violations) = validate_and_filter(&data);
+		
+		// Should have one violation
+		assert_eq!(violations.len(), 1);
+		assert_eq!(violations[0].path, "payload.events[0].event_properties.description");
+		
+		// Structure preserved but description removed
+		assert_eq!(filtered["payload"]["events"][0]["event_type"], "click");
+		assert_eq!(filtered["payload"]["events"][0]["event_properties"]["page"], "home");
+		assert!(filtered["payload"]["events"][0]["event_properties"]
+			.get("description")
+			.is_none());
+	}
+
+	#[test]
+	fn test_filter_with_exactly_500_chars() {
+		let exactly_500 = "a".repeat(500);
+		let data = json!({
+			"field": exactly_500.clone()
+		});
+
+		let (filtered, violations) = validate_and_filter(&data);
+		
+		// No violations - exactly 500 is allowed
+		assert!(violations.is_empty());
+		assert_eq!(filtered["field"], exactly_500);
 	}
 }

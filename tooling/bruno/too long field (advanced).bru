@@ -1,0 +1,47 @@
+meta {
+  name: too long field (advanced)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{protocol}}://{{umami_domain}}:{{umami_port}}/api/send
+  body: json
+  auth: inherit
+}
+
+headers {
+  Origin: en-nettside
+}
+
+body:json {
+  {
+    "type": "event",
+    "payload": {
+      "website": "2a29e23b-cbb0-4375-98f1-3427955a9fca",
+      "hostname":"felgen.ansatt.nav.no",
+      "screen":"420x69",
+      "language":"en-GB",
+      "title":"tittelgreier",
+      "url": "felgen.ansatt.nav.no/greier",
+      "referrer":"nettside",
+      "my-long-field": "{{longField}}",
+      "my-nested-long-containing-field": {
+        "my-long-field": "{{longField}}",
+        "fine-field": "this field is fine",
+        "my-arr-of-things": ["thing1", "{{longField}}", "thing2"]
+      }
+    }
+  }
+  
+}
+
+script:pre-request {
+  const longString = 'a'.repeat(501);
+  bru.setVar('longField', longString)
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
