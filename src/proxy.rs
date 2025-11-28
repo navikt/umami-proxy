@@ -224,49 +224,49 @@ impl ProxyHttp for Umami {
 						},
 					);
 
-			// We should do content negotiation, apparently
-			// This must be a downsteam misconfiguration, surely??
-			let mut json: Value = if content_type
-				.to_lowercase()
-				.contains("application/x-www-form-urlencoded")
-			{
-				parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer))?
-			} else {
-				serde_json::from_slice(&ctx.request_body_buffer)
-					.or_err(
-						pingora::ErrorType::Custom(
-							AmplitrudeProxyError::RequestContainsInvalidJson.into(),
-						),
-						"Failed to parse request body",
-					)
-					.map_err(|e| *e)?
-			};
+				// We should do content negotiation, apparently
+				// This must be a downsteam misconfiguration, surely??
+				let mut json: Value = if content_type
+					.to_lowercase()
+					.contains("application/x-www-form-urlencoded")
+				{
+					parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer))?
+				} else {
+					serde_json::from_slice(&ctx.request_body_buffer)
+						.or_err(
+							pingora::ErrorType::Custom(
+								AmplitrudeProxyError::RequestContainsInvalidJson.into(),
+							),
+							"Failed to parse request body",
+						)
+						.map_err(|e| *e)?
+				};
 
-			// Validate field lengths before processing
-			if let Err(violations) = validate::validate_field_lengths(&json) {
-				let error_response = validate::create_error_response(&violations);
-				let error_body = serde_json::to_string(&error_response)
-					.unwrap_or_else(|_| String::from(r#"{"error":"Field validation failed"}"#));
-				
-				let mut response_header = ResponseHeader::build(400, None)?;
-				response_header.insert_header("Content-Type", "application/json")?;
-				response_header.insert_header("Content-Length", error_body.len())?;
-				
-				session
-					.write_response_header(Box::new(response_header), false)
-					.await?;
-				session
-					.write_response_body(Some(Bytes::from(error_body)), true)
-					.await?;
-				
-				let error_msg = validate::format_error_message(&violations);
-				return Err(Error::explain(
-					pingora::ErrorType::Custom(AmplitrudeProxyError::FieldTooLong.into()),
-					error_msg,
-				));
-			}
+				// Validate field lengths before processing
+				if let Err(violations) = validate::validate_field_lengths(&json) {
+					let error_response = validate::create_error_response(&violations);
+					let error_body = serde_json::to_string(&error_response)
+						.unwrap_or_else(|_| String::from(r#"{"error":"Field validation failed"}"#));
 
-			redact::traverse_and_redact(&mut json);
+					let mut response_header = ResponseHeader::build(400, None)?;
+					response_header.insert_header("Content-Type", "application/json")?;
+					response_header.insert_header("Content-Length", error_body.len())?;
+
+					session
+						.write_response_header(Box::new(response_header), false)
+						.await?;
+					session
+						.write_response_body(Some(Bytes::from(error_body)), true)
+						.await?;
+
+					let error_msg = validate::format_error_message(&violations);
+					return Err(Error::explain(
+						pingora::ErrorType::Custom(AmplitrudeProxyError::FieldTooLong.into()),
+						error_msg,
+					));
+				}
+
+				redact::traverse_and_redact(&mut json);
 				annotate::with_proxy_version(
 					&mut json,
 					&format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
@@ -339,16 +339,20 @@ impl ProxyHttp for Umami {
 		if let Some(base_path) = &self.conf.path {
 			let current_uri = &upstream_request.uri;
 			let new_path = format!("{}{}", base_path, current_uri.path());
-			
+
 			// Preserve query string if present
 			let new_uri = if let Some(query) = current_uri.query() {
 				format!("{}?{}", new_path, query)
 			} else {
 				new_path
 			};
-			
-			upstream_request.set_uri(new_uri.as_bytes().try_into()
-				.expect("Failed to construct new URI with path prefix"));
+
+			upstream_request.set_uri(
+				new_uri
+					.as_bytes()
+					.try_into()
+					.expect("Failed to construct new URI with path prefix"),
+			);
 		}
 
 		// We are using vercel headers here because Umami supports them

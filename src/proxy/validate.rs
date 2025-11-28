@@ -19,7 +19,7 @@ impl FieldViolation {
 pub fn validate_field_lengths(value: &Value) -> Result<(), Vec<FieldViolation>> {
 	let mut violations = Vec::new();
 	traverse_and_validate(value, String::new(), &mut violations);
-	
+
 	if violations.is_empty() {
 		Ok(())
 	} else {
@@ -27,7 +27,11 @@ pub fn validate_field_lengths(value: &Value) -> Result<(), Vec<FieldViolation>> 
 	}
 }
 
-fn traverse_and_validate(value: &Value, current_path: String, violations: &mut Vec<FieldViolation>) {
+fn traverse_and_validate(
+	value: &Value,
+	current_path: String,
+	violations: &mut Vec<FieldViolation>,
+) {
 	match value {
 		Value::String(s) => {
 			if s.len() > MAX_FIELD_LENGTH {
@@ -67,14 +71,14 @@ pub fn format_error_message(violations: &[FieldViolation]) -> String {
 		violations.len(),
 		MAX_FIELD_LENGTH
 	);
-	
+
 	for violation in violations {
 		message.push_str(&format!(
 			"  - '{}': {} characters\n",
 			violation.path, violation.length
 		));
 	}
-	
+
 	message
 }
 
@@ -131,7 +135,7 @@ mod tests {
 
 		let result = validate_field_lengths(&data);
 		assert!(result.is_err());
-		
+
 		let violations = result.unwrap_err();
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "description");
@@ -151,7 +155,7 @@ mod tests {
 
 		let result = validate_field_lengths(&data);
 		assert!(result.is_err());
-		
+
 		let violations = result.unwrap_err();
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "user.profile.bio");
@@ -171,7 +175,7 @@ mod tests {
 
 		let result = validate_field_lengths(&data);
 		assert!(result.is_err());
-		
+
 		let violations = result.unwrap_err();
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "items[1]");
@@ -191,13 +195,17 @@ mod tests {
 
 		let result = validate_field_lengths(&data);
 		assert!(result.is_err());
-		
+
 		let violations = result.unwrap_err();
 		assert_eq!(violations.len(), 2);
-		
+
 		// Check both violations are present
-		assert!(violations.iter().any(|v| v.path == "field1" && v.length == 510));
-		assert!(violations.iter().any(|v| v.path == "nested.field2" && v.length == 520));
+		assert!(violations
+			.iter()
+			.any(|v| v.path == "field1" && v.length == 510));
+		assert!(violations
+			.iter()
+			.any(|v| v.path == "nested.field2" && v.length == 520));
 	}
 
 	#[test]
@@ -221,7 +229,7 @@ mod tests {
 		];
 
 		let message = format_error_message(&violations);
-		
+
 		assert!(message.contains("Field length validation failed"));
 		assert!(message.contains("2 field(s)"));
 		assert!(message.contains("500 character limit"));
@@ -233,12 +241,10 @@ mod tests {
 
 	#[test]
 	fn test_create_error_response() {
-		let violations = vec![
-			FieldViolation::new("field1".to_string(), 510),
-		];
+		let violations = vec![FieldViolation::new("field1".to_string(), 510)];
 
 		let response = create_error_response(&violations);
-		
+
 		assert_eq!(response["error"], "Field length validation failed");
 		assert_eq!(response["limit"], 500);
 		assert_eq!(response["violations"][0]["field"], "field1");
@@ -262,10 +268,13 @@ mod tests {
 
 		let result = validate_field_lengths(&data);
 		assert!(result.is_err());
-		
+
 		let violations = result.unwrap_err();
 		assert_eq!(violations.len(), 1);
-		assert_eq!(violations[0].path, "payload.events[0].event_properties.description");
+		assert_eq!(
+			violations[0].path,
+			"payload.events[0].event_properties.description"
+		);
 		assert_eq!(violations[0].length, 505);
 	}
 }
