@@ -59,3 +59,4 @@ Configured development environment requires:
      #+END_SRC
      This should print the following string in the `socat` terminal:
      + `GET /nav123456/[redacted]/test654321/[redacted]?regularstring=[redacted]&anotherString=12345 HTTP/1.1\r`
+   - You can also use [Bruno](https://docs.usebruno.com/), and add the bruno collection located in `./tooling/bruno/`
