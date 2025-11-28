@@ -9,6 +9,7 @@ pub enum AmplitrudeProxyError {
 	NoMatchingPeer,
 	// This one matches the pingora::Error::Custom(string) exactly
 	PrematureBodyEnd,
+	FieldTooLong,
 }
 
 impl Display for AmplitrudeProxyError {

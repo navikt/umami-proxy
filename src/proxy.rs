@@ -18,6 +18,7 @@ use tokio::time;
 use tracing::{error, info, trace, warn};
 mod annotate;
 mod redact;
+mod validate;
 use isbot::Bots;
 
 use crate::config::Config;
@@ -223,25 +224,49 @@ impl ProxyHttp for Umami {
 						},
 					);
 
-				// We should do content negotiation, apparently
-				// This must be a downsteam misconfiguration, surely??
-				let mut json: Value = if content_type
-					.to_lowercase()
-					.contains("application/x-www-form-urlencoded")
-				{
-					parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer))?
-				} else {
-					serde_json::from_slice(&ctx.request_body_buffer)
-						.or_err(
-							pingora::ErrorType::Custom(
-								AmplitrudeProxyError::RequestContainsInvalidJson.into(),
-							),
-							"Failed to parse request body",
-						)
-						.map_err(|e| *e)?
-				};
+			// We should do content negotiation, apparently
+			// This must be a downsteam misconfiguration, surely??
+			let mut json: Value = if content_type
+				.to_lowercase()
+				.contains("application/x-www-form-urlencoded")
+			{
+				parse_url_encoded(&String::from_utf8_lossy(&ctx.request_body_buffer))?
+			} else {
+				serde_json::from_slice(&ctx.request_body_buffer)
+					.or_err(
+						pingora::ErrorType::Custom(
+							AmplitrudeProxyError::RequestContainsInvalidJson.into(),
+						),
+						"Failed to parse request body",
+					)
+					.map_err(|e| *e)?
+			};
 
-				redact::traverse_and_redact(&mut json);
+			// Validate field lengths before processing
+			if let Err(violations) = validate::validate_field_lengths(&json) {
+				let error_response = validate::create_error_response(&violations);
+				let error_body = serde_json::to_string(&error_response)
+					.unwrap_or_else(|_| String::from(r#"{"error":"Field validation failed"}"#));
+				
+				let mut response_header = ResponseHeader::build(400, None)?;
+				response_header.insert_header("Content-Type", "application/json")?;
+				response_header.insert_header("Content-Length", error_body.len())?;
+				
+				session
+					.write_response_header(Box::new(response_header), false)
+					.await?;
+				session
+					.write_response_body(Some(Bytes::from(error_body)), true)
+					.await?;
+				
+				let error_msg = validate::format_error_message(&violations);
+				return Err(Error::explain(
+					pingora::ErrorType::Custom(AmplitrudeProxyError::FieldTooLong.into()),
+					error_msg,
+				));
+			}
+
+			redact::traverse_and_redact(&mut json);
 				annotate::with_proxy_version(
 					&mut json,
 					&format!("{}-{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
