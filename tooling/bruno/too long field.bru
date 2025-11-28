@@ -1,7 +1,7 @@
 meta {
-  name: send event
+  name: too long field
   type: http
-  seq: 1
+  seq: 3
 }
 
 post {
@@ -24,10 +24,16 @@ body:json {
       "language":"en-GB",
       "title":"tittelgreier",
       "url": "felgen.ansatt.nav.no/greier",
-      "referrer":"nettside"
+      "referrer":"nettside",
+      "my-long-field": "{{longField}}"
     }
   }
   
+}
+
+script:pre-request {
+  const longString = 'a'.repeat(501);
+  bru.setVar('longField', longString)
 }
 
 settings {
