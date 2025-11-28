@@ -335,6 +335,22 @@ impl ProxyHttp for Umami {
 			.insert_header("Host", &self.conf.host)
 			.expect("Needs correct Host header");
 
+		// Prepend path if UMAMI_PATH is configured (useful for testing with request baskets)
+		if let Some(base_path) = &self.conf.path {
+			let current_uri = &upstream_request.uri;
+			let new_path = format!("{}{}", base_path, current_uri.path());
+			
+			// Preserve query string if present
+			let new_uri = if let Some(query) = current_uri.query() {
+				format!("{}?{}", new_path, query)
+			} else {
+				new_path
+			};
+			
+			upstream_request.set_uri(new_uri.as_bytes().try_into()
+				.expect("Failed to construct new URI with path prefix"));
+		}
+
 		// We are using vercel headers here because Umami supports them
 		// and they are not configurable on umamis side. We already have this info in the request
 		// as x-client-city, x-client-countrlly but umami does not support those names.

@@ -1,6 +1,6 @@
 * Umami-proxy
 
-A reverse proxy in front of Amplitude and Umami. It redacts some data and annotates requests with other data.
+A reverse proxy in front of Umami. It tries to redact some data and annotates requests with other data.
 This tries to be, morally, a reverse proxy and not a custom ingestion service.
 As such, we try to avoid a having knowledge about upstreams and downstreams.
 
@@ -13,9 +13,17 @@ Configured development environment requires:
 2. Rust configured IDE of choice.
 
 *** How to Run Locally
-TODO: Fix/specify how to change ports, currently hardcoded.
 
 1. Start an echo server:
+   For testing with request-baskets, you can use the request-baskets basket path in the ~UMAMI_PATH~ environment variable later:
+   #+BEGIN_SRC sh
+   # Start request-baskets on port 55556
+   docker run -p 55556:55555 darklynx/request-baskets
+   # Create a basket at http://localhost:55556 (e.g., /1nrpael)
+   #+END_SRC
+
+   You can use socat as well
+
    #+BEGIN_SRC sh
    socat -v -d -d tcp-l:1234,crlf,reuseaddr,fork system:"
    echo HTTP/1.1 200 OK;
@@ -27,11 +35,17 @@ TODO: Fix/specify how to change ports, currently hardcoded.
    socat -v tcp-l:1234,fork exec:"'$(realpath cat)'"
    #+END_SRC
 
-   you can also use http-bin or similar.
 
-2. Start the program, you need to set umami and amplitude envs first.
+2. Start the program, you need to set umami envs first.
    #+BEGIN_SRC sh
-   cargo watch -qx 'run'  ;; or just `cargo run`
+   # Without path prefix (default behavior):
+   UMAMI_HOST=localhost UMAMI_PORT=1234 cargo run
+
+   # With path prefix (for request-baskets):
+   UMAMI_HOST=localhost UMAMI_PORT=55556 UMAMI_PATH=/1nrpael cargo run
+   
+   # Or with auto-reload:
+   cargo watch -qx 'run'
    #+END_SRC
 
 3. Perform HTTP request towards it:
