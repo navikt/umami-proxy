@@ -90,12 +90,12 @@ pub fn traverse_and_redact(value: &mut Value) {
 fn redact(s: &str) -> Rule {
 	// First apply PII redaction
 	let pii_redacted = privacy::redact_pii(s);
-	
+
 	// If PII was found and redacted, return that
 	if pii_redacted != s {
 		return Rule::Original(pii_redacted);
 	}
-	
+
 	// Otherwise, apply the original redaction logic
 	if KEEP_REGEX.is_match(s) {
 		Rule::Keep(s.to_string())
