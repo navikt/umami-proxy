@@ -4,6 +4,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde_json::Value;
 
+use super::privacy;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Rule {
 	Redact,             // Replace the string w/[Redacted]
@@ -86,6 +88,15 @@ pub fn traverse_and_redact(value: &mut Value) {
 }
 
 fn redact(s: &str) -> Rule {
+	// First apply PII redaction
+	let pii_redacted = privacy::redact_pii(s);
+	
+	// If PII was found and redacted, return that
+	if pii_redacted != s {
+		return Rule::Original(pii_redacted);
+	}
+	
+	// Otherwise, apply the original redaction logic
 	if KEEP_REGEX.is_match(s) {
 		Rule::Keep(s.to_string())
 	} else if FNR_REGEX.is_match(s) {
@@ -158,7 +169,7 @@ mod tests {
 				"device_model": "iPhone 12",
 				"event_time": 1678,
 				"session_id": 1678,
-				"insert_id": "[redacted]",  // Only this field is redacted
+				"insert_id": "[REDACTED-FØDSELSNUMMER]",  // Now caught by PII filter
 				"location_lat": 37.7749,
 				"location_lng": -122.4194,
 		//		"ip_address": "123.45.67.89"   // Ip Address gets deleted
@@ -185,7 +196,8 @@ mod tests {
 	fn test_redact_regex() {
 		let input = "23031510135";
 		let result = redact(input).pretty_print();
-		assert_eq!(result, Rule::RedactSsns(input.to_string()).pretty_print());
+		// This 11-digit number is now caught by the PII Fødselsnummer pattern
+		assert_eq!(result, "[REDACTED-FØDSELSNUMMER]");
 	}
 
 	#[test]
@@ -199,5 +211,44 @@ mod tests {
 		let input = "12345";
 		let result = redact(input).pretty_print();
 		assert_eq!(result, Rule::Original(input.to_string()).pretty_print());
+	}
+
+	#[test]
+	fn test_comprehensive_pii_redaction() {
+		// Create a JSON structure with various PII types
+		let mut json_data = json!({
+			"user_email": "user@example.com",
+			"user_id": "550e8400-e29b-41d4-a716-446655440000",
+			"ssn": "12345678901",
+			"phone": "98765432",
+			"ip_address": "192.168.1.1",
+			"event_properties": {
+				"card_number": "1234 5678 9012 3456",
+				"account": "1234.56.78901",
+				"navident": "X123456",
+				"regular_field": "This is normal text"
+			}
+		});
+
+		// Expected JSON after redaction
+		// Note: ip_address field is removed by traverse_and_redact
+		let expected_data = json!({
+			"user_email": "[REDACTED-EMAIL]",
+			"user_id": "[REDACTED-UUID]",
+			"ssn": "[REDACTED-FØDSELSNUMMER]",
+			"phone": "[REDACTED-PHONE]",
+			"event_properties": {
+				"card_number": "[REDACTED-CARD]",
+				"account": "[REDACTED-ACCOUNT]",
+				"navident": "[REDACTED-NAVIDENT]",
+				"regular_field": "This is normal text"
+			}
+		});
+
+		// Apply the redaction function
+		traverse_and_redact(&mut json_data);
+
+		// Assert that the redacted JSON matches the expected output
+		assert_eq!(json_data, expected_data);
 	}
 }

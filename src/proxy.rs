@@ -17,6 +17,7 @@ use serde_json::{json, Value};
 use tokio::time;
 use tracing::{error, info, trace, warn};
 mod annotate;
+mod privacy;
 mod redact;
 mod validate;
 use isbot::Bots;
