@@ -1,6 +1,9 @@
 use serde_json::Value;
 
 const MAX_FIELD_LENGTH: usize = 500;
+const TRUNCATION_MARKER: &str = "TRUNCATED";
+const TRUNCATION_MARKER_LENGTH: usize = TRUNCATION_MARKER.len(); // 9 characters
+const MAX_CONTENT_LENGTH: usize = MAX_FIELD_LENGTH - TRUNCATION_MARKER_LENGTH; // 491 characters
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldViolation {
@@ -64,18 +67,18 @@ fn traverse_and_validate(
 	}
 }
 
-/// Validates and filters out fields that exceed the maximum length.
-/// Returns a tuple of (filtered_value, violations).
-/// The filtered value has all offending fields removed.
+/// Validates and truncates fields that exceed the maximum length.
+/// Returns a tuple of (truncated_value, violations).
+/// The truncated value has all offending fields truncated to 491 characters with "TRUNCATED" appended.
 pub fn validate_and_filter(value: &Value) -> (Value, Vec<FieldViolation>) {
 	let mut violations = Vec::new();
-	let filtered = filter_long_fields(value, String::new(), &mut violations);
-	(filtered, violations)
+	let truncated = truncate_long_fields(value, String::new(), &mut violations);
+	(truncated, violations)
 }
 
-/// Recursively filters out string fields that exceed the maximum length.
+/// Recursively truncates string fields that exceed the maximum length.
 /// Collects violations along the way.
-fn filter_long_fields(
+fn truncate_long_fields(
 	value: &Value,
 	current_path: String,
 	violations: &mut Vec<FieldViolation>,
@@ -84,14 +87,19 @@ fn filter_long_fields(
 		Value::String(s) => {
 			if s.len() > MAX_FIELD_LENGTH {
 				violations.push(FieldViolation::new(current_path, s.len()));
-				// Return null for fields that are too long (they will be removed from objects)
-				Value::Null
+				// Truncate to 491 characters and append "TRUNCATED"
+				let truncated = format!(
+					"{}{}",
+					&s[..MAX_CONTENT_LENGTH.min(s.len())],
+					TRUNCATION_MARKER
+				);
+				Value::String(truncated)
 			} else {
 				value.clone()
 			}
 		},
 		Value::Array(arr) => {
-			let filtered_array: Vec<Value> = arr
+			let truncated_array: Vec<Value> = arr
 				.iter()
 				.enumerate()
 				.map(|(index, v)| {
@@ -100,31 +108,25 @@ fn filter_long_fields(
 					} else {
 						format!("{}[{}]", current_path, index)
 					};
-					filter_long_fields(v, path, violations)
+					truncate_long_fields(v, path, violations)
 				})
-				.filter(|v| !v.is_null() || matches!(value, Value::Array(_)))
 				.collect();
-			Value::Array(filtered_array)
+			Value::Array(truncated_array)
 		},
 		Value::Object(obj) => {
-			let filtered_object: serde_json::Map<String, Value> = obj
+			let truncated_object: serde_json::Map<String, Value> = obj
 				.iter()
-				.filter_map(|(key, v)| {
+				.map(|(key, v)| {
 					let path = if current_path.is_empty() {
 						key.clone()
 					} else {
 						format!("{}.{}", current_path, key)
 					};
-					let filtered_value = filter_long_fields(v, path, violations);
-					// Remove fields that became null due to being too long
-					if filtered_value.is_null() && v.is_string() {
-						None
-					} else {
-						Some((key.clone(), filtered_value))
-					}
+					let truncated_value = truncate_long_fields(v, path, violations);
+					(key.clone(), truncated_value)
 				})
 				.collect();
-			Value::Object(filtered_object)
+			Value::Object(truncated_object)
 		},
 		Value::Number(_) | Value::Bool(_) | Value::Null => value.clone(),
 	}
@@ -344,29 +346,32 @@ mod tests {
 		assert_eq!(violations[0].length, 505);
 	}
 
-	// Tests for filtering behavior
+	// Tests for truncation behavior
 	#[test]
-	fn test_filter_removes_long_field() {
+	fn test_truncate_long_field() {
 		let over_500 = "a".repeat(510);
 		let data = json!({
 			"short_field": "valid",
 			"long_field": over_500.clone()
 		});
 
-		let (filtered, violations) = validate_and_filter(&data);
+		let (truncated, violations) = validate_and_filter(&data);
 
 		// Should have one violation
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "long_field");
 		assert_eq!(violations[0].length, 510);
 
-		// Filtered data should only have the short field
-		assert_eq!(filtered["short_field"], "valid");
-		assert!(filtered.get("long_field").is_none());
+		// Truncated data should have both fields, but long_field should be truncated
+		assert_eq!(truncated["short_field"], "valid");
+		let truncated_value = truncated["long_field"].as_str().unwrap();
+		assert_eq!(truncated_value.len(), 500); // 491 + 9 ("TRUNCATED")
+		assert!(truncated_value.ends_with("TRUNCATED"));
+		assert_eq!(&truncated_value[..491], &over_500[..491]);
 	}
 
 	#[test]
-	fn test_filter_preserves_valid_fields() {
+	fn test_truncate_preserves_valid_fields() {
 		let data = json!({
 			"field1": "short",
 			"field2": "another short one",
@@ -375,17 +380,17 @@ mod tests {
 			}
 		});
 
-		let (filtered, violations) = validate_and_filter(&data);
+		let (truncated, violations) = validate_and_filter(&data);
 
 		// No violations
 		assert!(violations.is_empty());
 
 		// All fields preserved
-		assert_eq!(filtered, data);
+		assert_eq!(truncated, data);
 	}
 
 	#[test]
-	fn test_filter_nested_objects() {
+	fn test_truncate_nested_objects() {
 		let over_500 = "b".repeat(520);
 		let data = json!({
 			"user": {
@@ -395,20 +400,22 @@ mod tests {
 			}
 		});
 
-		let (filtered, violations) = validate_and_filter(&data);
+		let (truncated, violations) = validate_and_filter(&data);
 
 		// Should have one violation
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "user.bio");
 
-		// Filtered should have user object without bio
-		assert_eq!(filtered["user"]["name"], "John");
-		assert_eq!(filtered["user"]["email"], "john@example.com");
-		assert!(filtered["user"].get("bio").is_none());
+		// Truncated should have user object with truncated bio
+		assert_eq!(truncated["user"]["name"], "John");
+		assert_eq!(truncated["user"]["email"], "john@example.com");
+		let truncated_bio = truncated["user"]["bio"].as_str().unwrap();
+		assert_eq!(truncated_bio.len(), 500);
+		assert!(truncated_bio.ends_with("TRUNCATED"));
 	}
 
 	#[test]
-	fn test_filter_arrays() {
+	fn test_truncate_arrays() {
 		let over_500 = "c".repeat(530);
 		let data = json!({
 			"items": [
@@ -418,21 +425,23 @@ mod tests {
 			]
 		});
 
-		let (filtered, violations) = validate_and_filter(&data);
+		let (truncated, violations) = validate_and_filter(&data);
 
 		// Should have one violation
 		assert_eq!(violations.len(), 1);
 		assert_eq!(violations[0].path, "items[1]");
 
-		// Array should still have 3 items (long one becomes null)
-		assert_eq!(filtered["items"].as_array().unwrap().len(), 3);
-		assert_eq!(filtered["items"][0], "valid item 1");
-		assert!(filtered["items"][1].is_null());
-		assert_eq!(filtered["items"][2], "valid item 2");
+		// Array should still have 3 items, long one is truncated
+		assert_eq!(truncated["items"].as_array().unwrap().len(), 3);
+		assert_eq!(truncated["items"][0], "valid item 1");
+		let truncated_item = truncated["items"][1].as_str().unwrap();
+		assert_eq!(truncated_item.len(), 500);
+		assert!(truncated_item.ends_with("TRUNCATED"));
+		assert_eq!(truncated["items"][2], "valid item 2");
 	}
 
 	#[test]
-	fn test_filter_multiple_violations() {
+	fn test_truncate_multiple_violations() {
 		let over_500_1 = "d".repeat(510);
 		let over_500_2 = "e".repeat(540);
 		let data = json!({
@@ -444,22 +453,26 @@ mod tests {
 			}
 		});
 
-		let (filtered, violations) = validate_and_filter(&data);
+		let (truncated, violations) = validate_and_filter(&data);
 
 		// Should have two violations
 		assert_eq!(violations.len(), 2);
 		assert!(violations.iter().any(|v| v.path == "field1"));
 		assert!(violations.iter().any(|v| v.path == "nested.field2"));
 
-		// Filtered should only have valid fields
-		assert!(filtered.get("field1").is_none());
-		assert_eq!(filtered["valid"], "good");
-		assert!(filtered["nested"].get("field2").is_none());
-		assert_eq!(filtered["nested"]["also_valid"], "fine");
+		// Truncated should have all fields, but long ones truncated
+		let truncated_field1 = truncated["field1"].as_str().unwrap();
+		assert_eq!(truncated_field1.len(), 500);
+		assert!(truncated_field1.ends_with("TRUNCATED"));
+		assert_eq!(truncated["valid"], "good");
+		let truncated_field2 = truncated["nested"]["field2"].as_str().unwrap();
+		assert_eq!(truncated_field2.len(), 500);
+		assert!(truncated_field2.ends_with("TRUNCATED"));
+		assert_eq!(truncated["nested"]["also_valid"], "fine");
 	}
 
 	#[test]
-	fn test_filter_complex_nested_structure() {
+	fn test_truncate_complex_nested_structure() {
 		let over_500 = "x".repeat(505);
 		let data = json!({
 			"payload": {
@@ -475,7 +488,7 @@ mod tests {
 			}
 		});
 
-		let (filtered, violations) = validate_and_filter(&data);
+		let (truncated, violations) = validate_and_filter(&data);
 
 		// Should have one violation
 		assert_eq!(violations.len(), 1);
@@ -484,28 +497,30 @@ mod tests {
 			"payload.events[0].event_properties.description"
 		);
 
-		// Structure preserved but description removed
-		assert_eq!(filtered["payload"]["events"][0]["event_type"], "click");
+		// Structure preserved with description truncated
+		assert_eq!(truncated["payload"]["events"][0]["event_type"], "click");
 		assert_eq!(
-			filtered["payload"]["events"][0]["event_properties"]["page"],
+			truncated["payload"]["events"][0]["event_properties"]["page"],
 			"home"
 		);
-		assert!(filtered["payload"]["events"][0]["event_properties"]
-			.get("description")
-			.is_none());
+		let truncated_desc = truncated["payload"]["events"][0]["event_properties"]["description"]
+			.as_str()
+			.unwrap();
+		assert_eq!(truncated_desc.len(), 500);
+		assert!(truncated_desc.ends_with("TRUNCATED"));
 	}
 
 	#[test]
-	fn test_filter_with_exactly_500_chars() {
+	fn test_truncate_with_exactly_500_chars() {
 		let exactly_500 = "a".repeat(500);
 		let data = json!({
 			"field": exactly_500.clone()
 		});
 
-		let (filtered, violations) = validate_and_filter(&data);
+		let (truncated, violations) = validate_and_filter(&data);
 
 		// No violations - exactly 500 is allowed
 		assert!(violations.is_empty());
-		assert_eq!(filtered["field"], exactly_500);
+		assert_eq!(truncated["field"], exactly_500);
 	}
 }

@@ -265,7 +265,7 @@ impl ProxyHttp for Umami {
 					// Log the violations for monitoring
 					let error_msg = validate::format_error_message(&violations);
 					warn!(
-						"Field validation failed, filtered out offending fields: {}",
+						"Field validation failed, truncated offending fields: {}",
 						error_msg
 					);
 				}
