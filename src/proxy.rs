@@ -18,6 +18,7 @@ use tokio::time;
 use tracing::{error, info, trace, warn};
 mod annotate;
 mod redact;
+mod validate;
 use isbot::Bots;
 
 use crate::config::Config;
@@ -225,7 +226,7 @@ impl ProxyHttp for Umami {
 
 				// We should do content negotiation, apparently
 				// This must be a downsteam misconfiguration, surely??
-				let mut json: Value = if content_type
+				let json: Value = if content_type
 					.to_lowercase()
 					.contains("application/x-www-form-urlencoded")
 				{
@@ -240,6 +241,34 @@ impl ProxyHttp for Umami {
 						)
 						.map_err(|e| *e)?
 				};
+
+				// Validate and filter fields that are too long
+				let (mut json, violations) = validate::validate_and_filter(&json);
+
+				// If there were violations, send error response to client but continue processing
+				if !violations.is_empty() {
+					let error_response = validate::create_error_response(&violations);
+					let error_body = serde_json::to_string(&error_response)
+						.unwrap_or_else(|_| String::from(r#"{"error":"Field validation failed"}"#));
+
+					let mut response_header = ResponseHeader::build(400, None)?;
+					response_header.insert_header("Content-Type", "application/json")?;
+					response_header.insert_header("Content-Length", error_body.len())?;
+
+					session
+						.write_response_header(Box::new(response_header), false)
+						.await?;
+					session
+						.write_response_body(Some(Bytes::from(error_body)), true)
+						.await?;
+
+					// Log the violations for monitoring
+					let error_msg = validate::format_error_message(&violations);
+					warn!(
+						"Field validation failed, truncated offending fields: {}",
+						error_msg
+					);
+				}
 
 				redact::traverse_and_redact(&mut json);
 				annotate::with_proxy_version(
@@ -309,6 +338,26 @@ impl ProxyHttp for Umami {
 		upstream_request
 			.insert_header("Host", &self.conf.host)
 			.expect("Needs correct Host header");
+
+		// Prepend path if UMAMI_PATH is configured (useful for testing with request baskets)
+		if let Some(base_path) = &self.conf.path {
+			let current_uri = &upstream_request.uri;
+			let new_path = format!("{}{}", base_path, current_uri.path());
+
+			// Preserve query string if present
+			let new_uri = if let Some(query) = current_uri.query() {
+				format!("{}?{}", new_path, query)
+			} else {
+				new_path
+			};
+
+			upstream_request.set_uri(
+				new_uri
+					.as_bytes()
+					.try_into()
+					.expect("Failed to construct new URI with path prefix"),
+			);
+		}
 
 		// We are using vercel headers here because Umami supports them
 		// and they are not configurable on umamis side. We already have this info in the request
