@@ -201,6 +201,21 @@ mod tests {
 	}
 
 	#[test]
+	fn test_redact_regex_variants() {
+		let input = "my_fnr_23031510135";
+		let result = redact(input).pretty_print();
+		assert_eq!(result, "my_fnr_[PROXY-FNR]");
+
+		let input = "my-fnr:23031510135 it's nice";
+		let result = redact(input).pretty_print();
+		assert_eq!(result, "my-fnr:[PROXY-FNR] it's nice");
+
+		let input = "my-fnr-23031510135";
+		let result = redact(input).pretty_print();
+		assert_eq!(result, "my-fnr-[PROXY-FNR]");
+	}
+
+	#[test]
 	fn test_original_regex() {
 		let input = "regularstring";
 		let result = redact(input).pretty_print();
