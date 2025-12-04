@@ -168,9 +168,9 @@ mod tests {
 				"device_brand": "Apple",
 				"device_model": "iPhone 12",
 				"event_time": 1678,
-				"session_id": 1678,
-				"insert_id": "[REDACTED-FØDSELSNUMMER]",  // Now caught by PII filter
-				"location_lat": 37.7749,
+			"session_id": 1678,
+			"insert_id": "[PROXY-FNR]",  // Now caught by PII filter
+			"location_lat": 37.7749,
 				"location_lng": -122.4194,
 		//		"ip_address": "123.45.67.89"   // Ip Address gets deleted
 			});
@@ -197,7 +197,7 @@ mod tests {
 		let input = "23031510135";
 		let result = redact(input).pretty_print();
 		// This 11-digit number is now caught by the PII Fødselsnummer pattern
-		assert_eq!(result, "[REDACTED-FØDSELSNUMMER]");
+		assert_eq!(result, "[PROXY-FNR]");
 	}
 
 	#[test]
@@ -232,15 +232,16 @@ mod tests {
 
 		// Expected JSON after redaction
 		// Note: ip_address field is removed by traverse_and_redact
+		// Note: UUID and card number filters have been removed (no longer redacted)
 		let expected_data = json!({
-			"user_email": "[REDACTED-EMAIL]",
-			"user_id": "[REDACTED-UUID]",
-			"ssn": "[REDACTED-FØDSELSNUMMER]",
-			"phone": "[REDACTED-PHONE]",
+			"user_email": "[PROXY-EMAIL]",
+			"user_id": "550e8400-e29b-41d4-a716-446655440000",
+			"ssn": "[PROXY-FNR]",
+			"phone": "[PROXY-PHONE]",
 			"event_properties": {
-				"card_number": "[REDACTED-CARD]",
-				"account": "[REDACTED-ACCOUNT]",
-				"navident": "[REDACTED-NAVIDENT]",
+				"card_number": "1234 5678 9012 3456",
+				"account": "[PROXY-ACCOUNT]",
+				"navident": "[PROXY-NAVIDENT]",
 				"regular_field": "This is normal text"
 			}
 		});
