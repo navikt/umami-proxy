@@ -1,4 +1,5 @@
-name: build and deploy
+name: "Deploy"
+run-name: "Deploy ${{ github.event_name == 'push' && 'Dev' || github.event.inputs.environment == 'prod' && 'Prod' || 'Dev' }}"
 on:
   push:
     branches:
@@ -52,7 +53,6 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
     runs-on: ubuntu-latest
     permissions:
-      packages: "write"
       contents: "read"
       id-token: "write"
     steps:
@@ -75,8 +75,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
     runs-on: ubuntu-latest
     permissions:
-      packages: "write"
-      contents: "read"
+      contents: "write"
       id-token: "write"
     steps:
       - uses: actions/checkout@v4
@@ -91,3 +90,12 @@ jobs:
           IMAGE: ${{ needs.build.outputs.image }}
           CLUSTER: prod-gcp
           RESOURCE: spec.yaml
+
+      - name: Create deployment tag
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TAG_NAME="prod-$(date -u +'%Y.%m.%d-%H%M%S')"
+          git tag -a "$TAG_NAME" -m "Production deployment of ${{ github.sha }}"
+          git push origin "$TAG_NAME"
