@@ -1,5 +1,5 @@
 meta {
-  name: too long field (advanced) and PII
+  name: filter PII
   type: http
   seq: 5
 }
@@ -27,10 +27,11 @@ body:json {
       "url": "felgen.ansatt.nav.no/greier",
       "referrer": "nettside",
       "data": {
-        "søkeord": "xylophone_from",
+        "søkeord": "trombone2",
         "destinasjon": "/",
         "komponent": "search-input",
-        "mitt-fnr": "123456789010"
+        "mitt-fnr": "12345678910",
+        "valid-test": "hello"
       }
     }
   }
