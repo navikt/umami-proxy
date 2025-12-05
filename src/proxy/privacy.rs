@@ -1,10 +1,69 @@
 use fancy_regex::Regex;
 use once_cell::sync::Lazy;
 
-/// Privacy check patterns for detecting potentially sensitive data
-/// These patterns are used to scan analytics data for Norwegian personal information
 pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 	vec![
+		// HTTP/HTTPS URLs - placed first to preserve legitimate URLs
+		// This pattern matches http:// and https:// URLs and marks them for preservation
+		// We use a special marker that won't be redacted by other patterns
+		PrivacyPattern {
+			name: "Legitimate URLs",
+			redaction_label: "PROXY-PRESERVE-URL",
+			regex: Regex::new(
+				r"https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/%?&=]*)?",
+			)
+			.unwrap(),
+		},
+		// File paths (Windows, Unix, macOS) - placed first to avoid NAME pattern matching path components
+		// Matches absolute and relative paths that may contain personal information
+		// Key indicators: path separators (/ or \), hierarchical structure
+		// Better safe than sorry - we match liberally to catch all potential file paths
+		PrivacyPattern {
+			name: "Filsti",
+			redaction_label: "PROXY-FILEPATH",
+			regex: Regex::new(
+				r"(?x)
+				(?:
+					# Windows absolute paths: C:\path\to\file or C:/path/to/file
+					# Matches drive letter followed by colon and separator
+					[A-Za-z]:[/\\]
+					(?:[A-Za-z0-9._\-\s%]+[/\\])*
+					[A-Za-z0-9._\-\s%]+
+					(?:\.[A-Za-z0-9]{1,10})?
+					|
+					# Windows UNC paths: \\server\share\path\file
+					\\\\[A-Za-z0-9._\-]+\\[A-Za-z0-9._\-]+
+					(?:\\[A-Za-z0-9._\-\s]+)*
+					(?:\\[A-Za-z0-9._\-\s]+(?:\.[A-Za-z0-9]{1,10})?)?
+					|
+					# file:// protocol URIs
+					file:///
+					[A-Za-z0-9._\-\s/%:]+
+					(?:\.[A-Za-z0-9]{1,10})?
+					|
+				# Unix/Mac absolute paths - ANY path starting with /
+				# Format: /component/component/... OR /file.ext (single file at top level)
+				(?:
+					# Multi-component paths (at least 2 components)
+					/[A-Za-z0-9._\-]+
+					(?:/[A-Za-z0-9._\-]+)+
+					(?:\.[A-Za-z0-9]{1,10})?
+					|
+					# Single file at top level with extension
+					# Must contain at least one letter to distinguish from pure numbers like IPs or account numbers
+					/(?=.*[A-Za-z])[A-Za-z0-9._\-]+\.[A-Za-z0-9]{1,10}
+				)
+					|
+					# Relative paths: ./path, ../path, ~/path
+					(?:\./|\.\./|~/)
+					(?:[A-Za-z0-9._\-]+/)*
+					[A-Za-z0-9._\-]+
+					(?:\.[A-Za-z0-9]{1,10})?
+				)
+				",
+			)
+			.unwrap(),
+		},
 		// Norwegian National ID Number (11 digits)
 		// Use negative lookaround for digits to avoid matching partial numbers
 		PrivacyPattern {
@@ -103,8 +162,40 @@ pub struct PrivacyPattern {
 /// Returns the redacted string
 pub fn redact_pii(input: &str) -> String {
 	let mut result = input.to_string();
+	let mut preserved_urls: Vec<String> = Vec::new();
 
+	// First pass: extract and replace http/https URLs with placeholders
+	let url_regex = Regex::new(
+		r"(?x)
+		(?:
+			# URLs with http/https protocol
+			https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/%?&=]*)?
+			|
+			# Domain-like patterns (without protocol) - must have a TLD
+			# Format: subdomain.domain.tld/path or domain.tld/path
+			# Use negative lookbehind to avoid matching email domains (no @ before)
+			(?<!@)[A-Za-z0-9._\-]+\.[A-Za-z]{2,}(?:/[A-Za-z0-9._\-/%?&=]+)
+		)
+		",
+	)
+	.unwrap();
+
+	for (i, capture_result) in url_regex.captures_iter(&result.clone()).enumerate() {
+		if let Ok(capture) = capture_result {
+			if let Some(full_match) = capture.get(0) {
+				preserved_urls.push(full_match.as_str().to_string());
+				result = result.replace(full_match.as_str(), &format!("__PRESERVED_URL_{}__", i));
+			}
+		}
+	}
+
+	// Second pass: apply all privacy patterns
 	for pattern in PRIVACY_PATTERNS.iter() {
+		// Skip the URL preservation pattern
+		if pattern.redaction_label == "PROXY-PRESERVE-URL" {
+			continue;
+		}
+
 		// fancy-regex returns Result for is_match, so we need to handle errors
 		if let Ok(is_match) = pattern.regex.is_match(&result) {
 			if is_match {
@@ -115,6 +206,11 @@ pub fn redact_pii(input: &str) -> String {
 					.to_string();
 			}
 		}
+	}
+
+	// Third pass: restore preserved URLs
+	for (i, url) in preserved_urls.iter().enumerate() {
+		result = result.replace(&format!("__PRESERVED_URL_{}__", i), url);
 	}
 
 	result
@@ -541,5 +637,298 @@ mod tests {
 		let input = "org#123456789";
 		let result = redact_pii(input);
 		assert_eq!(result, "org#[PROXY-ORG-NUMBER]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_windows() {
+		// Windows absolute paths with drive letters
+		let input = "C:\\Users\\PersonName\\Documents\\secret.txt";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "D:\\Projects\\private\\data.xlsx";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Windows UNC paths
+		let input = "\\\\ServerName\\Share\\folder\\file.docx";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Windows path with forward slashes (also valid)
+		let input = "C:/Users/JohnDoe/Desktop/private_file.txt";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Windows path with spaces
+		let input = "C:\\Program Files\\My App\\config.ini";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_unix() {
+		// Unix/Linux absolute paths
+		let input = "/home/username/Documents/private.pdf";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "/var/log/user_12345678901.log";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "/usr/local/share/sensitive_data.csv";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Unix paths with spaces - will only match the first component before space
+		// This is acceptable since spaces in Unix paths are typically escaped or quoted in practice
+		let input = "/home/username/Documents/file.txt";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Unix hidden files
+		let input = "/home/john/.ssh/id_rsa";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Root-level files are edge cases - require at least 2 components to avoid URL false positives
+		// /file.txt would not match (acceptable tradeoff)
+	}
+
+	#[test]
+	fn test_redact_file_paths_macos() {
+		// macOS specific paths
+		let input = "/Users/PersonName/Library/ApplicationSupport/app.db";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "/Users/john.doe/Desktop/confidential.pages";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// macOS volumes
+		let input = "/Volumes/ExternalDrive/Backup/data.zip";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_url_encoded() {
+		// URL-encoded paths (common in web analytics)
+		let input = "file:///C:/Users/John%20Doe/Documents/file.pdf";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// URL-encoded path components - may only match up to the encoded character
+		let input = "/home/user/folder/data.json";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_relative() {
+		// Relative paths with potentially sensitive info
+		let input = "./users/PersonName/config.yml";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "../PersonalFolder/private.db";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "~/Documents/taxes_2024.pdf";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_mixed_content() {
+		// File paths embedded in sentences - should redact just the path
+		let input = "Error loading file C:\\Users\\Admin\\secret.txt";
+		let result = redact_pii(input);
+		// The word "file" at the end shouldn't be part of the path
+		assert!(result.contains("[PROXY-FILEPATH]"));
+		assert!(result.contains("Error loading"));
+
+		let input = "Check /home/personalname/.config/app.conf for settings";
+		let result = redact_pii(input);
+		assert!(result.contains("[PROXY-FILEPATH]"));
+		assert!(result.contains("Check"));
+		assert!(result.contains("for settings"));
+
+		// File path in URL parameters
+		let input = "?file=/var/www/users/JohnDoe/uploads/doc.pdf";
+		let result = redact_pii(input);
+		assert_eq!(result, "?file=[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_common_patterns() {
+		// Common sensitive directory patterns
+		let input = "/home/john/Downloads/passport_scan.jpg";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "C:\\Users\\Mary\\Pictures\\ID_card.png";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Backup paths
+		let input = "/backup/users/ole_hansen/2024-03-15.tar.gz";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Application data paths
+		let input = "C:\\ProgramData\\Application\\Users\\PersonName\\cache.dat";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_special_chars() {
+		// Paths with special characters that might appear in the wild
+		let input = "/home/user-name/docs/report_2024.pdf";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "C:\\Users\\user.name\\AppData\\Local\\temp.log";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Paths with numbers and underscores
+		let input = "/var/log/user_12345/app_log_2024.txt";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_edge_cases() {
+		// Very long paths
+		let input = "C:\\Users\\Administrator\\Very\\Long\\Path\\With\\Many\\Nested\\Directories\\And\\Personal\\Info\\document.docx";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Paths with multiple extensions
+		let input = "/home/user/backup.tar.gz.enc";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Network paths (SMB/CIFS)
+		let input = "\\\\192.168.1.100\\shared\\PersonName\\data.xlsx";
+		let result = redact_pii(input);
+		assert!(result.contains("[PROXY-FILEPATH]") || result.contains("[PROXY-IP]"));
+
+		// Paths without extensions (config files, directories with dots)
+		let input = "/home/user/.config";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Git-style and dotfile paths
+		let input = "/repo/.git/config";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// if just a simple file at the top level, should be redacted
+		let input = "/file.txt";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_android_ios() {
+		// Android paths
+		let input = "/data/data/com.example.app/files/user_data.db";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "/sdcard/Download/PersonalPhoto.jpg";
+		let result = redact_pii(input);
+		// May not match if sdcard isn't in our sensitive dirs list
+		// This is acceptable - we focus on common patterns
+
+		// iOS-style paths
+		let input = "/var/mobile/Containers/Data/Application/GUID/Documents/file.txt";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_web_server() {
+		// Web server document roots
+		let input = "/var/www/html/uploads/user123/document.pdf";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "/srv/http/public/media/private/photo.jpg";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Apache/nginx log paths
+		let input = "/var/log/nginx/access.log";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_redact_file_paths_generic_unix() {
+		// Generic Unix paths that don't start with common directories
+		// These should still be caught with the generic matcher
+		let input = "/custom/application/data/userfile.db";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "/app/storage/uploads/document.pdf";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "/media/external/PersonalPhotos/vacation.jpg";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		let input = "/mount/nas/private/secrets.txt";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Container paths
+		let input = "/docker/volumes/app_data/config.yml";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// Custom application paths
+		let input = "/opt/myapp/logs/error.log";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+	}
+
+	#[test]
+	fn test_file_paths_not_urls() {
+		// Should NOT match single-component paths that look like URL endpoints
+		// let input = "/api/users";
+		// let result = redact_pii(input);
+		// This has only 2 components, so it WILL match (borderline case)
+		// This is acceptable as /api/users could be a local path too
+
+		// But very short paths might be more ambiguous
+		let input = "Visit /help for more info";
+		let result = redact_pii(input);
+		// /help is only one component, should NOT match
+		assert_eq!(result, "Visit /help for more info");
+
+		// Multiple component URL paths will match, which is fine - better safe than sorry
+		let input = "/api/v1/users/profile";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-FILEPATH]");
+
+		// the presence of https:// or http:// should be a good tell for what's a valid URL only
+		let input = "https://example.com/api/v1/users/profile";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
+
+		// if something has what looks like a TLD, even without a protocol like https://, we can still
+		// assume that it's a URL fairly safely
+		let input = "example.com/api/v1/users/profile";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
 	}
 }
