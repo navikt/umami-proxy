@@ -137,7 +137,7 @@ mod tests {
 			"navident": "X123456",                 // REDACTED to [PROXY-NAVIDENT]
 
 			"ip_address": "192.168.1.100",  // REMOVED ENTIRELY
-			"ip": "10.0.0.1",               // REPLACED with "$remote"
+			"ip": "10.0.0.1",               // REPLACED with IP of the proxy itself
 
 			"idfa": "8D8AC610-566D-4EF0-9C22-186B2A5ED793",  // REDACTED to [PROXY] (iOS IDFA)
 			"idfv": "550E8400-E29B-41D4-A716-446655440000",  // REDACTED to [PROXY] (iOS IDFV)
