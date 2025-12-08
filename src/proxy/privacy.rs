@@ -163,8 +163,27 @@ pub struct PrivacyPattern {
 pub fn redact_pii(input: &str) -> String {
 	let mut result = input.to_string();
 	let mut preserved_urls: Vec<String> = Vec::new();
+	let mut preserved_uuids: Vec<String> = Vec::new();
 
-	// First pass: extract and replace http/https URLs with placeholders
+	// First pass: extract and replace UUIDs with placeholders
+	// UUIDs have format: 8-4-4-4-12 hexadecimal characters separated by hyphens
+	// Example: 550e8400-e29b-41d4-a716-446655440000
+	// We use word boundaries to ensure we match complete UUIDs
+	let uuid_regex = Regex::new(
+		r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+	)
+	.unwrap();
+
+	for (i, capture_result) in uuid_regex.captures_iter(&result.clone()).enumerate() {
+		if let Ok(capture) = capture_result {
+			if let Some(full_match) = capture.get(0) {
+				preserved_uuids.push(full_match.as_str().to_string());
+				result = result.replace(full_match.as_str(), &format!("__PRESERVED_UUID_{}__", i));
+			}
+		}
+	}
+
+	// Second pass: extract and replace http/https URLs with placeholders
 	let url_regex = Regex::new(
 		r"(?x)
 		(?:
@@ -189,7 +208,7 @@ pub fn redact_pii(input: &str) -> String {
 		}
 	}
 
-	// Second pass: apply all privacy patterns
+	// Third pass: apply all privacy patterns
 	for pattern in PRIVACY_PATTERNS.iter() {
 		// Skip the URL preservation pattern
 		if pattern.redaction_label == "PROXY-PRESERVE-URL" {
@@ -208,7 +227,12 @@ pub fn redact_pii(input: &str) -> String {
 		}
 	}
 
-	// Third pass: restore preserved URLs
+	// Fourth pass: restore preserved UUIDs
+	for (i, uuid) in preserved_uuids.iter().enumerate() {
+		result = result.replace(&format!("__PRESERVED_UUID_{}__", i), uuid);
+	}
+
+	// Fifth pass: restore preserved URLs
 	for (i, url) in preserved_urls.iter().enumerate() {
 		result = result.replace(&format!("__PRESERVED_URL_{}__", i), url);
 	}
@@ -331,6 +355,10 @@ mod tests {
 		let input = "{fnr}12345678901";
 		let result = redact_pii(input);
 		assert_eq!(result, "{fnr}[PROXY-FNR]");
+
+		let input = "AD748BD6-484B-416C-B444-a12345678901";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
 	}
 
 	#[test]
@@ -338,6 +366,14 @@ mod tests {
 		let input = "Call me at 98765432";
 		let result = redact_pii(input);
 		assert_eq!(result, "Call me at [PROXY-PHONE]");
+
+		let input = "Do not call me at AD748BD6-484B-416C-B444-84EE98765432 that's not a phone number, but a UUID";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
+
+		let input = "Nor should you call me at 98765432-484B-416C-B444-84EE98765432 that's also not a phone number, still a UUID";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
 	}
 
 	#[test]
@@ -637,6 +673,10 @@ mod tests {
 		let input = "org#123456789";
 		let result = redact_pii(input);
 		assert_eq!(result, "org#[PROXY-ORG-NUMBER]");
+
+		let input = "AD748BD6-484B-416C-B444-aaa123456789";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
 	}
 
 	#[test]
