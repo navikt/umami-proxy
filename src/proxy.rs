@@ -23,7 +23,7 @@ mod validate;
 use isbot::Bots;
 
 use crate::config::Config;
-use crate::errors::{AmplitrudeProxyError, ErrorDescription};
+use crate::errors::{UmamiProxyError, ErrorDescription};
 use crate::k8s::{
 	self,
 	cache::{self, INITIALIZED},
@@ -236,7 +236,7 @@ impl ProxyHttp for Umami {
 					serde_json::from_slice(&ctx.request_body_buffer)
 						.or_err(
 							pingora::ErrorType::Custom(
-								AmplitrudeProxyError::RequestContainsInvalidJson.into(),
+								UmamiProxyError::RequestContainsInvalidJson.into(),
 							),
 							"Failed to parse request body",
 						)
@@ -291,7 +291,7 @@ impl ProxyHttp for Umami {
 					// A gurantee from the type system that this never happens
 					// however, we cant produce a witness to this so here we are.
 					return Err(Error::explain(
-						pingora::ErrorType::Custom(AmplitrudeProxyError::JsonCoParseError.into()),
+						pingora::ErrorType::Custom(UmamiProxyError::JsonCoParseError.into()),
 						"failed to co-parse request body",
 					));
 				}
@@ -394,14 +394,14 @@ impl ProxyHttp for Umami {
 		// Some error happened
 		let error = if let ErrType::Custom(error_description) = err.etype {
 			// First check for error causes we've written ourselves
-			AmplitrudeProxyError::from_str(error_description)
-				.map(|amplitude_proxy_error| match amplitude_proxy_error {
-					AmplitrudeProxyError::NoMatchingPeer => {
+			UmamiProxyError::from_str(error_description)
+				.map(|umami_proxy_error| match umami_proxy_error {
+					UmamiProxyError::NoMatchingPeer => {
 						INVALID_PEER.inc();
-						ErrorDescription::AmplitrudeProxyError(amplitude_proxy_error)
+						ErrorDescription::UmamiProxyError(umami_proxy_error)
 					},
 					// For the `::Custom` pingora errorse we track and don't have an explicit metric for
-					error => ErrorDescription::AmplitrudeProxyError(error),
+					error => ErrorDescription::UmamiProxyError(error),
 				})
 				.unwrap_or(ErrorDescription::UntrackedError)
 		} else {
@@ -440,7 +440,7 @@ impl ProxyHttp for Umami {
 fn parse_url_encoded(data: &str) -> Result<Value, pingora::Error> {
 	let parsed: HashMap<String, String> = serde_urlencoded::from_str(data)
 		.explain_err(
-			pingora::ErrorType::Custom(AmplitrudeProxyError::RequestContainsInvalidJson.into()),
+			pingora::ErrorType::Custom(UmamiProxyError::RequestContainsInvalidJson.into()),
 			|e| format!("urlencoded json malformed: {e}"),
 		)
 		.map_err(|e| *e)?;

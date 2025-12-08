@@ -29,7 +29,7 @@ fn main() {
 		conf.clone(),
 		format!("{}:{}", conf.host, conf.port,)
 			.to_socket_addrs()
-			.expect("Amplitude specified `host` & `port` should give valid `std::net::SocketAddr`")
+			.expect("Umami specified `host` & `port` should give valid `std::net::SocketAddr`")
 			.next()
 			.expect("SocketAddr should resolve to at least 1 IP address"),
 		conf.sni,

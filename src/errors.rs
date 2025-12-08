@@ -3,7 +3,7 @@ use std::fmt::{self, Display, Formatter};
 use strum::{EnumString, IntoStaticStr};
 
 #[derive(Debug, PartialEq, Eq, EnumString, IntoStaticStr)]
-pub enum AmplitrudeProxyError {
+pub enum UmamiProxyError {
 	RequestContainsInvalidJson,
 	JsonCoParseError,
 	NoMatchingPeer,
@@ -12,7 +12,7 @@ pub enum AmplitrudeProxyError {
 	FieldTooLong,
 }
 
-impl Display for AmplitrudeProxyError {
+impl Display for UmamiProxyError {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		write!(f, "{self:?}")
 	}
@@ -24,12 +24,12 @@ pub enum ErrorDescription {
 	UpstreamConnectionFailure,
 	UntrackedError,
 	ClientDisconnectedError,
-	AmplitrudeProxyError(AmplitrudeProxyError),
+	UmamiProxyError(UmamiProxyError),
 }
 impl ErrorDescription {
 	pub fn as_str(&self) -> &str {
 		match self {
-			Self::AmplitrudeProxyError(e) => e.into(),
+			Self::UmamiProxyError(e) => e.into(),
 			_ => self.into(),
 		}
 	}
@@ -40,8 +40,8 @@ impl Display for ErrorDescription {
 	}
 }
 
-impl From<AmplitrudeProxyError> for ErrorDescription {
-	fn from(error: AmplitrudeProxyError) -> Self {
-		Self::AmplitrudeProxyError(error)
+impl From<UmamiProxyError> for ErrorDescription {
+	fn from(error: UmamiProxyError) -> Self {
+		Self::UmamiProxyError(error)
 	}
 }

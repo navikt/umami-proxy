@@ -8,8 +8,8 @@ use super::privacy;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Rule {
-	Redact,             // Replace the string w/[Redacted]
-	RedactSsns(String), // Replace SSN substrings with the string [Redacted]
+	Redact,             // Replace the string w/[PROXY]
+	RedactSsns(String), // Replace SSN substrings with the string [PROXY]
 	Keep(String),
 	Original(String),
 	Obfuscate(String), // Remove client IP, replace w/ours
@@ -24,7 +24,7 @@ static FNR_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
 
 impl Rule {
 	pub fn pretty_print(&self) -> String {
-		let redacted = "[redacted]";
+		let redacted = "[PROXY]";
 		match self {
 			Self::RedactSsns(s) => {
 				let mut new = s.to_string();
@@ -113,67 +113,76 @@ mod tests {
 	use serde_json::json;
 
 	#[test]
-	fn test_redact_uuid_in_amplitude_event() {
-		// Hardcoded UUID string
-		let uuid = "23031510135";
-
-		// Create a JSON structure similar to an Amplitude event, with the UUID in the "insert_id" field
+	fn test_redact_comprehensive_umami_event() {
+		// Create a comprehensive JSON structure demonstrating all redaction rules
 		let mut json_data = json!({
-			"user_id": "12345",
-			"device_id": "device-98765",
-			"event_type": "button_click",
+			"payload": {
+				"hostname": "https://example.nav.no",
+				"website": "my-website-id"  // PRESERVED (never redacted)
+			},
+			"api_key": "abc123",          // PRESERVED (never redacted)
+			"device_id": "device-123",    // PRESERVED (never redacted)
+
+			"user_email": "john.doe@example.com",  // REDACTED to [PROXY-EMAIL]
+			"user_ssn": "12345678901",             // REDACTED to [PROXY-FNR]
+			"phone": "98765432",                   // REDACTED to [PROXY-PHONE]
+			"navident": "X123456",                 // REDACTED to [PROXY-NAVIDENT]
+
+			"ip_address": "192.168.1.100",  // REMOVED ENTIRELY
+			"ip": "10.0.0.1",               // REPLACED with "$remote"
+
+			"idfa": "ABCD-1234-EFGH-5678",  // REDACTED to [PROXY]
+
+			"account_number": "1234.56.78901",  // REDACTED to [PROXY-ACCOUNT]
+			"license_plate": "AB12345",         // REDACTED to [PROXY-LICENSE-PLATE]
+			"org_number": "123456789",          // REDACTED to [PROXY-ORG-NUMBER]
+
+			"file_path": "/home/john/Documents/secret.pdf",  // REDACTED to [PROXY-FILEPATH]
+			"name": "John Doe",                              // REDACTED to [PROXY-NAME]
+			"address": "0123 Oslo",                          // REDACTED to [PROXY-ADDRESS]
+
+			"uuid": "550e8400-e29b-41d4-a716-446655440000",  // PRESERVED
+			"website_url": "https://example.com/page",       // PRESERVED
+
 			"event_properties": {
-				"button_name": "signup_button",
-				"color": "blue",
-				"page": "signup_page"
-			},
-			"user_properties": {
-				"age": 30,
-				"gender": "female",
-				"location": "USA"
-			},
-			"app_version": "1.0.0",
-			"platform": "iOS",
-			"os_name": "iOS",
-			"os_version": "14.4",
-			"device_brand": "Apple",
-			"device_model": "iPhone 12",
-			"event_time": 1678,
-			"session_id": 1678,
-			"insert_id": uuid,  // The UUID to be redacted
-			"location_lat": 37.7749,
-			"location_lng": -122.4194,
-			"ip_address": "123.45.67.89"
+				"regular_text": "This is fine"  // UNCHANGED
+			}
 		});
 
-		// Expected JSON after redaction, where only the "insert_id" field is redacted
+		// Expected JSON after redaction
 		let expected_data = json!({
-				"user_id": "12345",
-				"device_id": "device-98765",
-				"event_type": "button_click",
-				"event_properties": {
-					"button_name": "signup_button",
-					"color": "blue",
-					"page": "signup_page"
-				},
-				"user_properties": {
-					"age": 30,
-					"gender": "female",
-					"location": "USA"
-				},
-				"app_version": "1.0.0",
-				"platform": "iOS",
-				"os_name": "iOS",
-				"os_version": "14.4",
-				"device_brand": "Apple",
-				"device_model": "iPhone 12",
-				"event_time": 1678,
-			"session_id": 1678,
-			"insert_id": "[PROXY-FNR]",  // Now caught by PII filter
-			"location_lat": 37.7749,
-				"location_lng": -122.4194,
-		//		"ip_address": "123.45.67.89"   // Ip Address gets deleted
-			});
+			"payload": {
+				"hostname": "https://example.nav.no",
+				"website": "my-website-id"
+			},
+			"api_key": "abc123",
+			"device_id": "device-123",
+
+			"user_email": "[PROXY-EMAIL]",
+			"user_ssn": "[PROXY-FNR]",
+			"phone": "[PROXY-PHONE]",
+			"navident": "[PROXY-NAVIDENT]",
+
+			// ip_address is removed entirely
+			"ip": "$remote",
+
+			"idfa": "[PROXY]",
+
+			"account_number": "[PROXY-ACCOUNT]",
+			"license_plate": "[PROXY-LICENSE-PLATE]",
+			"org_number": "[PROXY-ORG-NUMBER]",
+
+			"file_path": "[PROXY-FILEPATH]",
+			"name": "[PROXY-NAME]",
+			"address": "[PROXY-ADDRESS]",
+
+			"uuid": "550e8400-e29b-41d4-a716-446655440000",
+			"website_url": "https://example.com/page",
+
+			"event_properties": {
+				"regular_text": "This is fine"
+			}
+		});
 
 		// Apply the redaction function
 		traverse_and_redact(&mut json_data);

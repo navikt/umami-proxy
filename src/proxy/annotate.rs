@@ -11,8 +11,8 @@ pub fn with_proxy_version(event: &mut Value, proxy_version: &str) {
 	}
 }
 
-// some of these
-// [Amplitude] City, [Amplitude] DMA, [Amplitude] Region, and [Amplitude] Country
+// Annotate with location information in Amplitude-compatible format
+// [Amplitude] City, [Amplitude] Country
 pub fn with_location(value: &mut Value, city: &String, country: &String) {
 	match value {
 		Value::Array(arr) => {
@@ -69,9 +69,9 @@ pub fn with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo, host: &S
 	}
 }
 
-pub fn with_key(v: &mut Value, amplitude_api_key: String) {
+pub fn with_key(v: &mut Value, umami_api_key: String) {
 	if let Value::Object(obj) = v {
-		obj.insert("api_key".to_string(), Value::String(amplitude_api_key));
+		obj.insert("api_key".to_string(), Value::String(umami_api_key));
 	}
 }
 
