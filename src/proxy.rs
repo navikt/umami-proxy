@@ -23,7 +23,7 @@ mod validate;
 use isbot::Bots;
 
 use crate::config::Config;
-use crate::errors::{UmamiProxyError, ErrorDescription};
+use crate::errors::{ErrorDescription, UmamiProxyError};
 use crate::k8s::{
 	self,
 	cache::{self, INITIALIZED},
