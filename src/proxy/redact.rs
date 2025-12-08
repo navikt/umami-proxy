@@ -74,7 +74,15 @@ pub fn traverse_and_redact(value: &mut Value) {
 						Rule::Obfuscate(String::from("$remote")).pretty_print(),
 					);
 				}
-				if key == "idfa" || key == "idfv" || key == "adid" || key == "android_id" {
+				if key == "idfa"
+					|| key == "idfv"
+					|| key == "adid"
+					|| key == "gaid"
+					|| key == "android_id"
+					|| key == "aaid"
+					|| key == "msai"
+					|| key == "advertising_id"
+				{
 					*v = serde_json::Value::String(Rule::Redact.pretty_print());
 				}
 				traverse_and_redact(v);
@@ -131,7 +139,14 @@ mod tests {
 			"ip_address": "192.168.1.100",  // REMOVED ENTIRELY
 			"ip": "10.0.0.1",               // REPLACED with "$remote"
 
-			"idfa": "ABCD-1234-EFGH-5678",  // REDACTED to [PROXY]
+			"idfa": "8D8AC610-566D-4EF0-9C22-186B2A5ED793",  // REDACTED to [PROXY] (iOS IDFA)
+			"idfv": "550E8400-E29B-41D4-A716-446655440000",  // REDACTED to [PROXY] (iOS IDFV)
+			"adid": "38400000-8cf0-11bd-b23e-10b96e40000d",  // REDACTED to [PROXY] (Android GAID, alternate key)
+			"gaid": "12345678-90ab-cdef-1234-567890abcdef",  // REDACTED to [PROXY] (Google Advertising ID)
+			"android_id": "9774d56d682e549c",               // REDACTED to [PROXY] (Android ID - 16 hex chars)
+			"aaid": "df07c7dc-cea7-4a89-b328-810ff5acb15d",  // REDACTED to [PROXY] (Amazon Advertising ID)
+			"msai": "6F9619FF-8B86-D011-B42D-00C04FC964FF",  // REDACTED to [PROXY] (Microsoft Advertising ID)
+			"advertising_id": "00000000-0000-0000-0000-000000000000",  // REDACTED to [PROXY] (opt-out/nil UUID)
 
 			"account_number": "1234.56.78901",  // REDACTED to [PROXY-ACCOUNT]
 			"license_plate": "AB12345",         // REDACTED to [PROXY-LICENSE-PLATE]
@@ -167,6 +182,13 @@ mod tests {
 			"ip": "$remote",
 
 			"idfa": "[PROXY]",
+			"idfv": "[PROXY]",
+			"adid": "[PROXY]",
+			"gaid": "[PROXY]",
+			"android_id": "[PROXY]",
+			"aaid": "[PROXY]",
+			"msai": "[PROXY]",
+			"advertising_id": "[PROXY]",
 
 			"account_number": "[PROXY-ACCOUNT]",
 			"license_plate": "[PROXY-LICENSE-PLATE]",
@@ -268,6 +290,56 @@ mod tests {
 				"navident": "[PROXY-NAVIDENT]",
 				"regular_field": "This is normal text"
 			}
+		});
+
+		// Apply the redaction function
+		traverse_and_redact(&mut json_data);
+
+		// Assert that the redacted JSON matches the expected output
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_advertising_identifiers_redaction() {
+		// Test all common advertising identifiers across platforms
+		let mut json_data = json!({
+			// iOS identifiers
+			"idfa": "12345678-1234-1234-1234-123456789012",          // Apple IDFA
+			"idfv": "ABCDEF01-2345-6789-ABCD-EF0123456789",          // Apple IDFV
+
+			// Android identifiers
+			"gaid": "38400000-8cf0-11bd-b23e-10b96e40000d",          // Google Advertising ID
+			"adid": "38400000-8cf0-11bd-b23e-10b96e40000d",          // Alternative GAID field name
+			"android_id": "9774d56d682e549c",                        // Android ID (hex string)
+
+			// Other platform identifiers
+			"aaid": "87654321-4321-4321-4321-876543210987",          // Amazon Advertising ID
+			"msai": "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",          // Microsoft Advertising ID
+
+			// Generic field name
+			"advertising_id": "00000000-0000-0000-0000-000000000000", // Generic/opted-out
+
+			// Fields that should NOT be redacted
+			"api_key": "my-api-key",
+			"device_id": "my-device-id",
+			"website": "my-website",
+			"regular_field": "This is normal text"
+		});
+
+		// Expected: all advertising IDs redacted, preserved fields untouched
+		let expected_data = json!({
+			"idfa": "[PROXY]",
+			"idfv": "[PROXY]",
+			"gaid": "[PROXY]",
+			"adid": "[PROXY]",
+			"android_id": "[PROXY]",
+			"aaid": "[PROXY]",
+			"msai": "[PROXY]",
+			"advertising_id": "[PROXY]",
+			"api_key": "my-api-key",
+			"device_id": "my-device-id",
+			"website": "my-website",
+			"regular_field": "This is normal text"
 		});
 
 		// Apply the redaction function
