@@ -7,7 +7,7 @@ pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 		// This pattern matches http:// and https:// URLs and marks them for preservation
 		// We use a special marker that won't be redacted by other patterns
 		PrivacyPattern {
-			name: "Legitimate URLs",
+			_name: "Legitimate URLs",
 			redaction_label: "PROXY-PRESERVE-URL",
 			regex: Regex::new(
 				r"https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/%?&=]*)?",
@@ -19,7 +19,7 @@ pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 		// Key indicators: path separators (/ or \), hierarchical structure
 		// Better safe than sorry - we match liberally to catch all potential file paths
 		PrivacyPattern {
-			name: "Filsti",
+			_name: "Filsti",
 			redaction_label: "PROXY-FILEPATH",
 			regex: Regex::new(
 				r"(?x)
@@ -67,14 +67,14 @@ pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 		// Norwegian National ID Number (11 digits)
 		// Use negative lookaround for digits to avoid matching partial numbers
 		PrivacyPattern {
-			name: "Fødselsnummer",
+			_name: "Fødselsnummer",
 			redaction_label: "PROXY-FNR",
 			regex: Regex::new(r"(?<!\d)\d{11}(?!\d)").unwrap(),
 		},
 		// NAV identifier (letter followed by 6 digits)
 		// Use negative lookaround for alphanumeric to avoid matching partial IDs
 		PrivacyPattern {
-			name: "Navident",
+			_name: "Navident",
 			redaction_label: "PROXY-NAVIDENT",
 			regex: Regex::new(r"(?<![a-zA-Z0-9])[a-zA-Z]\d{6}(?!\d)").unwrap(),
 		},
@@ -82,27 +82,27 @@ pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 		// Simple practical regex that matches 99% of real emails in use today
 		// Underscore is a valid email character, so "my_email@example.com" is treated as one email
 		PrivacyPattern {
-			name: "E-post",
+			_name: "E-post",
 			redaction_label: "PROXY-EMAIL",
 			regex: Regex::new(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}").unwrap(),
 		},
 		// IP address
 		// Use negative lookaround for digits and dots to avoid matching partial IPs
 		PrivacyPattern {
-			name: "IP-adresse",
+			_name: "IP-adresse",
 			redaction_label: "PROXY-IP",
 			regex: Regex::new(r"(?<!\d)\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?!\d)").unwrap(),
 		},
 		// Phone number (8 digits starting with 2-9)
 		// Use negative lookaround for digits to avoid matching partial numbers
 		PrivacyPattern {
-			name: "Telefonnummer",
+			_name: "Telefonnummer",
 			redaction_label: "PROXY-PHONE",
 			regex: Regex::new(r"(?<!\d)[2-9]\d{7}(?!\d)").unwrap(),
 		},
 		// Possible name (Norwegian characters, 2-3 capitalized words)
 		PrivacyPattern {
-			name: "Mulig navn",
+			_name: "Mulig navn",
 			redaction_label: "PROXY-NAME",
 			regex: Regex::new(
 				r"\b[A-ZÆØÅ][a-zæøå]{1,20}\s[A-ZÆØÅ][a-zæøå]{1,20}(?:\s[A-ZÆØÅ][a-zæøå]{1,20})?\b",
@@ -111,40 +111,40 @@ pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 		},
 		// Possible address (4 digits followed by capitalized words)
 		PrivacyPattern {
-			name: "Mulig adresse",
+			_name: "Mulig adresse",
 			redaction_label: "PROXY-ADDRESS",
 			regex: Regex::new(r"\b\d{4}\s[A-ZÆØÅ][A-ZÆØÅa-zæøå]+(?:\s[A-ZÆØÅa-zæøå]+)*\b").unwrap(),
 		},
 		// Secret address (case-insensitive, handles URL encoding)
 		PrivacyPattern {
-			name: "Hemmelig adresse",
+			_name: "Hemmelig adresse",
 			redaction_label: "PROXY-SECRET-ADDRESS",
 			regex: Regex::new(r"(?i)hemmelig(?:%20|\s+)(?:20\s*%(?:%20|\s+))?adresse").unwrap(),
 		},
 		// Bank account number (Norwegian format: 4.2.5 digits)
 		// Use negative lookaround for digits to avoid matching partial numbers
 		PrivacyPattern {
-			name: "Kontonummer",
+			_name: "Kontonummer",
 			redaction_label: "PROXY-ACCOUNT",
 			regex: Regex::new(r"(?<!\d)\d{4}\.?\d{2}\.?\d{5}(?!\d)").unwrap(),
 		},
 		// Organization number (9 digits)
 		// Use negative lookaround for digits to avoid matching partial numbers
 		PrivacyPattern {
-			name: "Organisasjonsnummer",
+			_name: "Organisasjonsnummer",
 			redaction_label: "PROXY-ORG-NUMBER",
 			regex: Regex::new(r"(?<!\d)\d{9}(?!\d)").unwrap(),
 		},
 		// License plate (2 letters followed by 5 digits)
 		// Use negative lookaround for alphanumeric to avoid matching partial plates
 		PrivacyPattern {
-			name: "Bilnummer",
+			_name: "Bilnummer",
 			redaction_label: "PROXY-LICENSE-PLATE",
 			regex: Regex::new(r"(?<![a-zA-Z])[A-Z]{2}\s?\d{5}(?!\d)").unwrap(),
 		},
 		// Possible search query (URL query parameters)
 		PrivacyPattern {
-			name: "Mulig søk",
+			_name: "Mulig søk",
 			redaction_label: "PROXY-SEARCH",
 			regex: Regex::new(r"[?&](?:q|query|search|k|ord)=[^&]+").unwrap(),
 		},
@@ -153,7 +153,7 @@ pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 
 /// Represents a privacy pattern with its regex and redaction label
 pub struct PrivacyPattern {
-	pub name: &'static str,
+	pub _name: &'static str,
 	pub redaction_label: &'static str,
 	pub regex: Regex,
 }
@@ -882,7 +882,7 @@ mod tests {
 		assert_eq!(result, "[PROXY-FILEPATH]");
 
 		let input = "/sdcard/Download/PersonalPhoto.jpg";
-		let result = redact_pii(input);
+		let _result = redact_pii(input);
 		// May not match if sdcard isn't in our sensitive dirs list
 		// This is acceptable - we focus on common patterns
 

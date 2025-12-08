@@ -1,6 +1,5 @@
 use pingora::services::listening::Service;
 use pingora::{prelude::Opt, proxy as pingora_proxy, server::Server};
-use std::net::ToSocketAddrs;
 use tracing::info;
 mod config;
 mod errors;
@@ -25,16 +24,7 @@ fn main() {
 
 	umami_proxy.bootstrap();
 
-	let proxy = proxy::Umami::new(
-		conf.clone(),
-		format!("{}:{}", conf.host, conf.port,)
-			.to_socket_addrs()
-			.expect("Umami specified `host` & `port` should give valid `std::net::SocketAddr`")
-			.next()
-			.expect("SocketAddr should resolve to at least 1 IP address"),
-		conf.sni,
-		isbot::Bots::default(),
-	);
+	let proxy = proxy::Umami::new(conf.clone(), isbot::Bots::default());
 
 	let mut probe_instance =
 		pingora_proxy::http_proxy_service(&umami_proxy.configuration, health::Probes {});

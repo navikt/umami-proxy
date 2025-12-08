@@ -33,24 +33,12 @@ use crate::metrics::{
 };
 pub struct Umami {
 	pub conf: Config,
-	pub addr: std::net::SocketAddr,
-	pub sni: Option<String>,
 	pub bots: Bots,
 }
 
 impl Umami {
-	pub const fn new(
-		conf: Config,
-		addr: std::net::SocketAddr,
-		sni: Option<String>,
-		bots: Bots,
-	) -> Self {
-		Self {
-			conf,
-			addr,
-			sni,
-			bots,
-		}
+	pub const fn new(conf: Config, bots: Bots) -> Self {
+		Self { conf, bots }
 	}
 }
 
@@ -382,7 +370,7 @@ impl ProxyHttp for Umami {
 		Self::CTX: Send + Sync,
 	{
 		// TODO: Wrap this into a prometheus metric
-		let proxy_duration = ctx.proxy_start.map(|start_time| start_time.elapsed());
+		let _proxy_duration = ctx.proxy_start.map(|start_time| start_time.elapsed());
 
 		let Some(err) = e else {
 			// happy path
@@ -462,52 +450,10 @@ fn get_website_url(value: &Value) -> Option<String> {
 		.map(String::from)
 }
 
-fn categorize_other_environment(host: String, environments: &[String]) -> String {
-	if environments.iter().any(|env| host.ends_with(env)) {
-		"dev".into()
-	} else if host.contains("localhost") {
-		"localhost".into()
-	} else {
-		"other".into()
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use serde_json::{json, Value};
-
-	#[test]
-	fn test_categorize_environment_dev() {
-		let environments = ["dev.nav.no", "fooo"].map(|e| e.into());
-		assert_eq!(
-			categorize_other_environment("example.dev.nav.no".into(), &environments),
-			"dev"
-		);
-	}
-
-	#[test]
-	fn test_categorize_environment_localhost() {
-		let environments = ["dev", "staging"].map(|e| e.into());
-		assert_eq!(
-			categorize_other_environment("localhost".into(), &environments),
-			"localhost"
-		);
-		assert_eq!(
-			categorize_other_environment("mylocalhost.com".into(), &environments),
-			"localhost"
-		);
-	}
-
-	#[test]
-	fn test_categorize_environment_other() {
-		let environments = ["dev", "staging"].map(|e| e.into());
-
-		assert_eq!(
-			categorize_other_environment("example.com".into(), &environments),
-			"other"
-		);
-	}
 
 	#[test]
 	fn test_parse_url_encoded() {
