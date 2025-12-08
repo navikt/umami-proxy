@@ -169,10 +169,9 @@ pub fn redact_pii(input: &str) -> String {
 	// UUIDs have format: 8-4-4-4-12 hexadecimal characters separated by hyphens
 	// Example: 550e8400-e29b-41d4-a716-446655440000
 	// We use word boundaries to ensure we match complete UUIDs
-	let uuid_regex = Regex::new(
-		r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
-	)
-	.unwrap();
+	let uuid_regex =
+		Regex::new(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
+			.unwrap();
 
 	for (i, capture_result) in uuid_regex.captures_iter(&result.clone()).enumerate() {
 		if let Ok(capture) = capture_result {
