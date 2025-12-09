@@ -158,17 +158,18 @@ pub struct PrivacyPattern {
 	pub regex: Regex,
 }
 
-/// Redacts PII from a string by applying all privacy patterns
+/// Redacts PII from a string by applying all privacy patterns, with optional exclusions
 /// Returns the redacted string
-pub fn redact_pii(input: &str) -> String {
+///
+/// # Arguments
+/// * `input` - The string to redact
+/// * `excluded_labels` - Optional slice of redaction labels to exclude (e.g., &["PROXY-FILEPATH"])
+pub fn redact_pii_with_exclusions(input: &str, excluded_labels: Option<&[&str]>) -> String {
 	let mut result = input.to_string();
 	let mut preserved_urls: Vec<String> = Vec::new();
 	let mut preserved_uuids: Vec<String> = Vec::new();
 
 	// First pass: extract and replace UUIDs with placeholders
-	// UUIDs have format: 8-4-4-4-12 hexadecimal characters separated by hyphens
-	// Example: 550e8400-e29b-41d4-a716-446655440000
-	// We use word boundaries to ensure we match complete UUIDs
 	let uuid_regex =
 		Regex::new(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
 			.unwrap();
@@ -194,7 +195,7 @@ pub fn redact_pii(input: &str) -> String {
 			# Use negative lookbehind to avoid matching email domains (no @ before)
 			(?<!@)[A-Za-z0-9._\-]+\.[A-Za-z]{2,}(?:/[A-Za-z0-9._\-/%?&=]+)
 		)
-		",
+	",
 	)
 	.unwrap();
 
@@ -207,11 +208,18 @@ pub fn redact_pii(input: &str) -> String {
 		}
 	}
 
-	// Third pass: apply all privacy patterns
+	// Third pass: apply all privacy patterns with exclusions
 	for pattern in PRIVACY_PATTERNS.iter() {
 		// Skip the URL preservation pattern
 		if pattern.redaction_label == "PROXY-PRESERVE-URL" {
 			continue;
+		}
+
+		// Skip patterns in the exclusion list
+		if let Some(exclusions) = excluded_labels {
+			if exclusions.contains(&pattern.redaction_label) {
+				continue;
+			}
 		}
 
 		// fancy-regex returns Result for is_match, so we need to handle errors
@@ -237,6 +245,14 @@ pub fn redact_pii(input: &str) -> String {
 	}
 
 	result
+}
+
+/// Redacts PII from a string by applying all privacy patterns
+/// This is a convenience wrapper for redact_pii_with_exclusions with no exclusions
+/// Only used in tests for cleaner test code
+#[cfg(test)]
+pub fn redact_pii(input: &str) -> String {
+	redact_pii_with_exclusions(input, None)
 }
 
 #[cfg(test)]

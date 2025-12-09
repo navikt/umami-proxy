@@ -42,13 +42,25 @@ impl Rule {
 // one function for  Extended_Value_With_Rule_Nodes -> Value
 // So that
 pub fn traverse_and_redact(value: &mut Value) {
+	traverse_and_redact_internal(value, None, 0);
+}
+
+fn traverse_and_redact_internal(value: &mut Value, parent_key: Option<&str>, depth: usize) {
 	match value {
 		Value::String(s) => {
-			*s = redact(s).pretty_print();
+			// Special case: at depth == 2 (inside first-level objects like "payload"),
+			// if parent_key is exactly "url", skip filepath checks
+			let excluded_labels = if depth == 2 && parent_key == Some("url") {
+				Some(&["PROXY-FILEPATH"] as &[&str])
+			} else {
+				None
+			};
+			*s = redact(s, excluded_labels).pretty_print();
 		},
 		Value::Array(arr) => {
 			for v in arr {
-				traverse_and_redact(v);
+				// Don't pass parent_key to array elements
+				traverse_and_redact_internal(v, None, depth + 1);
 			}
 		},
 		Value::Object(obj) => {
@@ -85,7 +97,12 @@ pub fn traverse_and_redact(value: &mut Value) {
 				{
 					*v = serde_json::Value::String(Rule::Redact.pretty_print());
 				}
-				traverse_and_redact(v);
+				// Only pass the key name if the value is a string (direct child)
+				// Don't pass it to nested objects/arrays - they start fresh
+				match v {
+					Value::String(_) => traverse_and_redact_internal(v, Some(key), depth + 1),
+					_ => traverse_and_redact_internal(v, None, depth + 1),
+				}
 			}
 		},
 
@@ -95,9 +112,9 @@ pub fn traverse_and_redact(value: &mut Value) {
 	}
 }
 
-fn redact(s: &str) -> Rule {
-	// First apply PII redaction
-	let pii_redacted = privacy::redact_pii(s);
+fn redact(s: &str, excluded_labels: Option<&[&str]>) -> Rule {
+	// First apply PII redaction with optional exclusions
+	let pii_redacted = privacy::redact_pii_with_exclusions(s, excluded_labels);
 
 	// If PII was found and redacted, return that
 	if pii_redacted != s {
@@ -216,17 +233,17 @@ mod tests {
 	#[test]
 	fn test_keep_regex() {
 		let input = "nav123456";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		assert_eq!(result, Rule::Keep(input.to_string()).pretty_print());
 		let input = "test654321";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		assert_eq!(result, Rule::Keep(input.to_string()).pretty_print());
 	}
 
 	#[test]
 	fn test_redact_regex() {
 		let input = "23031510135";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		// This 11-digit number is now caught by the PII Fødselsnummer pattern
 		assert_eq!(result, "[PROXY-FNR]");
 	}
@@ -234,28 +251,28 @@ mod tests {
 	#[test]
 	fn test_redact_regex_variants() {
 		let input = "my_fnr_23031510135";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		assert_eq!(result, "my_fnr_[PROXY-FNR]");
 
 		let input = "my-fnr:23031510135 it's nice";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		assert_eq!(result, "my-fnr:[PROXY-FNR] it's nice");
 
 		let input = "my-fnr-23031510135";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		assert_eq!(result, "my-fnr-[PROXY-FNR]");
 	}
 
 	#[test]
 	fn test_original_regex() {
 		let input = "regularstring";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		assert_eq!(result, Rule::Original(input.to_string()).pretty_print());
 		let input = "anotherString";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		assert_eq!(result, Rule::Original(input.to_string()).pretty_print());
 		let input = "12345";
-		let result = redact(input).pretty_print();
+		let result = redact(input, None).pretty_print();
 		assert_eq!(result, Rule::Original(input.to_string()).pretty_print());
 	}
 
@@ -346,6 +363,75 @@ mod tests {
 		traverse_and_redact(&mut json_data);
 
 		// Assert that the redacted JSON matches the expected output
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_filepath_exclusion_for_url_fields() {
+		// Test that FILEPATH redaction is excluded only for the top-level "url" field
+		// This matches the browser-sent payload structure where url is a raw string
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/home/user/documents/file.txt",       // Should NOT be redacted (url field - exact match)
+				"referrer": "/var/www/html/site",             // SHOULD be redacted (not "url", not a valid URL)
+				"data": {
+					"page_path": "/users/john/profile",       // SHOULD be redacted (not "url")
+					"file_path": "C:\\Users\\Admin\\data",    // SHOULD be redacted (not "url")
+					"filepath": "/home/user/doc.pdf",         // SHOULD be redacted (not "url")
+					"description": "/etc/passwd",             // SHOULD be redacted (not "url")
+				}
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/home/user/documents/file.txt",
+				"referrer": "[PROXY-FILEPATH]",
+				"data": {
+					"page_path": "[PROXY-FILEPATH]",
+					"file_path": "[PROXY-FILEPATH]",
+					"filepath": "[PROXY-FILEPATH]",
+					"description": "[PROXY-FILEPATH]",
+				}
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_nested_url_field_does_not_get_exclusion() {
+		// Test that only top-level "url" field gets exclusion, not nested "url" fields
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/home/user/documents/file.txt",  // Top-level: should NOT be redacted
+				"data": {
+					"url": "/var/www/html/index.php",    // Nested: SHOULD be redacted
+					"config": {
+						"url": "C:\\Users\\Admin\\file.exe"  // Deeply nested: SHOULD be redacted
+					}
+				}
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/home/user/documents/file.txt",
+				"data": {
+					"url": "[PROXY-FILEPATH]",
+					"config": {
+						"url": "[PROXY-FILEPATH]"
+					}
+				}
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
 		assert_eq!(json_data, expected_data);
 	}
 }
