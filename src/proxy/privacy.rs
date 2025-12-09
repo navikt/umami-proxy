@@ -234,14 +234,14 @@ pub fn redact_pii_with_exclusions(input: &str, excluded_labels: Option<&[&str]>)
 		}
 	}
 
-	// Fourth pass: restore preserved UUIDs
-	for (i, uuid) in preserved_uuids.iter().enumerate() {
-		result = result.replace(&format!("__PRESERVED_UUID_{}__", i), uuid);
-	}
-
 	// Fifth pass: restore preserved URLs
 	for (i, url) in preserved_urls.iter().enumerate() {
 		result = result.replace(&format!("__PRESERVED_URL_{}__", i), url);
+	}
+
+	// Fourth pass: restore preserved UUIDs
+	for (i, uuid) in preserved_uuids.iter().enumerate() {
+		result = result.replace(&format!("__PRESERVED_UUID_{}__", i), uuid);
 	}
 
 	result
@@ -388,6 +388,17 @@ mod tests {
 
 		let input = "Nor should you call me at 98765432-484B-416C-B444-84EE98765432 that's also not a phone number, still a UUID";
 		let result = redact_pii(input);
+		assert_eq!(result, input);
+	}
+
+	#[test]
+	fn test_sanctioning() {
+		let input = "/behandling/__a50e8400-e29b-41d4-a716-a4665544000a/brev";
+		let result = redact_pii_with_exclusions(input, Some(&["PROXY-FILEPATH"]));
+		assert_eq!(result, input);
+
+		let input = "https://arbeidsplassen.nav.no/stillinger/stilling/fabaa3cc-90e7-4c00-88aa-ab8d2f9831e8";
+		let result = redact_pii_with_exclusions(input, Some(&["PROXY-FILEPATH"]));
 		assert_eq!(result, input);
 	}
 

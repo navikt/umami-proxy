@@ -273,6 +273,31 @@ mod tests {
 	}
 
 	#[test]
+	fn test_sanctioning() {
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"website": "c2f0a46d-a5b4-4370-8b80-b9b9fcd39f96",
+				"hostname": "arbeidsplassen.nav.no",
+				"screen": "3440x1440",
+				"language": "en-GB",
+				"title": "Er du interessert i salg og interiør? - arbeidsplassen.no",
+				"url": "https://arbeidsplassen.nav.no/stillinger/stilling/fabaa3cc-90e7-4c00-88aa-ab8d2f9831e8",
+				"url2": "fabaa3cc-90e7-4c00-88aa-ab8d2f9831e8_https://arbeidsplassen.nav.no/stillinger/stilling",
+				"referrer": ""
+			}
+		});
+
+		let expected_data = json_data.clone();
+
+		// Apply the redaction function
+		traverse_and_redact(&mut json_data);
+
+		// Assert that the JSON remains unchanged (no redaction should occur)
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
 	fn test_keep_regex() {
 		let input = "nav123456";
 		let result = redact(input, None).pretty_print();
