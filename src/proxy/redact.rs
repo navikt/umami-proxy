@@ -49,13 +49,12 @@ fn traverse_and_redact_internal(value: &mut Value, parent_key: Option<&str>, dep
 	match value {
 		Value::String(s) => {
 			// Special case: at depth == 2 (inside first-level objects like "payload"),
-			// if parent_key is exactly "url", skip filepath checks
-			let excluded_labels = if depth == 2 && parent_key == Some("url") {
-				Some(&["PROXY-FILEPATH"] as &[&str])
+			// if parent_key is exactly "url", parse it and only skip filepath checks for the path part
+			if depth == 2 && parent_key == Some("url") {
+				*s = redact_url(s).pretty_print();
 			} else {
-				None
-			};
-			*s = redact(s, excluded_labels).pretty_print();
+				*s = redact(s, None).pretty_print();
+			}
 		},
 		Value::Array(arr) => {
 			for v in arr {
@@ -128,6 +127,28 @@ fn redact(s: &str, excluded_labels: Option<&[&str]>) -> Rule {
 		Rule::RedactSsns(s.to_string())
 	} else {
 		Rule::Original(s.to_string())
+	}
+}
+
+/// Redacts a URL by splitting it into path and query parts,
+/// excluding filepath checks for the path but applying them to the query
+fn redact_url(url: &str) -> Rule {
+	// Find the query string separator
+	if let Some(query_start) = url.find('?') {
+		let path_part = &url[..query_start];
+		let query_part = &url[query_start..]; // includes the '?'
+
+		// Redact path part with filepath exclusion
+		let redacted_path = redact(path_part, Some(&["PROXY-FILEPATH"])).pretty_print();
+
+		// Redact query part without exclusions (filepath checks apply here)
+		let redacted_query = redact(query_part, None).pretty_print();
+
+		// Combine the results
+		Rule::Original(format!("{}{}", redacted_path, redacted_query))
+	} else {
+		// No query string, so trust the entire URL (exclude filepath checks)
+		redact(url, Some(&["PROXY-FILEPATH"]))
 	}
 }
 
@@ -221,6 +242,27 @@ mod tests {
 			"event_properties": {
 				"regular_text": "This is fine"
 			}
+		});
+
+		// Apply the redaction function
+		traverse_and_redact(&mut json_data);
+
+		// Assert that the redacted JSON matches the expected output
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_traverse_url_special_cases() {
+		let mut json_data = json!({
+			"payload": {
+			  "url": "/path/to/thing?file=/my/secret/file.txt"
+			},
+		});
+
+		let expected_data = json!({
+			"payload": {
+			  "url": "/path/to/thing?file=[PROXY-FILEPATH]"
+			},
 		});
 
 		// Apply the redaction function
@@ -428,6 +470,111 @@ mod tests {
 						"url": "[PROXY-FILEPATH]"
 					}
 				}
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_with_query_string_filepath() {
+		// Test that filepath checks are applied to query parameters but not the path
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/some/path/page?file=/home/user/secret.txt",  // Path trusted, query checked
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/some/path/page?file=[PROXY-FILEPATH]",
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_with_query_string_pii() {
+		// Test that PII in query parameters is redacted
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/search?email=user@example.com&phone=98765432",
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/search?email=[PROXY-EMAIL]&phone=[PROXY-PHONE]",
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_with_query_string_mixed() {
+		// Test mixed PII and filepath in query string
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/api/data?path=/var/log/app.log&ssn=12345678901&redirect=/home/user/file.pdf",
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/api/data?path=[PROXY-FILEPATH]&ssn=[PROXY-FNR]&redirect=[PROXY-FILEPATH]",
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_without_query_string() {
+		// Test that URLs without query strings have path trusted
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/home/user/documents/file.txt",  // No query, so entire URL is trusted
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/home/user/documents/file.txt",
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_path_looks_like_filepath() {
+		// Test that path components that look like filepaths are trusted
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/C:/Users/Admin/page",  // Path looks like Windows path but is trusted
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"url": "/C:/Users/Admin/page",
 			}
 		});
 
