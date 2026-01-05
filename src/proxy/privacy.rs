@@ -239,8 +239,9 @@ pub fn redact_pii_with_exclusions(input: &str, excluded_labels: Option<&[&str]>)
 		let mut redacted_url = url.clone();
 		for pattern in PRIVACY_PATTERNS.iter() {
 			// Skip the URL preservation pattern and filepath pattern (URLs are trusted paths)
-			if pattern.redaction_label == "PROXY-PRESERVE-URL" 
-				|| pattern.redaction_label == "PROXY-FILEPATH" {
+			if pattern.redaction_label == "PROXY-PRESERVE-URL"
+				|| pattern.redaction_label == "PROXY-FILEPATH"
+			{
 				continue;
 			}
 			// Skip any other excluded patterns
@@ -249,12 +250,15 @@ pub fn redact_pii_with_exclusions(input: &str, excluded_labels: Option<&[&str]>)
 					continue;
 				}
 			}
-			
+
 			if let Ok(is_match) = pattern.regex.is_match(&redacted_url) {
 				if is_match {
 					redacted_url = pattern
 						.regex
-						.replace_all(&redacted_url, format!("[{}]", pattern.redaction_label).as_str())
+						.replace_all(
+							&redacted_url,
+							format!("[{}]", pattern.redaction_label).as_str(),
+						)
 						.to_string();
 				}
 			}
