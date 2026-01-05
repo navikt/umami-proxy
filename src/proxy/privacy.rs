@@ -9,10 +9,8 @@ pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 		PrivacyPattern {
 			_name: "Legitimate URLs",
 			redaction_label: "PROXY-PRESERVE-URL",
-			regex: Regex::new(
-				r"https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/%?&=]*)?",
-			)
-			.unwrap(),
+			regex: Regex::new(r"https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?")
+				.unwrap(),
 		},
 		// File paths (Windows, Unix, macOS) - placed first to avoid NAME pattern matching path components
 		// Matches absolute and relative paths that may contain personal information
@@ -188,12 +186,12 @@ pub fn redact_pii_with_exclusions(input: &str, excluded_labels: Option<&[&str]>)
 		r"(?x)
 		(?:
 			# URLs with http/https protocol
-			https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/%?&=]*)?
+			https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/@%?&=]*)?
 			|
 			# Domain-like patterns (without protocol) - must have a TLD
 			# Format: subdomain.domain.tld/path or domain.tld/path
 			# Use negative lookbehind to avoid matching email domains (no @ before)
-			(?<!@)[A-Za-z0-9._\-]+\.[A-Za-z]{2,}(?:/[A-Za-z0-9._\-/%?&=]+)
+			(?<!@)[A-Za-z0-9._\-]+\.[A-Za-z]{2,}(?:/[A-Za-z0-9._\-/@%?&=]+)
 		)
 	",
 	)
@@ -234,9 +232,34 @@ pub fn redact_pii_with_exclusions(input: &str, excluded_labels: Option<&[&str]>)
 		}
 	}
 
-	// Fifth pass: restore preserved URLs
+	// Fifth pass: restore preserved URLs with PII redaction applied
 	for (i, url) in preserved_urls.iter().enumerate() {
-		result = result.replace(&format!("__PRESERVED_URL_{}__", i), url);
+		// Apply PII redaction to the URL itself before restoring
+		// We exclude PROXY-FILEPATH since URL paths should be trusted
+		let mut redacted_url = url.clone();
+		for pattern in PRIVACY_PATTERNS.iter() {
+			// Skip the URL preservation pattern and filepath pattern (URLs are trusted paths)
+			if pattern.redaction_label == "PROXY-PRESERVE-URL" 
+				|| pattern.redaction_label == "PROXY-FILEPATH" {
+				continue;
+			}
+			// Skip any other excluded patterns
+			if let Some(exclusions) = excluded_labels {
+				if exclusions.contains(&pattern.redaction_label) {
+					continue;
+				}
+			}
+			
+			if let Ok(is_match) = pattern.regex.is_match(&redacted_url) {
+				if is_match {
+					redacted_url = pattern
+						.regex
+						.replace_all(&redacted_url, format!("[{}]", pattern.redaction_label).as_str())
+						.to_string();
+				}
+			}
+		}
+		result = result.replace(&format!("__PRESERVED_URL_{}__", i), &redacted_url);
 	}
 
 	// Fourth pass: restore preserved UUIDs
@@ -258,6 +281,7 @@ pub fn redact_pii(input: &str) -> String {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use pretty_assertions::assert_eq;
 
 	#[test]
 	fn test_redact_email() {

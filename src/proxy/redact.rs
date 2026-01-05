@@ -49,8 +49,8 @@ fn traverse_and_redact_internal(value: &mut Value, parent_key: Option<&str>, dep
 	match value {
 		Value::String(s) => {
 			// Special case: at depth == 2 (inside first-level objects like "payload"),
-			// if parent_key is exactly "url", parse it and only skip filepath checks for the path part
-			if depth == 2 && parent_key == Some("url") {
+			// if parent_key is exactly "url" or "referrer", parse it and only skip filepath checks for the path part
+			if depth == 2 && (parent_key == Some("url") || parent_key == Some("referrer")) {
 				*s = redact_url(s).pretty_print();
 			} else {
 				*s = redact(s, None).pretty_print();
@@ -155,6 +155,7 @@ fn redact_url(url: &str) -> Rule {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use pretty_assertions::assert_eq;
 
 	use serde_json::json;
 
@@ -441,7 +442,7 @@ mod tests {
 			"type": "event",
 			"payload": {
 				"url": "/home/user/documents/file.txt",       // Should NOT be redacted (url field - exact match)
-				"referrer": "/var/www/html/site",             // SHOULD be redacted (not "url", not a valid URL)
+				"referrer": "/var/www/html/site",             // SHOULD NOT be redacted (also a url field)
 				"data": {
 					"page_path": "/users/john/profile",       // SHOULD be redacted (not "url")
 					"file_path": "C:\\Users\\Admin\\data",    // SHOULD be redacted (not "url")
@@ -455,7 +456,7 @@ mod tests {
 			"type": "event",
 			"payload": {
 				"url": "/home/user/documents/file.txt",
-				"referrer": "[PROXY-FILEPATH]",
+				"referrer": "/var/www/html/site",
 				"data": {
 					"page_path": "[PROXY-FILEPATH]",
 					"file_path": "[PROXY-FILEPATH]",
@@ -600,6 +601,30 @@ mod tests {
 			"type": "event",
 			"payload": {
 				"url": "/C:/Users/Admin/page",
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_pii_in_url_path_referrer() {
+		// Test that PII in the path of a URL (like referrer and url) is redacted
+		// while the URL structure itself is preserved (not treated as a filepath)
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"referrer": "https://example.com/path/to/person/johndoe@example.com/mail/view",
+				"url": "https://example.com/path/to/person/johndoe@example.com/mail/view"
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"referrer": "https://example.com/path/to/person/[PROXY-EMAIL]/mail/view",
+				"url": "https://example.com/path/to/person/[PROXY-EMAIL]/mail/view"
 			}
 		});
 

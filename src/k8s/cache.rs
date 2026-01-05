@@ -58,6 +58,7 @@ pub fn get_app_info_with_longest_prefix(key: &str) -> Option<AppInfo> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use pretty_assertions::assert_eq;
 
 	#[test]
 	fn test_insert_and_retrieve_from_cache() {

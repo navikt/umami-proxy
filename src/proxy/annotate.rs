@@ -42,6 +42,7 @@ pub fn with_app_info(value: &mut Value, app_info: &k8s::cache::AppInfo, host: &S
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use pretty_assertions::assert_eq;
 	use serde_json::json;
 
 	#[test]
