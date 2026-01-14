@@ -240,7 +240,7 @@ impl ProxyHttp for Umami {
 					let error_body = serde_json::to_string(&error_response)
 						.unwrap_or_else(|_| String::from(r#"{"error":"Field validation failed"}"#));
 
-					let mut response_header = ResponseHeader::build(400, None)?;
+					let mut response_header = ResponseHeader::build(201, None)?;
 					response_header.insert_header("Content-Type", "application/json")?;
 					response_header.insert_header("Content-Length", error_body.len())?;
 
