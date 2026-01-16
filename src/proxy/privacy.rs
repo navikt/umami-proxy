@@ -182,16 +182,22 @@ pub fn redact_pii_with_exclusions(input: &str, excluded_labels: Option<&[&str]>)
 	}
 
 	// Second pass: extract and replace http/https URLs with placeholders
+	// BUT, we need to avoid matching domains that are part of email addresses
+	// Strategy: Only match standalone domain/path patterns, not those that are part of emails
+	// IMPORTANT: We only preserve up to the query string (?) or fragment (#)
+	// Query strings and fragments can contain PII and should be redacted normally
 	let url_regex = Regex::new(
 		r"(?x)
 		(?:
-			# URLs with http/https protocol
-			https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/@%?&=]*)?
+			# URLs with http/https protocol (always safe to match)
+			# Only match up to query string (?) or fragment (#) - those parts should be redacted
+			https?://[A-Za-z0-9._\-]+(?:\.[A-Za-z0-9._\-]+)*(?::[0-9]+)?(?:/[A-Za-z0-9._\-/@%&=]*)?
 			|
-			# Domain-like patterns (without protocol) - must have a TLD
-			# Format: subdomain.domain.tld/path or domain.tld/path
-			# Use negative lookbehind to avoid matching email domains (no @ before)
-			(?<!@)[A-Za-z0-9._\-]+\.[A-Za-z]{2,}(?:/[A-Za-z0-9._\-/@%?&=]+)
+			# Domain-like patterns (without protocol) - must have a TLD and a path
+			# Format: domain.tld/path (up to ? or #)
+			# Use negative lookbehind to ensure not preceded by word char OR @ (which would make it email/part of word)
+			# This prevents matching 'xample.com/profile' when input is 'john.doe@example.com/profile'
+			(?<![A-Za-z0-9._%+\-@])[A-Za-z0-9._\-]+\.[A-Za-z]{2,}/[A-Za-z0-9._\-/@%&=]+
 		)
 	",
 	)

@@ -72,8 +72,10 @@ fn traverse_and_redact_internal(value: &mut Value, parent_key: Option<&str>, dep
 			if depth == 2 && (parent_key == Some("url") || parent_key == Some("referrer")) {
 				*s = redact_url(s).pretty_print();
 			} else if should_exclude_filepath_redaction(parent_key) {
-				// For URL-related fields, exclude filepath redaction but still check for other PII
-				*s = redact(s, Some(&["PROXY-FILEPATH"])).pretty_print();
+				// For URL-related fields, use the same logic as redact_url:
+				// exclude filepath redaction but still check for other PII,
+				// and apply full redaction to query strings
+				*s = redact_url(s).pretty_print();
 			} else {
 				*s = redact(s, None).pretty_print();
 			}
@@ -897,13 +899,14 @@ mod tests {
 	#[test]
 	fn test_url_fields_with_query_strings() {
 		// Test URL fields with query parameters
+		// Query strings should still be redacted (not part of the preserved URL)
 		let mut json_data = json!({
 			"type": "event",
 			"payload": {
 				"data": {
 					"path": "/home/user?file=/var/log/app.log",
-					"href": "/page?file=/usr/bin/app",
-					"link": "/search?q=test&systempath=/home/docs"
+					"href": "/page?redirect=/usr/bin/app",
+					"link": "/search?q=test&from=/home/docs"
 				}
 			}
 		});
@@ -913,8 +916,9 @@ mod tests {
 			"payload": {
 				"data": {
 					"path": "/home/user?file=[PROXY-FILEPATH]",
-					"href": "/page?file=[PROXY-FILEPATH]",
-					"link": "/search?q=test&systempath=[PROXY-FILEPATH]"
+					"href": "/page?redirect=[PROXY-FILEPATH]",
+					// Search query params get redacted by PROXY-SEARCH pattern
+					"link": "/search[PROXY-SEARCH]&from=[PROXY-FILEPATH]"
 				}
 			}
 		});
