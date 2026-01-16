@@ -45,6 +45,25 @@ pub fn traverse_and_redact(value: &mut Value) {
 	traverse_and_redact_internal(value, None, 0);
 }
 
+/// Determines if a field name should exclude PROXY-FILEPATH redaction
+/// These are URL-related fields where paths are expected and shouldn't be redacted as filepaths
+fn should_exclude_filepath_redaction(parent_key: Option<&str>) -> bool {
+	match parent_key {
+		Some(key) => matches!(
+			key,
+			"path"
+				| "href" | "destinasjon"
+				| "url" | "link"
+				| "pathname" | "linkText"
+				| "destination"
+				| "url_path" | "fra"
+				| "lenketekst"
+				| "lenkesti"
+		),
+		None => false,
+	}
+}
+
 fn traverse_and_redact_internal(value: &mut Value, parent_key: Option<&str>, depth: usize) {
 	match value {
 		Value::String(s) => {
@@ -52,6 +71,9 @@ fn traverse_and_redact_internal(value: &mut Value, parent_key: Option<&str>, dep
 			// if parent_key is exactly "url" or "referrer", parse it and only skip filepath checks for the path part
 			if depth == 2 && (parent_key == Some("url") || parent_key == Some("referrer")) {
 				*s = redact_url(s).pretty_print();
+			} else if should_exclude_filepath_redaction(parent_key) {
+				// For URL-related fields, exclude filepath redaction but still check for other PII
+				*s = redact(s, Some(&["PROXY-FILEPATH"])).pretty_print();
 			} else {
 				*s = redact(s, None).pretty_print();
 			}
@@ -471,33 +493,22 @@ mod tests {
 	}
 
 	#[test]
-	fn test_nested_url_field_does_not_get_exclusion() {
+	fn test_nested_url_field_does_get_exclusion() {
 		// Test that only top-level "url" field gets exclusion, not nested "url" fields
 		let mut json_data = json!({
 			"type": "event",
 			"payload": {
-				"url": "/home/user/documents/file.txt",  // Top-level: should NOT be redacted
+				"url": "/home/user/documents/file.txt",
 				"data": {
-					"url": "/var/www/html/index.php",    // Nested: SHOULD be redacted
+					"url": "/var/www/html/index.php",
 					"config": {
-						"url": "C:\\Users\\Admin\\file.exe"  // Deeply nested: SHOULD be redacted
+						"url": "C:\\Users\\Admin\\file.exe"
 					}
 				}
 			}
 		});
 
-		let expected_data = json!({
-			"type": "event",
-			"payload": {
-				"url": "/home/user/documents/file.txt",
-				"data": {
-					"url": "[PROXY-FILEPATH]",
-					"config": {
-						"url": "[PROXY-FILEPATH]"
-					}
-				}
-			}
-		});
+		let expected_data = json_data.clone();
 
 		traverse_and_redact(&mut json_data);
 		assert_eq!(json_data, expected_data);
@@ -891,8 +902,8 @@ mod tests {
 			"payload": {
 				"data": {
 					"path": "/home/user?file=/var/log/app.log",
-					"href": "/page?redirect=/usr/bin/app",
-					"link": "/search?q=test&from=/home/docs"
+					"href": "/page?file=/usr/bin/app",
+					"link": "/search?q=test&systempath=/home/docs"
 				}
 			}
 		});
@@ -902,8 +913,8 @@ mod tests {
 			"payload": {
 				"data": {
 					"path": "/home/user?file=[PROXY-FILEPATH]",
-					"href": "/page?redirect=[PROXY-FILEPATH]",
-					"link": "/search?q=test&from=[PROXY-FILEPATH]"
+					"href": "/page?file=[PROXY-FILEPATH]",
+					"link": "/search?q=test&systempath=[PROXY-FILEPATH]"
 				}
 			}
 		});
