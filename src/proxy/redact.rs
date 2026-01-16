@@ -58,7 +58,8 @@ fn should_exclude_filepath_redaction(parent_key: Option<&str>) -> bool {
 				| "destination"
 				| "url_path" | "fra"
 				| "lenketekst"
-				| "lenkesti"
+				| "lenkesti" | "newLocation"
+				| "prevLocation"
 		),
 		None => false,
 	}
@@ -695,7 +696,9 @@ mod tests {
 					"fra": "./forrige/side",
 					"linkText": "gå til /hjelp/sporsmal/side",
 					"lenketekst": "gå til /hjelp/sporsmal/side",
-					"lenkesti": "/norsk/sti"
+					"lenkesti": "/norsk/sti",
+					"newLocation": "/nav/tjenester",
+					"prevLocation": "/nav/tjenester",
 				}
 			}
 		});
