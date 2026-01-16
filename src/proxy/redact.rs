@@ -631,4 +631,284 @@ mod tests {
 		traverse_and_redact(&mut json_data);
 		assert_eq!(json_data, expected_data);
 	}
+
+	#[test]
+	fn test_breadcrumbs_url_not_redacted_as_filepath() {
+		// Test the actual example from the user where breadcrumbs.url was being incorrectly redacted
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"website": "8BA0674C-DF00-4B3C-8397-A13A463CABB2",
+				"data": {
+					"parametre": {
+						"breadcrumbs": [
+							{
+								"title": "Min side",
+								"url": "https://www.intern.dev.nav.no/minside/",
+								"handleInApp": false
+							},
+							{
+								"title": "Ditt sykefravær",
+								"url": "/",
+								"handleInApp": true
+							}
+						]
+					}
+				}
+			}
+		});
+
+		// URLs in breadcrumbs should NOT be redacted as filepaths
+		let expected_data = json_data.clone();
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_field_exclusions_simple_paths() {
+		// Test that simple URL paths in various URL-related fields are NOT redacted as filepaths
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"path": "/syk/sykefravaer",
+					"href": "/min/side/oversikt",
+					"pathname": "/nav/tjenester",
+					"url_path": "./dokumenter/viktige",
+					"link": "/kontakt/oss",
+					"destination": "/hjelp/sporsmal",
+					"destinasjon": "/soknad/dagpenger",
+					"fra": "./forrige/side",
+					"linkText": "gå til /hjelp/sporsmal/side",
+					"lenketekst": "gå til /hjelp/sporsmal/side",
+					"lenkesti": "/norsk/sti"
+				}
+			}
+		});
+
+		// All paths should remain unchanged - not redacted as filepaths
+		let expected_data = json_data.clone();
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_field_exclusions_with_filepath_like_paths() {
+		// Test that even paths that LOOK like filepaths are preserved in URL fields
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"path": "/home/user/documents",
+					"href": "/var/www/html/page",
+					"pathname": "/C:/Users/Admin/file",
+					"url_path": "./etc/config/settings",
+					"link": "~/Documents/file.txt",
+					"destination": "/usr/local/bin/app",
+					"destinasjon": "/tmp/upload/data",
+					"fra": "/backup/files/user",
+					"lenkesti": "/private/var/folders"
+				}
+			}
+		});
+
+		// All paths should remain unchanged even though they look like filepaths
+		let expected_data = json_data.clone();
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_field_exclusions_with_pii() {
+		// Test that PII is still redacted in URL fields, even with filepath exclusion
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"path": "/user/john.doe@example.com/profile",
+					"href": "/people/12345678901/details",
+					"pathname": "/contact/98765432",
+					"link": "https://example.com/user@test.com",
+					"destination": "/nav/X123456/dashboard"
+				}
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"path": "/user/[PROXY-EMAIL]/profile",
+					"href": "/people/[PROXY-FNR]/details",
+					"pathname": "/contact/[PROXY-PHONE]",
+					"link": "https://example.com/[PROXY-EMAIL]",
+					"destination": "/nav/[PROXY-NAVIDENT]/dashboard"
+				}
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_field_exclusions_nested_objects() {
+		// Test URL field exclusions work at various nesting levels
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"navigation": {
+						"current": {
+							"path": "/home/user/documents",
+							"href": "/var/www/page"
+						},
+						"items": [
+							{
+								"link": "/usr/local/app",
+								"destination": "/etc/config"
+							}
+						]
+					}
+				}
+			}
+		});
+
+		// All paths should remain unchanged regardless of nesting
+		let expected_data = json_data.clone();
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_non_url_fields_still_redacted() {
+		// Test that non-URL fields still get filepath redaction
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					// These should be redacted
+					"file_path": "/home/user/documents/secret.txt",
+					"filepath": "C:/Users/Admin/private.doc",
+					"document": "/var/www/uploads/file.pdf",
+					"location": "/usr/local/bin/app",
+
+					// These should NOT be redacted (URL fields)
+					"path": "/home/user/documents/secret.txt",
+					"url": "/var/www/uploads/file.pdf"
+				}
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"file_path": "[PROXY-FILEPATH]",
+					"filepath": "[PROXY-FILEPATH]",
+					"document": "[PROXY-FILEPATH]",
+					"location": "[PROXY-FILEPATH]",
+					"path": "/home/user/documents/secret.txt",
+					"url": "/var/www/uploads/file.pdf"
+				}
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_mixed_url_and_non_url_fields() {
+		// Test a complex scenario mixing URL and non-URL fields
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"navigation": {
+						"path": "/home/user/docs",          // URL field - keep
+						"file_path": "/home/user/docs",     // Non-URL field - redact
+						"href": "/var/www/html",            // URL field - keep
+						"directory": "/var/www/html",       // Non-URL field - redact
+						"url": "/etc/config",               // URL field - keep (top-level behavior)
+						"config_file": "/etc/config"        // Non-URL field - redact
+					}
+				}
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"navigation": {
+						"path": "/home/user/docs",
+						"file_path": "[PROXY-FILEPATH]",
+						"href": "/var/www/html",
+						"directory": "[PROXY-FILEPATH]",
+						"url": "/etc/config",
+						"config_file": "[PROXY-FILEPATH]"
+					}
+				}
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_fields_with_full_urls() {
+		// Test that full URLs with protocols are preserved
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"path": "https://example.com/home/user/path",
+					"href": "http://test.no/var/www/html",
+					"link": "https://nav.no/C:/Windows/System32",
+					"destination": "https://site.com/usr/local/bin"
+				}
+			}
+		});
+
+		// All URLs should remain unchanged
+		let expected_data = json_data.clone();
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
+
+	#[test]
+	fn test_url_fields_with_query_strings() {
+		// Test URL fields with query parameters
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"path": "/home/user?file=/var/log/app.log",
+					"href": "/page?redirect=/usr/bin/app",
+					"link": "/search?q=test&from=/home/docs"
+				}
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"path": "/home/user?file=[PROXY-FILEPATH]",
+					"href": "/page?redirect=[PROXY-FILEPATH]",
+					"link": "/search?q=test&from=[PROXY-FILEPATH]"
+				}
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
 }
