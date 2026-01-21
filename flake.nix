@@ -39,7 +39,11 @@
 
         buildInputs = with pkgs; [openssl];
         nativeBuildInputs = with pkgs;
-          [pkg-config cmake perl];
+          [pkg-config cmake perl]
+          ++ lib.optionals stdenv.isDarwin [
+            darwin.apple_sdk.frameworks.Security
+            darwin.apple_sdk.frameworks.SystemConfiguration
+          ];
       };
 
       imageTag = "v${cargoDetails.package.version}-${dockerTag}";
@@ -122,6 +126,10 @@
             # Editor stuffs
             lldb
             rust-analyzer
+          ]
+          ++ lib.optionals stdenv.isDarwin [
+            darwin.apple_sdk.frameworks.Security
+            darwin.apple_sdk.frameworks.SystemConfiguration
           ];
       };
 
