@@ -100,6 +100,13 @@
         cargo-audit = craneLib.cargoAudit {
           inherit (inputs) advisory-db;
           inherit src;
+          # Ignore vulnerabilities that are transitive dependencies from pingora
+          # and cannot be updated until pingora releases new versions:
+          # - RUSTSEC-2026-0002: lru 0.14.0 vulnerability
+          #   Tracking: https://github.com/cloudflare/pingora/issues/788
+          # - RUSTSEC-2024-0437: protobuf 2.28.0 uncontrolled recursion
+          #   Tracking: https://github.com/cloudflare/pingora/issues/552
+          cargoAuditExtraArgs = "--ignore RUSTSEC-2026-0002 --ignore RUSTSEC-2024-0437";
         };
       };
       devShells.default = craneLib.devShell {
