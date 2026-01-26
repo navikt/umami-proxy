@@ -929,4 +929,97 @@ mod tests {
 		traverse_and_redact(&mut json_data);
 		assert_eq!(json_data, expected_data);
 	}
+
+	#[test]
+	fn should_exclude_name_redaction() {
+		// Test a complex scenario mixing URL and non-URL fields
+		let mut json_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"sidetittel": "Ola Nordmann",
+					"komponent": "Ola Nordmann", // exclude
+					"title": "Ola Nordmann",
+					"text": "Ola Nordmann",
+					"tekst": "Ola Nordmann",
+					"lenketekst": "Ola Nordmann", // exclude (unusual to have user data in a link)
+					"parametre": {
+						"breadcrumbs": "Ola Nordmann", // exclude
+						"pageType": "Ola Nordmann", // exclude
+						"pageTheme": "Ola Nordmann", // exclude
+					},
+					"employer": "Ola Nordmann", // exclude
+					"seksjon": "Ola Nordmann", // exclude
+					"tittel": "Ola Nordmann",
+					"valg": "Ola Nordmann", // could be a radio/option of people
+					"jobTitle": "Ola Nordmann", // exclude
+					"searchParams": {
+						"q": "Ola Nordmann", // generic could search for name of a person
+						"occupationLevel2": "Ola Nordmann", // exclude
+					},
+					"enhet": "Ola Nordmann", // exclude
+					"filter": "Ola Nordmann", // exclude (gut feeling: filtering is probably not on individuals)
+					"organisasjoner": "Ola Nordmann", // exclude
+					"destinasjon": "Ola Nordmann", // exclude
+					"location": "Ola Nordmann", // exclude
+					"arbeidssted": "Ola Nordmann", // exclude
+					"kilde": "Ola Nordmann", // exclude
+					"skjemanavn": "Ola Nordmann", // exclude
+					"lenkegruppe": "Ola Nordmann", // exclude
+					"linkText": "Ola Nordmann", // exclude
+					"descriptionId": "Ola Nordmann", // exclude
+					"tema": "Ola Nordmann", // exclude
+					"innholdstype": "Ola Nordmann", // exclude
+					"yrkestittel": "Ola Nordmann", // exclude
+					"tlbhrNavn": "Ola Nordmann", // exclude
+				}
+			}
+		});
+
+		let expected_data = json!({
+			"type": "event",
+			"payload": {
+				"data": {
+					"sidetittel": "[PROXY-NAME]",
+					"komponent": "Ola Nordmann", // exclude
+					"title": "[PROXY-NAME]",
+					"text": "[PROXY-NAME]",
+					"tekst": "[PROXY-NAME]",
+					"lenketekst": "Ola Nordmann", // exclude (unusual to have user data in a link)
+					"parametre": {
+						"breadcrumbs": "Ola Nordmann", // exclude
+						"pageType": "Ola Nordmann", // exclude
+						"pageTheme": "Ola Nordmann", // exclude
+					},
+					"employer": "Ola Nordmann", // exclude
+					"seksjon": "Ola Nordmann", // exclude
+					"tittel": "[PROXY-NAME]",
+					"valg": "Ola Nordmann", // could be a radio/option of people
+					"jobTitle": "Ola Nordmann", // exclude
+					"searchParams": {
+						"q": "[PROXY-NAME]", // generic could search for name of a person
+						"occupationLevel2": "Ola Nordmann", // exclude
+					},
+					"enhet": "Ola Nordmann", // exclude
+					"filter": "Ola Nordmann", // exclude (gut feeling: filtering is probably not on individuals)
+					"organisasjoner": "Ola Nordmann", // exclude
+					"destinasjon": "Ola Nordmann", // exclude
+					"location": "Ola Nordmann", // exclude
+					"arbeidssted": "Ola Nordmann", // exclude
+					"kilde": "Ola Nordmann", // exclude
+					"skjemanavn": "Ola Nordmann", // exclude
+					"lenkegruppe": "Ola Nordmann", // exclude
+					"linkText": "Ola Nordmann", // exclude
+					"descriptionId": "Ola Nordmann", // exclude
+					"tema": "Ola Nordmann", // exclude
+					"innholdstype": "Ola Nordmann", // exclude
+					"yrkestittel": "Ola Nordmann", // exclude
+					"tlbhrNavn": "Ola Nordmann", // exclude
+				}
+			}
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data);
+	}
 }
