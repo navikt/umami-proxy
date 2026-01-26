@@ -65,18 +65,57 @@ fn should_exclude_filepath_redaction(parent_key: Option<&str>) -> bool {
 	}
 }
 
+/// These are metadata/configuration fields where names are likely structural identifiers
+/// rather than personal data and shouldn't be redacted as names
+fn should_exclude_name_redaction(parent_key: Option<&str>) -> bool {
+	match parent_key {
+		Some(key) => {
+			matches!(
+				key,
+				"komponent"
+					| "lenketekst" | "linkText"
+					| "breadcrumbs" | "pageType"
+					| "pageTheme" | "employer"
+					| "seksjon" | "valg"
+					| "jobTitle" | "occupationLevel2"
+					| "enhet" | "filter"
+					| "organisasjoner"
+					| "destinasjon" | "location"
+					| "arbeidssted" | "kilde"
+					| "skjemanavn" | "lenkegruppe"
+					| "descriptionId"
+					| "tema" | "innholdstype"
+					| "yrkestittel" | "tlbhrNavn"
+			)
+		},
+		None => false,
+	}
+}
+
 fn traverse_and_redact_internal(value: &mut Value, parent_key: Option<&str>, depth: usize) {
 	match value {
 		Value::String(s) => {
+			// Determine which exclusions to apply based on parent key
+			let exclude_filepath = should_exclude_filepath_redaction(parent_key);
+			let exclude_name = should_exclude_name_redaction(parent_key);
+
 			// Special case: at depth == 2 (inside first-level objects like "payload"),
 			// if parent_key is exactly "url" or "referrer", parse it and only skip filepath checks for the path part
 			if depth == 2 && (parent_key == Some("url") || parent_key == Some("referrer")) {
 				*s = redact_url(s).pretty_print();
-			} else if should_exclude_filepath_redaction(parent_key) {
+			} else if exclude_filepath && exclude_name {
+				// For fields that should exclude both filepath and name redaction,
+				// use redact_url_with_name_exclusion to handle URL parsing while excluding both
+				*s = redact_url_with_name_exclusion(s).pretty_print();
+			} else if exclude_filepath {
 				// For URL-related fields, use the same logic as redact_url:
 				// exclude filepath redaction but still check for other PII,
 				// and apply full redaction to query strings
 				*s = redact_url(s).pretty_print();
+			} else if exclude_name {
+				// For metadata/configuration fields, exclude name redaction
+				// but still check for other PII patterns
+				*s = redact(s, Some(&["PROXY-NAME"])).pretty_print();
 			} else {
 				*s = redact(s, None).pretty_print();
 			}
@@ -174,6 +213,29 @@ fn redact_url(url: &str) -> Rule {
 	} else {
 		// No query string, so trust the entire URL (exclude filepath checks)
 		redact(url, Some(&["PROXY-FILEPATH"]))
+	}
+}
+
+/// Redacts a URL by splitting it into path and query parts,
+/// excluding both filepath and name checks for the path but applying them to the query
+fn redact_url_with_name_exclusion(url: &str) -> Rule {
+	// Find the query string separator
+	if let Some(query_start) = url.find('?') {
+		let path_part = &url[..query_start];
+		let query_part = &url[query_start..]; // includes the '?'
+
+		// Redact path part with filepath and name exclusion
+		let redacted_path =
+			redact(path_part, Some(&["PROXY-FILEPATH", "PROXY-NAME"])).pretty_print();
+
+		// Redact query part without exclusions (filepath and name checks apply here)
+		let redacted_query = redact(query_part, None).pretty_print();
+
+		// Combine the results
+		Rule::Original(format!("{}{}", redacted_path, redacted_query))
+	} else {
+		// No query string, so trust the entire URL (exclude filepath and name checks)
+		redact(url, Some(&["PROXY-FILEPATH", "PROXY-NAME"]))
 	}
 }
 
