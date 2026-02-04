@@ -47,27 +47,27 @@ jobs:
     outputs:
       image: ${{ steps.nix-build.outputs.image }}
 
-  deploy-dev:
-    name: deploy-dev
-    needs: build
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: "read"
-      id-token: "write"
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download spec-dev
-        uses: actions/download-artifact@v4
-        with:
-          name: spec-dev.yaml
-
-      - name: Deploy-dev
-        uses: nais/deploy/actions/deploy@v2
-        env:
-          IMAGE: ${{ needs.build.outputs.image }}
-          CLUSTER: prod-gcp
-          RESOURCE: spec-dev.yaml
+#  deploy-dev:
+#    name: deploy-dev
+#    needs: build
+#    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+#    runs-on: ubuntu-latest
+#    permissions:
+#      contents: "read"
+#      id-token: "write"
+#    steps:
+#      - uses: actions/checkout@v4
+#      - name: Download spec-dev
+#        uses: actions/download-artifact@v4
+#        with:
+#          name: spec-dev.yaml
+#
+#      - name: Deploy-dev
+#        uses: nais/deploy/actions/deploy@v2
+#        env:
+#          IMAGE: ${{ needs.build.outputs.image }}
+#          CLUSTER: prod-gcp
+#          RESOURCE: spec-dev.yaml
 
   deploy-prod:
     name: deploy-prod
