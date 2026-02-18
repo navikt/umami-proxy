@@ -9,7 +9,6 @@ use super::privacy;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Rule {
 	Redact,             // Replace the string w/[PROXY]
-	RedactSsns(String), // Replace SSN substrings with the string [PROXY]
 	Keep(String),
 	Original(String),
 	Obfuscate(String), // Remove client IP, replace w/ours
@@ -19,18 +18,42 @@ static KEEP_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
 	Regex::new(r"((nav|test)[0-9]{6})").expect("Hard-coded regex expression should be valid")
 });
 static FNR_REGEX: Lazy<regex::Regex> = Lazy::new(|| {
-	Regex::new(r"\b\d{6}\d{5}\b").expect("Hard-coded regex expression should be valid")
+	Regex::new(r"\d{11}").expect("Hard-coded regex expression should be valid")
 });
+
+#[inline]
+fn is_hex_byte(b: u8) -> bool {
+	matches!(b, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')
+}
+
+/// Redact 11-digit Norwegian FNRs, but **do not** redact when the digit run is
+/// directly adjacent to a hex character (0-9a-fA-F). This prevents redaction
+/// inside hashes/hex strings like `abc12345678901def`.
+fn redact_fnr_not_hex_adjacent(input: &str) -> String {
+	FNR_REGEX
+		.replace_all(input, |caps: &regex::Captures| {
+			let m = caps.get(0).expect("match exists");
+			let start = m.start();
+			let end = m.end();
+
+			let bytes = input.as_bytes();
+
+			let prev_is_hex = start > 0 && is_hex_byte(bytes[start - 1]);
+			let next_is_hex = end < bytes.len() && is_hex_byte(bytes[end]);
+
+			if prev_is_hex || next_is_hex {
+				m.as_str().to_owned()
+			} else {
+				"[PROXY-FNR]".to_owned()
+			}
+		})
+		.into_owned()
+}
 
 impl Rule {
 	pub fn pretty_print(&self) -> String {
 		let redacted = "[PROXY]";
 		match self {
-			Self::RedactSsns(s) => {
-				let mut new = s.to_string();
-				new = FNR_REGEX.replace_all(&new, redacted).to_string();
-				new
-			},
 			Self::Keep(s) | Self::Original(s) | Self::Obfuscate(s) => s.to_string(),
 			Self::Redact => redacted.to_string(),
 		}
@@ -176,10 +199,22 @@ fn traverse_and_redact_internal(value: &mut Value, parent_key: Option<&str>, dep
 }
 
 fn redact(s: &str, excluded_labels: Option<&[&str]>) -> Rule {
-	// First apply PII redaction with optional exclusions
-	let pii_redacted = privacy::redact_pii_with_exclusions(s, excluded_labels);
+	// We implement FNR redaction ourselves (with a hex-adjacency guard), so we must
+	// prevent the privacy layer from redacting PROXY-FNR first (it would incorrectly
+	// redact 11-digit runs embedded in hex-like strings such as SHA tokens).
+	let mut labels: Vec<&str> = excluded_labels.map(|l| l.to_vec()).unwrap_or_default();
+	if !labels.iter().any(|l| *l == "PROXY-FNR") {
+		labels.push("PROXY-FNR");
+	}
 
-	// If PII was found and redacted, return that
+	// 1) Apply guarded FNR redaction using the original surrounding context.
+	let after_fnr = redact_fnr_not_hex_adjacent(s);
+
+	// 2) Apply general PII redaction, but with PROXY-FNR excluded so it can't reintroduce
+	//    false positives inside hex-like strings.
+	let pii_redacted = privacy::redact_pii_with_exclusions(&after_fnr, Some(labels.as_slice()));
+
+	// If anything changed (either by FNR or the privacy layer), return the redacted value.
 	if pii_redacted != s {
 		return Rule::Original(pii_redacted);
 	}
@@ -187,8 +222,6 @@ fn redact(s: &str, excluded_labels: Option<&[&str]>) -> Rule {
 	// Otherwise, apply the original redaction logic
 	if KEEP_REGEX.is_match(s) {
 		Rule::Keep(s.to_string())
-	} else if FNR_REGEX.is_match(s) {
-		Rule::RedactSsns(s.to_string())
 	} else {
 		Rule::Original(s.to_string())
 	}
@@ -1084,4 +1117,77 @@ mod tests {
 		traverse_and_redact(&mut json_data);
 		assert_eq!(json_data, expected_data);
 	}
+
+	#[test]
+	fn test_fnr_regex_does_not_match_sha1_and_hex_strings() {
+		// Test that FNR_REGEX correctly identifies 11-digit Norwegian FNRs
+		// but does NOT match digits within SHA-1 hashes or other hex strings
+
+		// Test case 1: Valid standalone FNR should be redacted
+		let input = "23031510135";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, "[PROXY-FNR]", "Standalone 11-digit FNR should be redacted");
+
+		// Test case 2: FNR in text should be redacted
+		let input = "User SSN is 23031510135 here";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, "User SSN is [PROXY-FNR] here", "FNR in text should be redacted");
+
+		// Test case 3: SHA-1 hash (40 hex chars) should NOT be redacted
+		let input = "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, input, "SHA-1 hash should NOT be redacted");
+
+		// Test case 4: SHA-1 hash with uppercase should NOT be redacted
+		let input = "A94A8FE5CCB19BA61C4C0873D391E987982FBBD3";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, input, "Uppercase SHA-1 hash should NOT be redacted");
+
+		// Test case 5: SHA-256 hash (64 hex chars) should NOT be redacted
+		let input = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, input, "SHA-256 hash should NOT be redacted");
+
+		// Test case 6: Git commit hash (40 hex chars) should NOT be redacted
+		let input = "1234567890abcdef1234567890abcdef12345678";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, input, "Git commit hash should NOT be redacted");
+
+		// Test case 7: Long digit-only string (like 40 digits) should NOT match FNR
+		let input = "1234567890123456789012345678901234567890";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, input, "40-digit string should NOT be redacted as FNR");
+
+		// Test case 8: FNR with punctuation around it should still be redacted
+		let input = "fnr:23031510135,";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, "fnr:[PROXY-FNR],", "FNR with punctuation should be redacted");
+
+		// Test case 9: Hex string with letters before digits should NOT be redacted
+		let input = "f12345678901234567890";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, input, "Hex string with letter prefix should NOT be redacted");
+
+		// Test case 10: Hex string with letters after digits should NOT be redacted
+		let input = "12345678901234567890a";
+		let result = redact(input, None).pretty_print();
+		assert_eq!(result, input, "Hex string with letter suffix should NOT be redacted");
+
+		// Test case 11: Test in JSON context with SHA-1
+		let mut json_data = json!({
+			"commit": "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
+			"user_ssn": "23031510135",
+			"hash_value": "1234567890abcdef1234567890abcdef12345678"
+		});
+
+		let expected_data = json!({
+			"commit": "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
+			"user_ssn": "[PROXY-FNR]",
+			"hash_value": "1234567890abcdef1234567890abcdef12345678"
+		});
+
+		traverse_and_redact(&mut json_data);
+		assert_eq!(json_data, expected_data, "In JSON: SHA-1 preserved, FNR redacted");
+	}
 }
+
