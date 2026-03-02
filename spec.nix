@@ -53,7 +53,7 @@
       accessPolicy.outbound.rules = [{application = upstreamUmamiFQDN;}];
       resources = {
         requests = {
-          cpu = "400m";
+          cpu = "800m";
           memory = "256Mi";
         };
       };
