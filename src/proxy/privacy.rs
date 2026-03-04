@@ -99,11 +99,12 @@ pub static PRIVACY_PATTERNS: Lazy<Vec<PrivacyPattern>> = Lazy::new(|| {
 			regex: Regex::new(r"(?<!\d)[2-9]\d{7}(?!\d)").unwrap(),
 		},
 		// Possible name (Norwegian characters, 2-3 capitalized words)
+		// Excludes common Norwegian words that look like names but aren't (e.g., "Norge")
 		PrivacyPattern {
 			_name: "Mulig navn",
 			redaction_label: "PROXY-NAME",
 			regex: Regex::new(
-				r"\b[A-ZÆØÅ][a-zæøå]{1,20}\s[A-ZÆØÅ][a-zæøå]{1,20}(?:\s[A-ZÆØÅ][a-zæøå]{1,20})?\b",
+				r"\b(?!Norge\b)[A-ZÆØÅ][a-zæøå]{1,20}\s(?!Norge\b)[A-ZÆØÅ][a-zæøå]{1,20}(?:\s(?!Norge\b)[A-ZÆØÅ][a-zæøå]{1,20})?\b",
 			)
 			.unwrap(),
 		},
@@ -1030,5 +1031,51 @@ mod tests {
 		let input = "example.com/api/v1/users/profile";
 		let result = redact_pii(input);
 		assert_eq!(result, input);
+	}
+
+	#[test]
+	fn test_norge_is_not_redacted_as_name() {
+		// "Norge" should not be treated as a name component
+		let input = "Hele Norge";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
+
+		let input = "Bank Norge";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
+
+		let input = "Norge Bank";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
+
+		let input = "Velkommen til Norge";
+		let result = redact_pii(input);
+		assert_eq!(result, "Velkommen til Norge");
+
+		// "Norge" as the middle word in a 3-word combination
+		let input = "Stor Norge Bank";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
+
+		// "Norge" as the last word in a 3-word combination
+		// "Hele Vakre" is still matched as a 2-word name, but "Norge" is preserved
+		let input = "Hele Vakre Norge";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-NAME] Norge");
+
+		// "Norge" standalone should not be affected
+		let input = "Norge";
+		let result = redact_pii(input);
+		assert_eq!(result, input);
+
+		// Real names should still be redacted
+		let input = "Ola Nordmann";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-NAME]");
+
+		// Three-word real names should still be redacted
+		let input = "Ola Per Nordmann";
+		let result = redact_pii(input);
+		assert_eq!(result, "[PROXY-NAME]");
 	}
 }
