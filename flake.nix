@@ -44,12 +44,14 @@
 
       imageTag = "v${cargoDetails.package.version}-${dockerTag}";
       imageName = "${pname}:${imageTag}";
+      imageNameDev = "${pname}-dev:${imageTag}";
       teamName = "team-researchops";
       my-spec = import ./spec.nix {
         inherit lib teamName imageName pname;
       };
       my-spec-dev = import ./spec-dev.nix {
-        inherit lib teamName imageName;
+        inherit lib teamName;
+        imageName = imageNameDev;
         pname = "${pname}-dev";
       };
 
@@ -137,6 +139,7 @@
         rust = cargo-package;
         sbom = cargo-sbom;
         image = docker;
+        image-dev = docker-dev;
         config = pkgs.stdenv.mkDerivation rec {
           name = "config";
           version = "1.0.0";
@@ -165,16 +168,49 @@
         in
           pkgs.writeText "spec-dev.yaml" yamlContent;
 
-        docker = pkgs.dockerTools.buildImage {
-          name = pname;
-          tag = imageTag;
-          copyToRoot = pkgs.buildEnv {
-            name = "config";
-            paths = [config];
-            pathsToLink = ["/conf"];
+        docker = let
+          nginxBase = pkgs.dockerTools.pullImage {
+            imageName = "nginx";
+            imageDigest = "sha256:4ff102c97bbcc4fd01c223507584c00a04e0e20e9b4490e64e8975a15bbcc0c4";
+            sha256 = "sha256-RuK+bN0stMvKBJfML0VSjPm6sNuNXSCB7YxiYVExjWA=";
+            finalImageTag = "1.27-alpine";
           };
-          config.Entrypoint = ["${cargo-package}/bin/${pname}"];
-        };
+        in
+          pkgs.dockerTools.buildImage {
+            name = pname;
+            tag = imageTag;
+            fromImage = nginxBase;
+            copyToRoot = pkgs.buildEnv {
+              name = "nginx-config";
+              paths = [
+                (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx.conf))
+              ];
+              pathsToLink = ["/etc/nginx"];
+            };
+            config.Cmd = ["nginx" "-g" "daemon off;"];
+          };
+
+        docker-dev = let
+          nginxBase = pkgs.dockerTools.pullImage {
+            imageName = "nginx";
+            imageDigest = "sha256:4ff102c97bbcc4fd01c223507584c00a04e0e20e9b4490e64e8975a15bbcc0c4";
+            sha256 = "sha256-RuK+bN0stMvKBJfML0VSjPm6sNuNXSCB7YxiYVExjWA=";
+            finalImageTag = "1.27-alpine";
+          };
+        in
+          pkgs.dockerTools.buildImage {
+            name = "${pname}-dev";
+            tag = imageTag;
+            fromImage = nginxBase;
+            copyToRoot = pkgs.buildEnv {
+              name = "nginx-config-dev";
+              paths = [
+                (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx-dev.conf))
+              ];
+              pathsToLink = ["/etc/nginx"];
+            };
+            config.Cmd = ["nginx" "-g" "daemon off;"];
+          };
       };
 
       # Now `nix fmt` works!

@@ -47,55 +47,55 @@ jobs:
     outputs:
       image: ${{ steps.nix-build.outputs.image }}
 
-#  deploy-dev:
-#    name: deploy-dev
+  deploy-dev:
+    name: deploy-dev
+    needs: build
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download spec-dev
+        uses: actions/download-artifact@v4
+        with:
+          name: spec-dev.yaml
+
+      - name: Deploy-dev
+        uses: nais/deploy/actions/deploy@v2
+        env:
+          IMAGE: ${{ needs.build.outputs.image }}
+          CLUSTER: dev-gcp
+          RESOURCE: spec-dev.yaml
+
+#  deploy-prod:
+#    name: deploy-prod
 #    needs: build
-#    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
+#    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
 #    runs-on: ubuntu-latest
 #    permissions:
-#      contents: "read"
+#      contents: "write"
 #      id-token: "write"
 #    steps:
 #      - uses: actions/checkout@v4
-#      - name: Download spec-dev
+#      - name: Download spec
 #        uses: actions/download-artifact@v4
 #        with:
-#          name: spec-dev.yaml
+#          name: spec.yaml
 #
-#      - name: Deploy-dev
+#      - name: Deploy-prod
 #        uses: nais/deploy/actions/deploy@v2
 #        env:
 #          IMAGE: ${{ needs.build.outputs.image }}
 #          CLUSTER: prod-gcp
-#          RESOURCE: spec-dev.yaml
-
-  deploy-prod:
-    name: deploy-prod
-    needs: build
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: "write"
-      id-token: "write"
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download spec
-        uses: actions/download-artifact@v4
-        with:
-          name: spec.yaml
-
-      - name: Deploy-prod
-        uses: nais/deploy/actions/deploy@v2
-        env:
-          IMAGE: ${{ needs.build.outputs.image }}
-          CLUSTER: prod-gcp
-          RESOURCE: spec.yaml
-
-      - name: Create deployment tag
-        if: success()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          TAG_NAME="prod-$(date -u +'%Y.%m.%d-%H%M%S')"
-          git tag -a "$TAG_NAME" -m "Production deployment of ${{ github.sha }}"
-          git push origin "$TAG_NAME"
+#          RESOURCE: spec.yaml
+#
+#      - name: Create deployment tag
+#        if: success()
+#        run: |
+#          git config user.name "github-actions[bot]"
+#          git config user.email "github-actions[bot]@users.noreply.github.com"
+#          TAG_NAME="prod-$(date -u +'%Y.%m.%d-%H%M%S')"
+#          git tag -a "$TAG_NAME" -m "Production deployment of ${{ github.sha }}"
+#          git push origin "$TAG_NAME"
