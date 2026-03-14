@@ -177,7 +177,7 @@
           fromImage = pkgs.dockerTools.pullImage {
             imageName = "cgr.dev/chainguard/nginx";
             imageDigest = "sha256:0139db41f6bc4cc30a9502ec58e90029315273dd474f309e0e02d8509ae02b18";
-            sha256 = "0000000000000000000000000000000000000000000000000000";
+            sha256 = "sha256-7/bBo2OxD7hbiV6rLFVsaLuCYbC624lTDuEztZPNego=";
             finalImageTag = "latest";
           };
           config = {
