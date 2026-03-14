@@ -29,6 +29,12 @@
     };
     spec = {
       ingresses = ["https://umami.nav.no/api/send"];
+      redirects = [
+        {
+          from = "https://umami.nav.no/api/send";
+          to = "https://reops-event-proxy.nav.no/api/send";
+        }
+      ];
       image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 6191;
       liveness = {
