@@ -44,15 +44,12 @@
 
       imageTag = "v${cargoDetails.package.version}-${dockerTag}";
       imageName = "${pname}:${imageTag}";
-      imageNameDev = "${pname}-dev:${imageTag}";
       teamName = "team-researchops";
       my-spec = import ./spec.nix {
         inherit lib teamName imageName pname;
       };
       my-spec-dev = import ./spec-dev.nix {
-        inherit lib teamName;
-        imageName = imageNameDev;
-        pname = "${pname}-dev";
+        inherit lib teamName imageName pname;
       };
 
       # Compile (and cache) cargo dependencies _only_
@@ -139,7 +136,6 @@
         rust = cargo-package;
         sbom = cargo-sbom;
         image = docker;
-        image-dev = docker-dev;
         config = pkgs.stdenv.mkDerivation rec {
           name = "config";
           version = "1.0.0";
@@ -177,27 +173,6 @@
               pkgs.nginx
               pkgs.dockerTools.fakeNss
               (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx.conf))
-            ];
-            pathsToLink = ["/bin" "/etc" "/var"];
-          };
-          runAsRoot = ''
-            mkdir -p /tmp /var/log/nginx
-          '';
-          config = {
-            Cmd = ["nginx" "-g" "daemon off;"];
-            ExposedPorts."8080/tcp" = {};
-          };
-        };
-
-        docker-dev = pkgs.dockerTools.buildImage {
-          name = "${pname}-dev";
-          tag = imageTag;
-          copyToRoot = pkgs.buildEnv {
-            name = "nginx-root-dev";
-            paths = [
-              pkgs.nginx
-              pkgs.dockerTools.fakeNss
-              (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx-dev.conf))
             ];
             pathsToLink = ["/bin" "/etc" "/var"];
           };
