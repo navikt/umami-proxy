@@ -168,49 +168,41 @@
         in
           pkgs.writeText "spec-dev.yaml" yamlContent;
 
-        docker = let
-          nginxBase = pkgs.dockerTools.pullImage {
-            imageName = "nginx";
-            imageDigest = "sha256:4ff102c97bbcc4fd01c223507584c00a04e0e20e9b4490e64e8975a15bbcc0c4";
-            sha256 = "sha256-RuK+bN0stMvKBJfML0VSjPm6sNuNXSCB7YxiYVExjWA=";
-            finalImageTag = "1.27-alpine";
+        docker = pkgs.dockerTools.buildLayeredImage {
+          name = pname;
+          tag = imageTag;
+          contents = [
+            pkgs.nginx
+            pkgs.dockerTools.fakeNss
+            (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx.conf))
+          ];
+          extraCommands = ''
+            mkdir -p tmp
+            mkdir -p var/log/nginx
+          '';
+          config = {
+            Cmd = ["nginx" "-g" "daemon off;"];
+            ExposedPorts."8080/tcp" = {};
           };
-        in
-          pkgs.dockerTools.buildImage {
-            name = pname;
-            tag = imageTag;
-            fromImage = nginxBase;
-            copyToRoot = pkgs.buildEnv {
-              name = "nginx-config";
-              paths = [
-                (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx.conf))
-              ];
-              pathsToLink = ["/etc/nginx"];
-            };
-            config.Cmd = ["nginx" "-g" "daemon off;"];
-          };
+        };
 
-        docker-dev = let
-          nginxBase = pkgs.dockerTools.pullImage {
-            imageName = "nginx";
-            imageDigest = "sha256:4ff102c97bbcc4fd01c223507584c00a04e0e20e9b4490e64e8975a15bbcc0c4";
-            sha256 = "sha256-RuK+bN0stMvKBJfML0VSjPm6sNuNXSCB7YxiYVExjWA=";
-            finalImageTag = "1.27-alpine";
+        docker-dev = pkgs.dockerTools.buildLayeredImage {
+          name = "${pname}-dev";
+          tag = imageTag;
+          contents = [
+            pkgs.nginx
+            pkgs.dockerTools.fakeNss
+            (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx-dev.conf))
+          ];
+          extraCommands = ''
+            mkdir -p tmp
+            mkdir -p var/log/nginx
+          '';
+          config = {
+            Cmd = ["nginx" "-g" "daemon off;"];
+            ExposedPorts."8080/tcp" = {};
           };
-        in
-          pkgs.dockerTools.buildImage {
-            name = "${pname}-dev";
-            tag = imageTag;
-            fromImage = nginxBase;
-            copyToRoot = pkgs.buildEnv {
-              name = "nginx-config-dev";
-              paths = [
-                (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx-dev.conf))
-              ];
-              pathsToLink = ["/etc/nginx"];
-            };
-            config.Cmd = ["nginx" "-g" "daemon off;"];
-          };
+        };
       };
 
       # Now `nix fmt` works!
