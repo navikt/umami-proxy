@@ -17,7 +17,7 @@
       };
     };
     spec = {
-      ingresses = ["https://umami-dev.nav.no/api/send"];
+      ingresses = ["https://umami-dev.ekstern.dev.no/api/send"];
       image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
       port = 8080;
       liveness = {
