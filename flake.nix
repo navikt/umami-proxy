@@ -168,17 +168,20 @@
         in
           pkgs.writeText "spec-dev.yaml" yamlContent;
 
-        docker = pkgs.dockerTools.buildLayeredImage {
+        docker = pkgs.dockerTools.buildImage {
           name = pname;
           tag = imageTag;
-          contents = [
-            pkgs.nginx
-            pkgs.dockerTools.fakeNss
-            (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx.conf))
-          ];
-          extraCommands = ''
-            mkdir -p tmp
-            mkdir -p var/log/nginx
+          copyToRoot = pkgs.buildEnv {
+            name = "nginx-root";
+            paths = [
+              pkgs.nginx
+              pkgs.dockerTools.fakeNss
+              (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx.conf))
+            ];
+            pathsToLink = ["/bin" "/etc" "/var"];
+          };
+          runAsRoot = ''
+            mkdir -p /tmp /var/log/nginx
           '';
           config = {
             Cmd = ["nginx" "-g" "daemon off;"];
@@ -186,17 +189,20 @@
           };
         };
 
-        docker-dev = pkgs.dockerTools.buildLayeredImage {
+        docker-dev = pkgs.dockerTools.buildImage {
           name = "${pname}-dev";
           tag = imageTag;
-          contents = [
-            pkgs.nginx
-            pkgs.dockerTools.fakeNss
-            (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx-dev.conf))
-          ];
-          extraCommands = ''
-            mkdir -p tmp
-            mkdir -p var/log/nginx
+          copyToRoot = pkgs.buildEnv {
+            name = "nginx-root-dev";
+            paths = [
+              pkgs.nginx
+              pkgs.dockerTools.fakeNss
+              (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx-dev.conf))
+            ];
+            pathsToLink = ["/bin" "/etc" "/var"];
+          };
+          runAsRoot = ''
+            mkdir -p /tmp /var/log/nginx
           '';
           config = {
             Cmd = ["nginx" "-g" "daemon off;"];
