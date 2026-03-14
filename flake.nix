@@ -182,7 +182,7 @@
             ln -sf /dev/stderr /var/log/nginx/error.log
           '';
           config = {
-            Cmd = ["nginx" "-e" "/dev/stderr" "-g" "daemon off;"];
+            Cmd = ["nginx" "-e" "/dev/stderr" "-g" "daemon off; pid /tmp/nginx.pid;"];
             ExposedPorts."8080/tcp" = {};
           };
         };
