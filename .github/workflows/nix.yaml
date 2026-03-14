@@ -33,7 +33,6 @@ jobs:
           team: team-researchops
           identity_provider: projects/898056957967/locations/global/workloadIdentityPools/nav-identity-pool/providers/github-oidc-provider
           project_id: nais-management-233d
-          debug: true
 
       - name: Build spec-dev
         run: nix build .#spec-dev --out-link spec-dev.yaml
