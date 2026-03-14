@@ -49,8 +49,7 @@
         inherit lib teamName imageName pname;
       };
       my-spec-dev = import ./spec-dev.nix {
-        inherit lib teamName imageName;
-        pname = "${pname}-dev";
+        inherit lib teamName imageName pname;
       };
 
       # Compile (and cache) cargo dependencies _only_
@@ -169,11 +168,23 @@
           name = pname;
           tag = imageTag;
           copyToRoot = pkgs.buildEnv {
-            name = "config";
-            paths = [config];
-            pathsToLink = ["/conf"];
+            name = "nginx-root";
+            paths = [
+              (pkgs.writeTextDir "etc/nginx/nginx.conf" (builtins.readFile ./nginx/nginx.conf))
+            ];
+            pathsToLink = ["/etc"];
           };
-          config.Entrypoint = ["${cargo-package}/bin/${pname}"];
+          fromImage = pkgs.dockerTools.pullImage {
+            imageName = "cgr.dev/chainguard/nginx";
+            imageDigest = "sha256:0139db41f6bc4cc30a9502ec58e90029315273dd474f309e0e02d8509ae02b18";
+            sha256 = "sha256-7/bBo2OxD7hbiV6rLFVsaLuCYbC624lTDuEztZPNego=";
+            finalImageTag = "latest";
+          };
+          config = {
+            Entrypoint = ["nginx"];
+            Cmd = ["-c" "/etc/nginx/nginx.conf" "-e" "/dev/stderr" "-g" "daemon off; pid /tmp/nginx.pid;"];
+            ExposedPorts."8080/tcp" = {};
+          };
         };
       };
 
