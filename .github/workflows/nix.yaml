@@ -33,6 +33,7 @@ jobs:
           team: team-researchops
           identity_provider: projects/898056957967/locations/global/workloadIdentityPools/nav-identity-pool/providers/github-oidc-provider
           project_id: nais-management-233d
+          debug: true
 
       - name: Build spec-dev
         run: nix build .#spec-dev --out-link spec-dev.yaml
@@ -42,6 +43,7 @@ jobs:
         with:
           name: spec-dev.yaml
           path: spec-dev.yaml
+          overwrite: true
 
       - name: Build spec
         run: nix build .#spec --out-link spec.yaml
@@ -51,6 +53,7 @@ jobs:
         with:
           name: spec.yaml
           path: spec.yaml
+          overwrite: true
 
     outputs:
       image: ${{ steps.nix-build.outputs.image }}
