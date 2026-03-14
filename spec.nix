@@ -42,7 +42,10 @@
         cpuThresholdPercentage = 50;
       };
       accessPolicy.outbound.rules = [
-        {application = "reops-event-proxy";}
+        {
+          application = "reops-event-proxy";
+          namespace = "team-researchops";
+        }
       ];
       resources = {
         requests = {
