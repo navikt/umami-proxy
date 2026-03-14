@@ -178,9 +178,11 @@
           };
           runAsRoot = ''
             mkdir -p /tmp /var/log/nginx
+            ln -sf /dev/stdout /var/log/nginx/access.log
+            ln -sf /dev/stderr /var/log/nginx/error.log
           '';
           config = {
-            Cmd = ["nginx" "-g" "daemon off;"];
+            Cmd = ["nginx" "-e" "/dev/stderr" "-g" "daemon off;"];
             ExposedPorts."8080/tcp" = {};
           };
         };
