@@ -37,8 +37,8 @@
         timeout = 1;
       };
       replicas = {
-        min = 2;
-        max = 10;
+        min = 4;
+        max = 14;
         cpuThresholdPercentage = 50;
       };
       accessPolicy.outbound.rules = [
