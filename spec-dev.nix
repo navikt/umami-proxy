@@ -7,7 +7,6 @@
 }: let
   name = pname;
   namespace = teamName;
-  upstreamUmamiFQDN = "umami-dev";
   naisApp = {
     apiVersion = "nais.io/v1alpha1";
     kind = "Application";
@@ -15,52 +14,47 @@
       inherit name namespace;
       labels = {
         team = teamName;
-        apiserver-access = "enabled";
-      };
-      annotations = {
-        # V These can be tuned, for sure
-        "config.linkerd.io/proxy-cpu-limit" = "4"; # Ridic number
-        "config.linkerd.io/proxy-cpu-request" = "500m";
-        "config.linkerd.io/proxy-memory-request" = "512Mi";
-        "config.linkerd.io/proxy-memory-limit" = "1024Mi";
-        "config.linkerd.io/proxy-inbound-connect-timeout" = "500ms";
-        "config.linkerd.io/proxy-outbound-connect-timeout" = "500ms";
       };
     };
     spec = {
-      ingresses = ["https://umami-dev.nav.no/api/send"];
+      ingresses = ["https://umami-dev.ekstern.dev.nav.no/api/send"];
       image = "europe-north1-docker.pkg.dev/nais-management-233d/${teamName}/${imageName}";
-      port = 6191;
+      port = 8080;
       liveness = {
-        failureThreshold = 10;
-        initialDelay = 2;
         path = "/is_alive";
+        port = 8080;
+        initialDelay = 2;
         periodSeconds = 10;
-        port = 6969;
+        failureThreshold = 10;
         timeout = 1;
       };
-      prometheus = {
-        enabled = true;
-        path = "/metrics";
-        port = "9090";
+      readiness = {
+        path = "/is_ready";
+        port = 8080;
+        initialDelay = 2;
+        periodSeconds = 10;
+        failureThreshold = 10;
+        timeout = 1;
       };
       replicas = {
-        min = 2;
-        max = 20;
-        cpuThresholdPercentage = 50;
-        scalingStrategy.cpu.thresholdPercentage = 50;
+        min = 1;
+        max = 2;
+        cpuThresholdPercentage = 80;
       };
-      accessPolicy.outbound.rules = [{application = upstreamUmamiFQDN;}];
+      accessPolicy.outbound.rules = [
+        {
+          application = "reops-event-proxy";
+          namespace = "team-researchops";
+        }
+      ];
       resources = {
         requests = {
-          cpu = "800m";
-          memory = "256Mi";
+          cpu = "50m";
+          memory = "32Mi";
         };
-      };
-      env = lib.attrsToList {
-        RUST_LOG = "INFO";
-        UMAMI_HOST = "${upstreamUmamiFQDN}.${teamName}.svc.cluster.local";
-        UMAMI_PORT = "80";
+        limits = {
+          memory = "32Mi";
+        };
       };
     };
   };
