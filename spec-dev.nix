@@ -49,11 +49,11 @@
       ];
       resources = {
         requests = {
-          cpu = "800m";
-          memory = "256Mi";
+          cpu = "50m";
+          memory = "32Mi";
         };
         limits = {
-          memory = "512Mi";
+          memory = "32Mi";
         };
       };
     };

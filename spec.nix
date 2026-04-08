@@ -37,8 +37,8 @@
         timeout = 1;
       };
       replicas = {
-        min = 4;
-        max = 14;
+        min = 1;
+        max = 3;
         cpuThresholdPercentage = 50;
       };
       accessPolicy.outbound.rules = [
@@ -49,11 +49,11 @@
       ];
       resources = {
         requests = {
-          cpu = "800m";
-          memory = "256Mi";
+          cpu = "50m";
+          memory = "32Mi";
         };
         limits = {
-          memory = "512Mi";
+          memory = "124Mi";
         };
       };
     };
